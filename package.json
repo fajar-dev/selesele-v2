@@ -19,9 +19,11 @@
     "typecheck:server": "bun --bun tsc --noEmit --project .nuxt/tsconfig.server.json",
     "db:reset": "bun scripts/reset-database.ts",
     "test:integration": "bun scripts/integration.ts",
-    "verify": "bun run db:check && bun run audit:code && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration",
+    "test:knowledge": "bun scripts/knowledge-integration.ts",
+    "verify": "bun run db:check && bun run audit:code && bun run audit:styles && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration && bun run test:knowledge",
     "db:check": "bun --bun drizzle-kit check",
-    "audit:code": "bun --bun knip"
+    "audit:code": "bun --bun knip",
+    "audit:styles": "bun scripts/check-styles.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.90",

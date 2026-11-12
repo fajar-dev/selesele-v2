@@ -34,6 +34,7 @@ export default withNuxt(
   {
     files: ['server/features/**/application/**/*.ts'],
     rules: {
+      'no-console': 'error',
       'no-restricted-imports': restricted([
         ...frameworkAndDatabase, 'node:*', '**/infrastructure/**', '**/platform/**', '**/bootstrap/**'
       ], 'Application use cases depend on domain ports; inject runtime and persistence adapters.')

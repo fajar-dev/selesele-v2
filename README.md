@@ -1,7 +1,7 @@
 # SeleSele
 
 Aplikasi catatan dan kolaborasi tim seperti Notion
-Fitur utama: workspace dengan undangan anggota, folder dan page dengan drag-and-drop, editor kolaboratif realtime, komentar pada teks, ekspor Markdown, login Microsoft, serta bantuan menulis melalui AI gateway OpenAI-compatible.
+Fitur utama: workspace dengan undangan anggota, folder dan page dengan drag-and-drop, editor kolaboratif realtime, komentar pada teks, ekspor Markdown, login Microsoft, pencarian global, favorites/recent, template, riwayat versi, trash, notifikasi realtime, serta bantuan menulis dan tanya jawab workspace melalui AI gateway OpenAI-compatible.
 
 ## Menjalankan dengan Docker
 
@@ -102,7 +102,13 @@ AI menggunakan endpoint `/chat/completions` dengan streaming. Isi `AI_BASE_URL` 
 2. Ubah nama, ikon, dan deskripsi langsung pada heading.
 3. Undang anggota melalui **Members**; undangan muncul di home penerima setelah login.
 4. Tambahkan folder/page melalui tombol tambah di sidebar. Pindahkan page dengan drag-and-drop.
-5. Tulis bersama secara realtime. Blok teks lalu pilih **Comment** untuk berdiskusi atau gunakan bantuan AI di editor.
+5. Pilih **Templates** untuk membuat meeting notes, SOP, project brief, atau dokumentasi siap pakai.
+6. Gunakan **Ctrl/Cmd + K** untuk mencari judul dan isi dokumen. Tandai page dengan tombol bintang agar masuk **Favorites**; **Recently opened** menampilkan dokumen terakhir dibuka.
+7. Tulis bersama secara realtime. Blok teks lalu pilih **Comment**; gunakan tombol mention pada composer untuk menyebut anggota. Notifikasi undangan, mention, dan balasan muncul pada ikon lonceng tanpa refresh manual.
+8. Gunakan menu link editor untuk menautkan page dalam workspace. **Backlinks** menampilkan page yang merujuk dokumen tersebut.
+9. Buka **Version history** untuk preview, menyimpan snapshot manual, atau restore. Maksimal 100 versi; snapshot otomatis dibuat paling sering sekali per menit, dan isi saat ini disimpan sebelum restore.
+10. Item yang dihapus masuk **Trash**. Folder menyimpan page di dalamnya; workspace yang dihapus hanya bisa dipulihkan oleh owner. Penghapusan permanen memerlukan owner/admin (workspace: owner).
+11. Pilih **Ask workspace** untuk tanya jawab berdasarkan maksimal lima cuplikan dokumen yang dapat diakses, dengan referensi sumber. Kualitas jawaban bergantung pada dokumen dan model gateway.
 
 ## Perintah penting
 

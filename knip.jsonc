@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   // Nuxt discovers routes/plugins/components; these are additional CLI entry points.
-  "entry": ["scripts/workspace-smoke.ts", "ecosystem.config.cjs"],
+  "entry": ["scripts/workspace-smoke.ts", "scripts/knowledge-smoke.ts", "ecosystem.config.cjs"],
   "ignoreDependencies": [
     // Nuxt Icon discovers installed collections from icon names in templates/config.
     "@iconify-json/lucide",
