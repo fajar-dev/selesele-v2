@@ -1,54 +1,69 @@
 <script setup lang="ts">
+import AppBrand from '~/components/shell/AppBrand.vue'
+import AuthWorkspacePreview from './AuthWorkspacePreview.vue'
+
 const route = useRoute()
 const failed = computed(() => route.query.error === 'microsoft')
 </script>
 
 <template>
-  <div class="min-h-screen grid lg:grid-cols-2 bg-default">
-    <section class="flex flex-col px-6 sm:px-12 xl:px-20 py-7 min-h-screen">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2.5 font-semibold text-lg tracking-tight text-highlighted">
-          <img
-            src="/logo.png"
-            alt=""
-            class="size-9 object-contain grayscale"
-          >SeleSele<span class="text-primary -ml-2">.</span>
-        </div><UColorModeButton color="neutral" />
+  <main class="auth-screen">
+    <header class="auth-header">
+      <AppBrand class="auth-brand" />
+      <UColorModeButton
+        size="sm"
+        color="neutral"
+        variant="ghost"
+      />
+    </header>
+    <section
+      class="auth-story"
+      aria-label="A home for your ideas"
+    >
+      <div class="auth-story-content">
+        <div class="auth-story-label">
+          <span class="auth-story-rule" /> A little space. A lot of possibility.
+        </div>
+        <h2>Great ideas deserve<br>a place to <span>grow.</span></h2>
+        <p class="auth-story-description">
+          From the first thought to the next big thing.<br>Bring it all together in SeleSele.
+        </p>
+        <AuthWorkspacePreview />
+        <div class="auth-story-features">
+          <span><UIcon name="i-lucide-pencil-line" /> Write freely</span>
+          <span><UIcon name="i-lucide-folders" /> Stay organized</span>
+          <span><UIcon name="i-lucide-users" /> Think together</span>
+        </div>
       </div>
-      <div class="flex flex-1 items-center justify-center py-12">
-        <div class="w-full max-w-sm app-enter">
-          <div class="eyebrow inline-flex items-center gap-2 mb-6">
-            <UIcon
-              name="i-lucide-notebook-pen"
-              class="size-3.5"
-            /> A home for your ideas
-          </div>
-          <h1 class="text-4xl sm:text-[2.75rem] font-semibold tracking-[-0.045em] leading-[1.12] text-highlighted">
-            Less scattered.<br>More together<span class="text-primary">.</span>
-          </h1>
-          <p class="text-muted leading-relaxed mt-5 mb-8 text-sm">
-            Your notes, projects, and people. One thoughtful workspace to bring it all together.
-          </p>
-          <UAlert
-            v-if="failed"
-            color="error"
-            variant="soft"
-            title="Microsoft sign-in failed"
-            description="Your sign-in was cancelled, expired, or could not be verified. Please try again."
-            class="mb-5"
-          />
-          <UButton
-            to="/api/auth/microsoft"
-            external
-            size="lg"
-            color="neutral"
-            variant="outline"
-            class="w-full justify-center py-3 bg-elevated hover:bg-muted border-default"
-          >
-            <template #leading>
+      <p class="auth-story-footer">
+        A quieter place for your best work.
+      </p>
+    </section>
+    <section class="auth-entry">
+      <div class="auth-entry-content app-enter">
+        <h1>Good work<br>starts here<span class="text-dimmed">.</span></h1>
+        <p class="auth-entry-description text-sm leading-6 text-muted mt-5 mb-8 max-w-80">
+          One home for your notes, your projects, and the people you build with.
+        </p>
+        <UAlert
+          v-if="failed"
+          color="error"
+          variant="soft"
+          title="Microsoft sign-in failed"
+          description="Your sign-in was cancelled, expired, or could not be verified. Please try again."
+          class="mb-5"
+        />
+        <UButton
+          to="/api/auth/microsoft"
+          external
+          size="lg"
+          class="w-full justify-center min-h-12 gap-3 auth-sign-in"
+        >
+          <template #leading>
+            <span class="auth-microsoft-mark">
               <svg
                 viewBox="0 0 21 21"
-                class="w-5 h-5"
+                class="size-4"
                 aria-hidden="true"
               >
                 <path
@@ -68,56 +83,90 @@ const failed = computed(() => route.query.error === 'microsoft')
                   d="M11 11h10v10H11z"
                 />
               </svg>
-            </template>
-            Continue with Microsoft
-          </UButton>
-          <div class="flex items-center justify-center gap-1.5 mt-4 text-xs text-muted">
+            </span>
+          </template>
+          Continue with Microsoft
+          <template #trailing>
             <UIcon
-              name="i-lucide-lock-keyhole"
-              class="size-3"
-            /> Secure sign-in with your organization
-          </div>
+              name="i-lucide-arrow-right"
+              class="size-4 ms-auto opacity-70"
+            />
+          </template>
+        </UButton>
+        <div class="auth-account-note">
+          <UIcon
+            name="i-lucide-shield-check"
+            class="size-4 shrink-0 mt-0.5 text-muted"
+          />
+          <p>Use your organization’s Microsoft account.<br><span class="text-muted">Your team’s space is just one sign-in away.</span></p>
         </div>
       </div>
-      <p class="text-xs text-muted">
-        A little space. A lot of possibility.
+      <p class="auth-entry-footer">
+        Less scattered. More together.
       </p>
     </section>
-    <section class="hidden lg:flex flex-col justify-center border-l border-default px-12 xl:px-20 bg-default">
-      <div class="max-w-md w-full mx-auto">
-        <p class="eyebrow mb-6">
-          Think clearly. Work together.
-        </p>
-        <h2 class="text-5xl font-semibold tracking-[-0.045em] leading-[1.12] text-highlighted">
-          Everything starts<br>with a page.
-        </h2>
-        <p class="text-sm leading-relaxed text-muted mt-6 mb-12">
-          One place to organize your knowledge and move your team's work forward.
-        </p>
-        <div class="border-t border-default">
-          <div
-            v-for="feature in [
-              { icon: 'i-lucide-panels-top-left', title: 'A workspace for your team', description: 'Bring your people and projects together.' },
-              { icon: 'i-lucide-folder', title: 'A place for every page', description: 'Keep your notes organized in folders.' },
-              { icon: 'i-lucide-pencil-line', title: 'Ideas, in sync', description: 'Write and collaborate in real time.' }
-            ]"
-            :key="feature.title"
-            class="flex gap-4 py-6 border-b border-default"
-          >
-            <UIcon
-              :name="feature.icon"
-              class="size-5 shrink-0 mt-0.5 text-highlighted"
-            />
-            <div>
-              <h3 class="text-sm font-medium text-highlighted">
-                {{ feature.title }}
-              </h3><p class="text-sm text-muted mt-1">
-                {{ feature.description }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
+  </main>
 </template>
+
+<style scoped>
+.auth-screen { position: relative; height: 100svh; overflow: clip; background: var(--ui-bg); }
+.auth-header { position: absolute; inset: 0 0 auto; z-index: 2; display: flex; align-items: center; justify-content: space-between; height: 72px; padding-inline: 20px; }
+.auth-brand { color: var(--ui-text-highlighted); }
+.auth-story { display: none; }
+.auth-entry { height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: 100px 28px 24px; }
+.auth-entry-content { width: 100%; max-width: 360px; margin: auto; }
+.auth-entry h1 { color: var(--ui-text-highlighted); font-size: 34px; font-weight: 600; line-height: 1.15; letter-spacing: -1.3px; }
+.auth-microsoft-mark { display: grid; place-items: center; width: 26px; height: 26px; background: #fff; border-radius: 3px; flex-shrink: 0; }
+.auth-sign-in { padding-inline: 14px; font-size: 14px; }
+.auth-account-note { display: flex; gap: 10px; border-top: 1px solid var(--ui-border-muted); padding-top: 23px; margin-top: 26px; font-size: 11px; line-height: 1.8; color: var(--ui-text-toned); }
+.auth-entry-footer { text-align: center; font-size: 11px; color: var(--ui-text-muted); }
+@media (min-width: 1024px) {
+  .auth-screen { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .auth-header { padding-inline: 40px; }
+  .auth-brand :deep(img) { filter: grayscale(1) invert(1); }
+  .auth-entry h1 { font-size: 38px; }
+  .auth-brand { color: #fff; }
+  .auth-story { position: relative; display: flex; flex-direction: column; justify-content: center; overflow: hidden; min-height: 0; height: 100%; background: #242424; color: #fff; padding: 112px clamp(40px, 5vw, 84px) 25px; }
+  .auth-story-content { width: 100%; max-width: 540px; margin: auto; }
+  .auth-story-label { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; font-size: 10px; letter-spacing: 0.4px; color: #bbb; }
+  .auth-story-rule { width: 23px; height: 1px; background: #888; }
+  .auth-story h2 { font-size: clamp(38px, 3.8vw, 54px); font-weight: 500; line-height: 1.12; letter-spacing: -1.8px; }
+  .auth-story h2 span { color: #c5c5c5; }
+  .auth-story-description { margin-top: 20px; color: #b8b8b8; font-size: 13px; line-height: 1.8; }
+  .auth-story-features { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 46px; color: #c6c6c6; font-size: 10px; }
+  .auth-story-features > span { display: inline-flex; align-items: center; gap: 7px; }
+  .auth-story-features :deep(.iconify) { width: 14px; height: 14px; }
+  .auth-story-footer { margin-top: 45px; color: #8f8f8f; font-size: 10px; }
+  .auth-entry { padding: 110px 50px 25px; }
+}
+@media (min-width: 1600px) {
+  .auth-story { padding-inline: 100px; }
+  .auth-header { padding-inline: 40px; }
+}
+@media (max-height: 850px) {
+  .auth-story-label { margin-bottom: 18px; }
+  .auth-story-description { margin-top: 14px; }
+  .auth-story-features { margin-top: 35px; }
+  .auth-story-footer { margin-top: 25px; }
+}
+@media (max-height: 720px) {
+  .auth-story { padding-top: 95px; }
+  .auth-story-features, .auth-story-footer { display: none; }
+  .auth-entry-description { font-size: 13px; line-height: 1.7; margin-top: 12px; margin-bottom: 20px; }
+  .auth-account-note { padding-top: 16px; margin-top: 18px; }
+}
+@media (max-height: 600px) {
+  .auth-entry { padding-top: 85px; padding-bottom: 18px; }
+  .auth-entry-footer { display: none; }
+  .auth-story-description { display: none; }
+}
+@media (max-height: 430px) {
+  .auth-entry { padding-top: 72px; padding-bottom: 12px; }
+  .auth-entry h1 { font-size: 28px; line-height: 1.15; margin-bottom: 18px; }
+  .auth-entry-description, .auth-account-note { display: none; }
+  .auth-story h2 { font-size: 34px; }
+}
+@media (min-width: 640px) {
+  .auth-header { padding-inline: 40px; }
+}
+</style>

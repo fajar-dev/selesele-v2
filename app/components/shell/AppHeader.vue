@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppBrand from './AppBrand.vue'
 import { useAuth } from '~/features/auth/composables/useAuth'
 import type { DropdownMenuItem } from '@nuxt/ui'
 
@@ -23,10 +24,10 @@ async function logout(): Promise<void> {
 <template>
   <UHeader
     class="z-10 bg-default border-muted"
-    :class="insideWorkspace ? '[--ui-header-height:3.25rem]' : '[--ui-header-height:3.75rem]'"
+    :class="insideWorkspace ? '[--ui-header-height:3.25rem]' : '[--ui-header-height:4.5rem]'"
     :toggle="false"
     :ui="{
-      container: insideWorkspace ? 'max-w-none w-full px-4 sm:px-6 lg:px-6 gap-4' : 'max-w-5xl w-full px-5 sm:px-10 lg:px-10 gap-4',
+      container: insideWorkspace ? 'max-w-none w-full px-4 sm:px-6 lg:px-6 gap-4' : 'max-w-[1200px] w-full px-5 sm:px-10 lg:px-10 gap-4',
       left: 'min-w-0 flex-1 gap-3',
       right: 'shrink-0 flex-none lg:flex-none gap-2'
     }"
@@ -38,13 +39,12 @@ async function logout(): Promise<void> {
         class="inline-flex shrink-0 items-center gap-2.5 rounded-[4px] text-[15px] font-semibold tracking-[-0.025em] text-highlighted focus-visible:outline-2 focus-visible:outline-primary"
         aria-label="SeleSele home"
       >
-        <img
-          class="size-6 object-contain grayscale dark:invert"
-          src="/logo.png"
-          alt=""
-        >
-        <span>SeleSele</span>
+        <AppBrand />
       </NuxtLink>
+      <span
+        v-if="!insideWorkspace"
+        class="hidden sm:flex items-center gap-4 ms-2 text-xs text-muted"
+      ><span class="h-4 w-px bg-(--ui-border)" /> Workspaces</span>
       <slot name="left" />
     </template>
     <template #right>
