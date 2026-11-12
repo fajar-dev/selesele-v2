@@ -3,19 +3,19 @@ import { and, desc, eq, isNull } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { PageRepository } from '../domain/PageRepository'
 import type { Database } from '../../../platform/database/client'
-import { documents, pages } from '../../../platform/database/schema'
+import { documents, pages, folders } from '../../../platform/database/schema'
 
 export class MySqlPageRepository implements PageRepository {
   constructor(private readonly db: Database) {}
 
   list(workspaceId: string): Promise<Page[]> {
-    return this.db.select().from(pages).where(and(eq(pages.workspaceId, workspaceId), isNull(pages.deletedAt)))
-      .orderBy(desc(pages.updatedAt), desc(pages.id))
+    return this.db.select({ page: pages }).from(pages).leftJoin(folders, eq(folders.id, pages.folderId)).where(and(eq(pages.workspaceId, workspaceId), isNull(pages.deletedAt), isNull(folders.deletedAt)))
+      .orderBy(desc(pages.updatedAt), desc(pages.id)).then(rows => rows.map(row => row.page))
   }
 
   async find(id: string): Promise<Page | null> {
-    const [page] = await this.db.select().from(pages).where(and(eq(pages.id, id), isNull(pages.deletedAt))).limit(1)
-    return page || null
+    const [page] = await this.db.select({ page: pages }).from(pages).leftJoin(folders, eq(folders.id, pages.folderId)).where(and(eq(pages.id, id), isNull(pages.deletedAt), isNull(folders.deletedAt))).limit(1)
+    return page?.page || null
   }
 
   async create(workspaceId: string, input: PageDraft, userId: string): Promise<Page> {

@@ -1,3 +1,4 @@
+import type { ActivityPublisher } from '../../notifications/domain/ActivityPublisher'
 import type { InvitationRepository } from '../domain/InvitationRepository'
 import type { MembershipRepository } from '../domain/MembershipRepository'
 import type { WorkspaceAuthorization } from '../domain/WorkspaceAuthorization'
@@ -6,7 +7,7 @@ import type { InviteRole } from '../../../../shared/kernel/workspace'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class InvitationService {
-  constructor(private readonly invitations: InvitationRepository, private readonly members: MembershipRepository, private readonly access: WorkspaceAuthorization) {}
+  constructor(private readonly invitations: InvitationRepository, private readonly members: MembershipRepository, private readonly access: WorkspaceAuthorization, private readonly activity: ActivityPublisher) {}
 
   async invite(workspaceId: string, email: string, role: InviteRole, userId: string) {
     await this.access.requireManager(workspaceId, userId)
@@ -14,6 +15,7 @@ export class InvitationService {
       throw new ApplicationError('conflict', 'This person is already a workspace member')
     }
     await this.invitations.invite(workspaceId, email, role, userId)
+    await this.activity.invitation(workspaceId, email, userId)
   }
 
   async list(workspaceId: string, userId: string) {

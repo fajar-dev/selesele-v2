@@ -205,3 +205,9 @@ export class MemoryAccounts implements UserRepository, SessionRepository, Identi
     return true
   }
 }
+
+export const silentActivity = {
+  async invitation() {},
+  async comment() {},
+  async mentions() {}
+}

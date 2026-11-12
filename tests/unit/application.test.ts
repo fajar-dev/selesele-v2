@@ -9,7 +9,7 @@ import { PageService } from '../../server/features/pages/application/PageService
 import { WorkspaceService } from '../../server/features/workspaces/application/WorkspaceService'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
 import { AuthService } from '../../server/features/identity/application/AuthService'
-import { MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
+import { silentActivity, MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 
 function fixture() {
   const repository = new MemoryPages()
@@ -18,7 +18,7 @@ function fixture() {
   const access = new WorkspaceAccessPolicy(memberships)
   const workspaces = new WorkspaceService(memberships, access)
   const members = new MembershipService(memberships, access)
-  const invitations = new InvitationService(memberships, memberships, access)
+  const invitations = new InvitationService(memberships, memberships, access, silentActivity)
   const folders = new FolderService(folderRows, access)
   const service = new PageService(repository, access, folders)
   const documents = new PageDocumentService(service, repository, repository)

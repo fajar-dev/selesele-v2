@@ -1,3 +1,13 @@
+import { ConsoleErrorReporter } from '../platform/runtime/ConsoleErrorReporter'
+import { LibraryService } from '../features/library/application/LibraryService'
+import { TemplateService } from '../features/library/application/TemplateService'
+import { MySqlLibraryRepository } from '../features/library/infrastructure/MySqlLibraryRepository'
+import { RecoveryService } from '../features/recovery/application/RecoveryService'
+import { MySqlRecoveryRepository } from '../features/recovery/infrastructure/MySqlRecoveryRepository'
+import { NotificationService } from '../features/notifications/application/NotificationService'
+import { MySqlNotificationRepository } from '../features/notifications/infrastructure/MySqlNotificationRepository'
+import { NotificationHub } from '../features/notifications/infrastructure/NotificationHub'
+import { WorkspaceQuestionService } from '../features/writing/application/WorkspaceQuestionService'
 import { CryptographicTokens } from '../features/identity/infrastructure/CryptographicTokens'
 import { SystemClock } from '../platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../features/workspaces/application/WorkspaceAccessPolicy'
@@ -37,7 +47,9 @@ function createContainer() {
     new MySqlUserRepository(database.db),
     new MySqlSessionRepository(database.db), tokens, clock
   )
-  const documents = new MySqlDocumentRepository(database.db)
+  const notificationEvents = new NotificationHub()
+  const notifications = new NotificationService(new MySqlNotificationRepository(database.db), userId => notificationEvents.changed(userId), new ConsoleErrorReporter())
+  const documents = new MySqlDocumentRepository(database.db, notifications, clock)
   const workspaceRepository = new MySqlWorkspaceRepository(database.db)
   const memberRepository = new MySqlMembershipRepository(database.db)
   const invitationRepository = new MySqlInvitationRepository(database.db)
@@ -45,18 +57,27 @@ function createContainer() {
   const workspaceAccess = new WorkspaceAccessPolicy(workspaceRepository)
   const workspaces = new WorkspaceService(workspaceRepository, workspaceAccess)
   const memberships = new MembershipService(memberRepository, workspaceAccess)
-  const invitations = new InvitationService(invitationRepository, memberRepository, workspaceAccess)
+  const invitations = new InvitationService(invitationRepository, memberRepository, workspaceAccess, notifications)
   const folders = new FolderService(folderRepository, workspaceAccess)
   const pages = new PageService(pageRepository, workspaceAccess, folders)
   const collaboration = new CollaborationHub(pages, auth, documents)
-  const completions = new CompletionService(new GatewayCompletionProvider({
+  const provider = new GatewayCompletionProvider({
     baseURL: process.env.AI_BASE_URL || '',
     apiKey: process.env.AI_API_KEY || '',
     model: process.env.AI_MODEL || ''
-  }))
+  })
+  const completions = new CompletionService(provider)
+  const library = new LibraryService(new MySqlLibraryRepository(database.db), pages, workspaceAccess)
+  const pageDocuments = new PageDocumentService(pages, documents, collaboration)
 
   return {
     auth,
+    library,
+    recovery: new RecoveryService(new MySqlRecoveryRepository(database.db), pages, collaboration),
+    templates: new TemplateService(pages, pageDocuments),
+    notifications,
+    notificationEvents,
+    questions: new WorkspaceQuestionService(library, provider),
     oauth: new OAuthService(new MicrosoftIdentityProvider({
       clientId: process.env.MICROSOFT_CLIENT_ID || '',
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
@@ -68,12 +89,13 @@ function createContainer() {
     invitations,
     folders,
     pages,
-    documents: new PageDocumentService(pages, documents, collaboration),
+    documents: pageDocuments,
     collaboration,
     completions,
-    comments: new CommentService(new MySqlCommentRepository(database.db), pages, workspaceAccess, collaboration),
+    comments: new CommentService(new MySqlCommentRepository(database.db), pages, workspaceAccess, collaboration, notifications),
     images: new ImageService(new LocalImageStore(resolve(process.env.UPLOAD_DIR || '.data/uploads'))),
     async close(): Promise<void> {
+      notificationEvents.close()
       try {
         await collaboration.close()
       } finally {

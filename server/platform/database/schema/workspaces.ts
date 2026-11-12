@@ -37,6 +37,7 @@ export const folders = mysqlTable('folders', {
   name: varchar('name', { length: 120 }).notNull(),
   icon: varchar('icon', { length: 32 }),
   description: varchar('description', { length: 2000 }).notNull().default(''),
+  deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow()
 }, table => [uniqueIndex('folders_workspace_identity_unique').on(table.id, table.workspaceId), index('folders_workspace_index').on(table.workspaceId)])

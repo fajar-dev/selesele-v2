@@ -104,7 +104,7 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     }
   }
 
-  async replaceMarkdown(id: string, content: string): Promise<void> {
+  async replaceMarkdown(id: string, content: string, userId?: string): Promise<void> {
     while (!this.closed) {
       const loading = this.getRoom(id)
       const room = await loading
@@ -113,7 +113,7 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
         continue
       }
       try {
-        await room.replaceMarkdown(content)
+        await room.replaceMarkdown(content, userId)
       } finally {
         if (!room.connections.size) {
           await this.disposeRoom(id, loading)

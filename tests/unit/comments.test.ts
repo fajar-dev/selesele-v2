@@ -9,7 +9,7 @@ import type { CommentRepository } from '../../server/features/comments/domain/Co
 import type { CommentThread } from '../../server/features/comments/domain/CommentThread'
 import type { CommentThreadInput } from '../../shared/contracts/comment'
 import { commentThreadSchema, commentBodySchema, commentResolutionSchema } from '../../shared/validation/comment'
-import { MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
+import { silentActivity, MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 
 const input: CommentThreadInput = { body: 'Please clarify this.', quote: 'Shared text', anchor: {
   from: { type: { client: 123, clock: 1 }, item: { client: 123, clock: 2 }, assoc: 0 },
@@ -55,7 +55,7 @@ function fixture() {
   const events = { async commentsChanged(id: string) {
     published.push(id)
   } }
-  return { published, service: new CommentService(repository, pageService, access, events), repository, pages, members, pageId: pages.page.id }
+  return { published, service: new CommentService(repository, pageService, access, events, silentActivity), repository, pages, members, pageId: pages.page.id }
 }
 
 describe('text comment discussions', () => {

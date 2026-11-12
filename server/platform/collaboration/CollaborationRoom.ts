@@ -30,7 +30,8 @@ export class CollaborationRoom {
     private readonly repository: DocumentRepository, private readonly authorize: (connection: CollaborationConnection) => Promise<void>) {
     this.awareness = new awarenessProtocol.Awareness(document)
     this.awareness.setLocalState(null)
-    document.on('update', (update: Uint8Array) => {
+    document.on('update', (update: Uint8Array, origin: unknown) => {
+      const actorId = typeof origin === 'string' ? this.connections.get(origin)?.userId : (origin as { userId?: string } | null)?.userId
       const state = Y.encodeStateAsUpdate(document)
       const content = documentMarkdown(document)
       const encoder = encoding.createEncoder()
@@ -39,7 +40,7 @@ export class CollaborationRoom {
       const message = encoding.toUint8Array(encoder)
       // Persist snapshots serially before acknowledging them to other clients.
       this.pending = this.pending.then(async () => {
-        await this.repository.saveState(id, state, content)
+        await this.repository.saveState(id, state, content, actorId, typeof origin === 'object' && origin !== null && 'userId' in origin)
         this.broadcast(message)
       })
       void this.pending.catch((error: unknown) => {
@@ -138,7 +139,7 @@ export class CollaborationRoom {
     }))
   }
 
-  async replaceMarkdown(content: string) {
+  async replaceMarkdown(content: string, userId?: string) {
     const source = createDocument(content, null)
     try {
       const fragment = this.document.getXmlFragment('default')
@@ -148,7 +149,7 @@ export class CollaborationRoom {
       this.document.transact(() => {
         fragment.delete(0, fragment.length)
         fragment.insert(0, nodes)
-      })
+      }, { userId })
       await this.pending
     } finally {
       source.destroy()

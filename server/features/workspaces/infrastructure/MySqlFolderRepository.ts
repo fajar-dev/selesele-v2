@@ -1,20 +1,20 @@
 import { DEFAULT_FOLDER_ICON } from '../../../../shared/kernel/icons'
 import type { FolderChanges } from '../domain/Folder'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { FolderRepository } from '../domain/FolderRepository'
 import type { Database } from '../../../platform/database/client'
-import { folders, pages } from '../../../platform/database/schema'
+import { folders } from '../../../platform/database/schema'
 
 export class MySqlFolderRepository implements FolderRepository {
   constructor(private readonly db: Database) {}
 
   list(workspaceId: string) {
-    return this.db.select().from(folders).where(eq(folders.workspaceId, workspaceId)).orderBy(asc(folders.name), asc(folders.id))
+    return this.db.select().from(folders).where(and(eq(folders.workspaceId, workspaceId), isNull(folders.deletedAt))).orderBy(asc(folders.name), asc(folders.id))
   }
 
   async find(id: string, workspaceId: string) {
-    const [folder] = await this.db.select().from(folders).where(and(eq(folders.id, id), eq(folders.workspaceId, workspaceId))).limit(1)
+    const [folder] = await this.db.select().from(folders).where(and(eq(folders.id, id), eq(folders.workspaceId, workspaceId), isNull(folders.deletedAt))).limit(1)
     return folder || null
   }
 
@@ -30,9 +30,6 @@ export class MySqlFolderRepository implements FolderRepository {
   }
 
   async delete(id: string, workspaceId: string) {
-    await this.db.transaction(async (transaction) => {
-      await transaction.update(pages).set({ folderId: null, updatedAt: new Date() }).where(and(eq(pages.folderId, id), eq(pages.workspaceId, workspaceId)))
-      await transaction.delete(folders).where(and(eq(folders.id, id), eq(folders.workspaceId, workspaceId)))
-    })
+    await this.db.update(folders).set({ deletedAt: new Date() }).where(and(eq(folders.id, id), eq(folders.workspaceId, workspaceId)))
   }
 }

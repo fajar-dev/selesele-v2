@@ -13,6 +13,6 @@ export class PageDocumentService {
 
   async replace(id: string, content: string, userId: string): Promise<void> {
     await this.pages.get(id, userId)
-    await this.editor.replaceMarkdown(id, content)
+    await this.editor.replaceMarkdown(id, content, userId)
   }
 }

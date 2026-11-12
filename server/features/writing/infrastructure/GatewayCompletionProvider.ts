@@ -25,7 +25,19 @@ export class GatewayCompletionProvider implements CompletionProvider {
       model: gateway.chatModel(model),
       system,
       prompt,
-      maxOutputTokens: 4096
-    }).textStream
+      maxOutputTokens: 4096,
+      onError: () => {
+        console.error('AI gateway request failed')
+      }
+    }).fullStream.pipeThrough(new TransformStream({
+      transform(part, controller) {
+        if (part.type === 'text-delta') {
+          controller.enqueue(part.text)
+        }
+        if (part.type === 'error') {
+          throw new ApplicationError('unavailable', 'The AI gateway could not complete the request. Please try again later.')
+        }
+      }
+    }))
   }
 }
