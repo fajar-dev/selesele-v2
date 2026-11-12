@@ -3,6 +3,7 @@ export interface Page {
   workspaceId: string
   folderId: string | null
   title: string
+  description: string
   icon: string | null
   createdBy: string
   createdAt: Date
@@ -12,6 +13,7 @@ export interface Page {
 
 export interface PageDraft {
   title: string
+  description?: string
   icon?: string | null
   folderId?: string | null
 }

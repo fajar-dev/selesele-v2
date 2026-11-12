@@ -1,9 +1,10 @@
 import * as z from 'zod'
-import { idSchema } from './workspace'
+import { idSchema, descriptionSchema, entityIconSchema } from './workspace'
 
 export const pageInputSchema = z.object({
+  description: descriptionSchema.optional(),
   title: z.string().trim().min(1, 'Title is required').max(255),
-  icon: z.string().max(255).nullable().optional(),
+  icon: entityIconSchema.nullable().optional(),
   folderId: idSchema.nullable().optional()
 }).strict()
 export const pageUpdateSchema = pageInputSchema.omit({ folderId: true }).partial().refine(input => Object.keys(input).length > 0, 'Provide at least one field')

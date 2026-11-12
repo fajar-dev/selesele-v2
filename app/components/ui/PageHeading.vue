@@ -25,10 +25,12 @@ defineProps<{ title: string, description?: string | null }>()
         </h1>
       </div>
       <div
-        v-if="description"
+        v-if="description || $slots.description"
         class="text-sm text-muted leading-relaxed mt-3"
       >
-        {{ description }}
+        <slot name="description">
+          {{ description }}
+        </slot>
       </div>
       <div
         v-if="$slots.metadata"

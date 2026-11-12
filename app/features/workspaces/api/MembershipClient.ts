@@ -1,4 +1,5 @@
-import type { InviteRole } from '#shared/contracts/workspace'
+import type { ApiResponse } from '#shared/contracts/api'
+import type { WorkspaceMember, InviteRole } from '#shared/contracts/workspace'
 import type { ApiTransport } from '~/core/http/ApiTransport'
 
 export class MembershipClient {
@@ -6,6 +7,10 @@ export class MembershipClient {
 
   private path(workspaceId: string, userId: string) {
     return `/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`
+  }
+
+  list(workspaceId: string) {
+    return this.http.request<ApiResponse<WorkspaceMember[]>>(`/workspaces/${encodeURIComponent(workspaceId)}/members`)
   }
 
   changeRole(workspaceId: string, userId: string, role: InviteRole) {

@@ -9,6 +9,10 @@ export class PageClient {
     return `/pages/${encodeURIComponent(id)}${suffix}`
   }
 
+  list(workspaceId: string) {
+    return this.http.request<ApiResponse<PageItem[]>>(`/workspaces/${encodeURIComponent(workspaceId)}/pages`)
+  }
+
   create(workspaceId: string, body: PageInput) {
     return this.http.request<ApiResponse<PageItem>>(`/workspaces/${encodeURIComponent(workspaceId)}/pages`, { method: 'POST', body })
   }

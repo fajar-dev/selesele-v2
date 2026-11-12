@@ -1,3 +1,4 @@
+import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
 import type { PageItem, PageUpdate } from '#shared/contracts/page'
 import { useApi } from '~/core/http/useApi'
 import { usePageDeletion } from './usePageDeletion'
@@ -7,14 +8,12 @@ export function usePageActions(page: () => PageItem, onUpdated: (page: PageItem)
   const { deletePage } = usePageDeletion(page().workspaceId)
   const toast = useToast()
   const exporting = ref(false)
-  let writes: Promise<void> = Promise.resolve()
+  const writes = new SerialTaskQueue()
 
   function save(input: PageUpdate): Promise<void> {
-    const next = writes.catch(() => {}).then(async () => {
+    return writes.run(async () => {
       onUpdated((await pages.update(page().id, input)).data)
     })
-    writes = next
-    return next
   }
 
   async function exportMarkdown() {

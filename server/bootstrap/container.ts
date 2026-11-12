@@ -1,7 +1,6 @@
 import { CryptographicTokens } from '../features/identity/infrastructure/CryptographicTokens'
 import { SystemClock } from '../platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../features/workspaces/application/WorkspaceAccessPolicy'
-import { WorkspaceOverviewService } from '../features/workspaces/application/WorkspaceOverviewService'
 import { MembershipService } from '../features/workspaces/application/MembershipService'
 import { InvitationService } from '../features/workspaces/application/InvitationService'
 import { MySqlMembershipRepository } from '../features/workspaces/infrastructure/MySqlMembershipRepository'
@@ -65,7 +64,6 @@ function createContainer() {
     workspaces,
     memberships,
     invitations,
-    workspaceOverview: new WorkspaceOverviewService(workspaceAccess, folderRepository, pageRepository, memberRepository),
     folders,
     pages,
     collaboration,

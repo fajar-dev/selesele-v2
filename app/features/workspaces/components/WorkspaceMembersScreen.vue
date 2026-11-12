@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
 import { useApi } from '~/core/http/useApi'
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import PageBreadcrumbs from '~/components/ui/PageBreadcrumbs.vue'
 import PageContent from '~/components/ui/PageContent.vue'
@@ -12,17 +13,17 @@ import { invitationInputSchema } from '#shared/validation/workspace'
 const { invitations: invitationApi, memberships: membershipApi } = useApi()
 
 const { workspaceId } = defineProps<{ workspaceId: string }>()
-const { data: overview } = await useWorkspace(workspaceId)
+const { data: overview, loading, error: workspaceError, refresh, membersLoading, membersError } = useWorkspace(workspaceId)
 const manager = computed(() => overview.value?.workspace.role === 'owner' || overview.value?.workspace.role === 'admin')
 const breadcrumbs = computed(() => [
-  { label: overview.value?.workspace.name || 'Workspace', icon: 'i-lucide-panels-top-left', to: `/workspaces/${workspaceId}` },
+  { label: overview.value?.workspace.name || 'Workspace', emoji: overview.value?.workspace.icon, icon: 'i-lucide-panels-top-left', to: `/workspaces/${workspaceId}` },
   { label: 'Members', icon: 'i-lucide-users' }
 ])
 const state = reactive({ email: '', role: 'member' as InviteRole })
-const { data: invitations, error: loadError, refresh: refreshInvitations } = await useAsyncData(
+const { data: invitations, error: loadError, refresh: refreshInvitations, status: invitationStatus } = useLazyAsyncData(
   workspaceKeys.invitations(workspaceId),
   async () => manager.value ? (await invitationApi.list(workspaceId)).data : [],
-  { default: () => [] }
+  { server: false, default: () => [], watch: [manager] }
 )
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -30,8 +31,7 @@ const roles = [{ label: 'Member', value: 'member' }, { label: 'Admin', value: 'a
 async function reload() {
   error.value = null
   try {
-    await refreshWorkspace(workspaceId)
-    await refreshInvitations()
+    await Promise.all([refreshWorkspace(workspaceId), refreshInvitations()])
   } catch (cause) {
     error.value = errorMessage(cause)
   }
@@ -62,7 +62,25 @@ async function invite() {
 
 <template>
   <div
-    v-if="overview"
+    v-if="loading"
+    class="workspace-content workspace-content-start"
+  >
+    <DataSkeleton
+      kind="heading"
+      label="Loading members heading"
+    /><DataSkeleton
+      class="mt-10"
+      label="Loading members"
+    />
+  </div>
+  <UAlert
+    v-else-if="workspaceError"
+    title="Unable to load workspace"
+    color="error"
+    :actions="[{ label: 'Retry', onClick: refresh }]"
+  />
+  <div
+    v-else-if="overview"
     class="pb-14 app-enter"
   >
     <AppHeader>
@@ -80,9 +98,6 @@ async function invite() {
             name="i-lucide-users"
             class="size-7"
           />
-        </template>
-        <template #metadata>
-          <span>{{ overview.workspace.name }}</span><span class="text-dimmed">·</span><span>{{ overview.members.length }} {{ overview.members.length === 1 ? 'member' : 'members' }}</span>
         </template>
       </PageHeading>
       <UAlert
@@ -165,8 +180,18 @@ async function invite() {
         class="space-y-3 border-t border-muted pt-6"
       >
         <h2 class="text-sm font-semibold">
-          Members · {{ overview.members.length }}
+          Members <span v-if="!membersLoading">· {{ overview.members.length }}</span>
         </h2>
+        <DataSkeleton
+          v-if="membersLoading"
+          label="Loading workspace members"
+        />
+        <UAlert
+          v-else-if="membersError"
+          title="Unable to load members"
+          color="error"
+          :actions="[{ label: 'Retry', onClick: reload }]"
+        />
         <div
           v-for="member in overview.members"
           :key="member.userId"
@@ -211,6 +236,11 @@ async function invite() {
           </template>
         </div>
       </section>
+      <DataSkeleton
+        v-if="manager && (invitationStatus === 'pending' || invitationStatus === 'idle')"
+        label="Loading pending invitations"
+        :rows="2"
+      />
       <section
         v-if="manager && invitations.length"
         aria-label="Pending invitations"

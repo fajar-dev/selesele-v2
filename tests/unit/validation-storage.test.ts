@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { idSchema, invitationInputSchema, memberRoleSchema } from '../../shared/validation/workspace'
+import { idSchema, invitationInputSchema, memberRoleSchema, workspaceUpdateSchema, folderUpdateSchema } from '../../shared/validation/workspace'
 import { pageLocationSchema, contentSchema, pageInputSchema, pageUpdateSchema } from '../../shared/validation/page'
 import { ImageService } from '../../server/features/media/application/ImageService'
 import { LocalImageStore } from '../../server/features/media/infrastructure/LocalImageStore'
@@ -21,10 +21,23 @@ describe('HTTP validation', () => {
     expect(pageUpdateSchema.safeParse({ folderId: null }).success).toBe(false)
   })
 
-  test('rejects removed page descriptions on create and update', () => {
-    expect(pageInputSchema.safeParse({ title: 'Page', description: 'Removed' }).success).toBe(false)
+  test('accepts editable descriptions, including clearing, and validates their size', () => {
+    expect(pageInputSchema.safeParse({ title: 'Page', description: 'Summary' }).success).toBe(true)
+    expect(pageUpdateSchema.safeParse({ description: '' }).success).toBe(true)
+    expect(pageUpdateSchema.safeParse({ description: 'x'.repeat(2001) }).success).toBe(false)
     expect(pageUpdateSchema.safeParse({ description: null }).success).toBe(false)
-    expect(pageUpdateSchema.safeParse({ title: 'Page', description: 'Removed' }).success).toBe(false)
+    expect(pageUpdateSchema.safeParse({ title: 'Page', description: 'Summary' }).success).toBe(true)
+  })
+
+  test('uses the same icon limits for pages, folders and workspaces without injecting create defaults', () => {
+    for (const schema of [pageUpdateSchema, folderUpdateSchema, workspaceUpdateSchema]) {
+      expect(schema.parse({ icon: '👩🏽‍💻' })).toEqual({ icon: '👩🏽‍💻' })
+      expect(schema.safeParse({ icon: '' }).success).toBe(false)
+      expect(schema.safeParse({ icon: 'x'.repeat(33) }).success).toBe(false)
+      expect(schema.safeParse({ icon: 42 }).success).toBe(false)
+    }
+    expect(workspaceUpdateSchema.parse({ name: 'Team' })).toEqual({ name: 'Team' })
+    expect(folderUpdateSchema.parse({ icon: null })).toEqual({ icon: null })
   })
 
   test('normalizes email and accepts clearing nullable page fields and content', () => {

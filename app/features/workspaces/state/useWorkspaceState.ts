@@ -1,34 +1,25 @@
 import type { PageItem } from '#shared/contracts/page'
-import type { FolderItem, WorkspaceOverview } from '#shared/contracts/workspace'
+import type { FolderItem, WorkspaceItem } from '#shared/contracts/workspace'
 import { workspaceKeys } from './workspaceKeys'
 
-/** The single cache mutation boundary shared by workspace and document features. */
 export function useWorkspaceState(workspaceId: string) {
-  const { data } = useNuxtData<WorkspaceOverview>(workspaceKeys.detail(workspaceId))
-
+  const { data: pages } = useNuxtData<PageItem[]>(workspaceKeys.pages(workspaceId))
+  const { data: folders } = useNuxtData<FolderItem[]>(workspaceKeys.folders(workspaceId))
+  const { data: workspace } = useNuxtData<WorkspaceItem>(workspaceKeys.detail(workspaceId))
   function upsertPage(page: PageItem) {
-    if (data.value) {
-      const pages = data.value.pages.filter(item => item.id !== page.id)
-      data.value = { ...data.value, pages: [page, ...pages] }
-    }
+    pages.value = [page, ...(pages.value || []).filter(item => item.id !== page.id)]
   }
-
   function removePage(pageId: string) {
-    if (data.value) {
-      data.value = { ...data.value, pages: data.value.pages.filter(page => page.id !== pageId) }
-    }
+    pages.value = (pages.value || []).filter(page => page.id !== pageId)
   }
-
   function addFolder(folder: FolderItem) {
-    if (data.value) {
-      data.value = { ...data.value, folders: [...data.value.folders, folder] }
-    }
+    folders.value = [...(folders.value || []), folder]
   }
-
-  function renameFolder(folderId: string, name: string) {
-    if (data.value) {
-      data.value = { ...data.value, folders: data.value.folders.map(folder => folder.id === folderId ? { ...folder, name } : folder) }
-    }
+  function updateFolder(folder: FolderItem) {
+    folders.value = (folders.value || []).map(item => item.id === folder.id ? folder : item)
   }
-  return { data, upsertPage, removePage, addFolder, renameFolder }
+  function updateWorkspace(value: WorkspaceItem) {
+    workspace.value = value
+  }
+  return { upsertPage, removePage, addFolder, updateFolder, updateWorkspace }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
 import { useApi } from '~/core/http/useApi'
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import PageBreadcrumbs from '~/components/ui/PageBreadcrumbs.vue'
@@ -13,7 +14,7 @@ import { workspaceInputSchema } from '#shared/validation/workspace'
 const { workspaces: workspaceApi } = useApi()
 
 const { workspaceId } = defineProps<{ workspaceId: string }>()
-const { data } = await useWorkspace(workspaceId)
+const { data, loading, error, refresh } = useWorkspace(workspaceId)
 const toast = useToast()
 const schema = workspaceInputSchema.pick({ name: true })
 const state = reactive({ name: '' })
@@ -22,7 +23,7 @@ const deleteOpen = ref(false)
 const manager = computed(() => data.value?.workspace.role === 'owner' || data.value?.workspace.role === 'admin')
 const changed = computed(() => state.name.trim() !== data.value?.workspace.name)
 const breadcrumbs = computed(() => [
-  { label: data.value?.workspace.name || 'Workspace', icon: 'i-lucide-panels-top-left', to: `/workspaces/${workspaceId}` },
+  { label: data.value?.workspace.name || 'Workspace', emoji: data.value?.workspace.icon, icon: 'i-lucide-panels-top-left', to: `/workspaces/${workspaceId}` },
   { label: 'Settings', icon: 'i-lucide-settings-2' }
 ])
 watch(() => data.value?.workspace.name, (name) => {
@@ -35,14 +36,14 @@ async function save(event: FormSubmitEvent<{ name: string }>) {
   }
   saving.value = true
   try {
-    await workspaceApi.rename(workspaceId, event.data.name)
+    await workspaceApi.update(workspaceId, { name: event.data.name })
   } catch (cause) {
     toast.add({ title: 'Unable to update workspace', description: errorMessage(cause), color: 'error' })
     saving.value = false
     return
   }
   try {
-    await Promise.all([refreshWorkspace(workspaceId), refreshNuxtData(workspaceKeys.directory), refreshNuxtData(workspaceKeys.home)])
+    await Promise.all([refreshWorkspace(workspaceId), refreshNuxtData(workspaceKeys.directory)])
     toast.add({ title: 'Workspace updated', color: 'success' })
   } catch {
     toast.add({ title: 'Workspace updated. Reload to refresh the workspace details.', color: 'warning' })
@@ -55,7 +56,7 @@ async function deleteWorkspace() {
     return
   }
   await workspaceApi.delete(workspaceId)
-  await Promise.allSettled([refreshNuxtData(workspaceKeys.directory), refreshNuxtData(workspaceKeys.home)])
+  await Promise.allSettled([refreshNuxtData(workspaceKeys.directory)])
   await navigateTo('/')
   clearNuxtData(workspaceKeys.detail(workspaceId))
 }
@@ -63,7 +64,22 @@ async function deleteWorkspace() {
 
 <template>
   <div
-    v-if="data"
+    v-if="loading"
+    class="workspace-content workspace-content-start"
+  >
+    <DataSkeleton
+      kind="heading"
+      label="Loading workspace settings"
+    /><DataSkeleton class="mt-10" />
+  </div>
+  <UAlert
+    v-else-if="error"
+    title="Unable to load settings"
+    color="error"
+    :actions="[{ label: 'Retry', onClick: refresh }]"
+  />
+  <div
+    v-else-if="data"
     class="pb-14 app-enter"
   >
     <AppHeader>
@@ -81,9 +97,6 @@ async function deleteWorkspace() {
             name="i-lucide-settings-2"
             class="size-7"
           />
-        </template>
-        <template #metadata>
-          <span>{{ data.workspace.name }}</span><span class="text-dimmed">·</span><span class="capitalize">{{ data.workspace.role }}</span>
         </template>
       </PageHeading>
       <section

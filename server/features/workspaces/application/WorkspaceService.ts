@@ -4,6 +4,10 @@ import type { WorkspaceAuthorization } from '../domain/WorkspaceAuthorization'
 export class WorkspaceService {
   constructor(private readonly workspaces: WorkspaceRepository, private readonly access: WorkspaceAuthorization) {}
 
+  get(id: string, userId: string) {
+    return this.access.requireMember(id, userId)
+  }
+
   list(userId: string) {
     return this.workspaces.list(userId)
   }

@@ -7,6 +7,7 @@ export type { WorkspaceRole, InviteRole } from '../kernel/workspace'
 export interface WorkspaceItem {
   id: string
   name: string
+  description: string
   icon: string
   role: WorkspaceRole
   createdAt: string
@@ -14,9 +15,11 @@ export interface WorkspaceItem {
 }
 
 export interface FolderItem {
+  icon: string | null
   id: string
   workspaceId: string
   name: string
+  description: string
   createdAt: string
   updatedAt: string
 }
@@ -44,3 +47,6 @@ export interface WorkspaceOverview {
   pages: PageItem[]
   members: WorkspaceMember[]
 }
+
+export type WorkspaceUpdate = Partial<Pick<WorkspaceItem, 'name' | 'description' | 'icon'>>
+export type FolderUpdate = Partial<Pick<FolderItem, 'name' | 'description' | 'icon'>>

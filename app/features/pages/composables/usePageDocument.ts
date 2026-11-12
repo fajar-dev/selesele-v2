@@ -6,15 +6,15 @@ import { useWorkspaceState } from '~/features/workspaces/state/useWorkspaceState
 export function usePageDocument(workspaceId: string, pageId: string) {
   const { pages } = useApi()
   const { upsertPage } = useWorkspaceState(workspaceId)
-  // Register all Nuxt/Vue hooks synchronously; the route awaits readiness in setup.
+  // Document metadata and workspace navigation load independently.
   const workspaceQuery = useWorkspace(workspaceId)
-  const pageQuery = useAsyncData(`pages:${pageId}`, async () => {
+  const pageQuery = useLazyAsyncData(`pages:${pageId}`, async () => {
     const { data } = await pages.get(pageId)
     if (data.workspaceId !== workspaceId) {
       throw createError({ statusCode: 404, message: 'Page not found in this workspace' })
     }
     return data
-  })
+  }, { server: false })
   const overview = workspaceQuery.data
   const page = pageQuery.data
   watch(() => overview.value?.pages.find(item => item.id === pageId), (current) => {
@@ -26,5 +26,5 @@ export function usePageDocument(workspaceId: string, pageId: string) {
     page.value = current
     upsertPage(current)
   }
-  return { page, overview, error: pageQuery.error, updated, ready: Promise.all([workspaceQuery, pageQuery]) }
+  return { page, overview, error: pageQuery.error, updated, refresh: () => pageQuery.refresh(), loading: computed(() => pageQuery.status.value === 'idle' || pageQuery.status.value === 'pending') }
 }

@@ -1,3 +1,4 @@
+import { DEFAULT_FOLDER_ICON } from '../../shared/kernel/icons'
 import type { MembershipRepository } from '../../server/features/workspaces/domain/MembershipRepository'
 import type { InvitationRepository } from '../../server/features/workspaces/domain/InvitationRepository'
 import type { Account } from '../../server/features/identity/domain/Account'
@@ -20,7 +21,7 @@ export const EDITOR_ID = '019a71f3-32c1-7000-8000-000000000003'
 export const WORKSPACE_ID = '019a71f3-32c1-7000-8000-000000000004'
 
 export class MemoryWorkspaces implements WorkspaceRepository, MembershipRepository, InvitationRepository {
-  readonly workspace: Workspace = { id: WORKSPACE_ID, name: 'Team', icon: '🏡', createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
+  readonly workspace: Workspace = { id: WORKSPACE_ID, name: 'Team', description: '', icon: '🏡', createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
   readonly membership = new Map<string, WorkspaceRole>([[OWNER_ID, 'owner'], [EDITOR_ID, 'member']])
   async list(userId: string) {
     const access = await this.access(this.workspace.id, userId)
@@ -36,7 +37,7 @@ export class MemoryWorkspaces implements WorkspaceRepository, MembershipReposito
     return this.workspace
   }
 
-  async update(_id: string, input: { name?: string, icon?: string }) {
+  async update(_id: string, input: { name?: string, icon?: string, description?: string }) {
     Object.assign(this.workspace, input)
   }
 
@@ -97,13 +98,13 @@ export class MemoryFolders implements FolderRepository {
   }
 
   async create(workspaceId: string, name: string) {
-    const folder = { id: crypto.randomUUID(), workspaceId, name, createdAt: new Date(), updatedAt: new Date() }
+    const folder = { id: crypto.randomUUID(), workspaceId, name, icon: DEFAULT_FOLDER_ICON, description: '', createdAt: new Date(), updatedAt: new Date() }
     this.rows.set(folder.id, folder)
     return folder
   }
 
-  async rename(id: string, _workspaceId: string, name: string) {
-    this.rows.get(id)!.name = name
+  async update(id: string, _workspaceId: string, input: { name?: string, description?: string, icon?: string | null }) {
+    Object.assign(this.rows.get(id)!, input)
   }
 
   async delete(id: string) {
@@ -113,7 +114,7 @@ export class MemoryFolders implements FolderRepository {
 
 export class MemoryPages implements PageRepository, DocumentRepository {
   readonly page: Page = { id: '019a71f3-32c1-7000-8000-000000000001', workspaceId: WORKSPACE_ID, folderId: null,
-    title: 'Test', icon: null, createdBy: OWNER_ID, createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
+    title: 'Test', description: '', icon: null, createdBy: OWNER_ID, createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
 
   markdown = '# Hello\n\nA persistent document.'
   state: Uint8Array | null = null

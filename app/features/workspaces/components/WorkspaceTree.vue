@@ -1,23 +1,35 @@
 <script setup lang="ts">
-import InlineTextField from '~/components/ui/InlineTextField.vue'
+import EntityIcon from '~/components/ui/EntityIcon.vue'
+import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
 import WorkspacePageLink from '~/features/workspaces/components/WorkspacePageLink.vue'
 import { usePageMovement } from '~/features/pages/composables/usePageMovement'
 import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorkspaceFolders'
 import type { WorkspaceOverview, FolderItem } from '#shared/contracts/workspace'
 import type { PageItem } from '#shared/contracts/page'
 
-const props = defineProps<{ overview: WorkspaceOverview, search: string }>()
+const props = defineProps<{ overview: WorkspaceOverview, search: string, pagesLoading: boolean, foldersLoading: boolean }>()
 const emit = defineEmits<{
   createPage: [folderId: string | null]
   clearSearch: []
   deleteFolder: [folder: FolderItem]
   deletePage: [page: PageItem]
 }>()
-const creatingFolder = ref(false)
-const { createFolder } = useWorkspaceFolders(props.overview.workspace.id)
+const creatingFromMenu = ref(false)
+const { createFolder, creatingFolder } = useWorkspaceFolders(props.overview.workspace.id)
 function beginFolder() {
+  creatingFromMenu.value = true
   emit('clearSearch')
-  creatingFolder.value = true
+  void createFolder()
+}
+function beginPage(folderId: string | null) {
+  creatingFromMenu.value = true
+  emit('createPage', folderId)
+}
+function preserveCreationFocus(event: Event) {
+  if (creatingFromMenu.value) {
+    event.preventDefault()
+    creatingFromMenu.value = false
+  }
 }
 const route = useRoute()
 const { movingPageId, announcement, movePage } = usePageMovement(() => props.overview)
@@ -32,7 +44,7 @@ const dropTarget = ref<string | null>(null)
 const pageDragType = 'application/x-sele-page'
 const rootTarget = 'workspace-root'
 const addItems = [
-  { label: 'Page', icon: 'i-lucide-file-plus', onSelect: () => emit('createPage', null) },
+  { label: 'Page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(null) },
   { label: 'Folder', icon: 'i-lucide-folder-plus', onSelect: beginFolder }
 ]
 
@@ -42,6 +54,7 @@ function folderPages(folder: FolderItem) {
 }
 function folderItems(folder: FolderItem) {
   return [
+    { label: 'New page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(folder.id) },
     { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: () => emit('deleteFolder', folder) }
   ]
 }
@@ -136,39 +149,19 @@ watch(() => props.overview.workspace.id, () => {
       >Drop here to move out</span>
       <UDropdownMenu
         :items="addItems"
-        :content="{ align: 'start' }"
+        :content="{ align: 'start', onCloseAutoFocus: preserveCreationFocus }"
       >
         <UButton
           icon="i-lucide-plus"
           aria-label="Add page or folder"
+          :loading="creatingFolder"
           size="xs"
           variant="ghost"
           color="neutral"
         />
       </UDropdownMenu>
     </div>
-    <ul class="space-y-0.5">
-      <li
-        v-if="creatingFolder"
-        class="flex items-start gap-2 px-2 py-1.5 text-[13px]"
-      >
-        <UIcon
-          name="i-lucide-folder"
-          class="size-4 shrink-0 mt-0.5 text-muted"
-        />
-        <InlineTextField
-          value="Untitled folder"
-          label="New folder name"
-          fallback="Untitled folder"
-          :maxlength="120"
-          autofocus
-          force-save
-          :on-save="createFolder"
-          @done="creatingFolder = false"
-          @cancel="creatingFolder = false"
-        />
-      </li>
-
+    <ul class="space-y-0.5 min-w-0 overflow-hidden">
       <li
         v-for="folder in visibleFolders"
         :key="folder.id"
@@ -198,13 +191,19 @@ watch(() => props.overview.workspace.id, () => {
             class="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-[13px] text-toned"
             :aria-current="route.path === home && route.query.folder === folder.id ? 'page' : undefined"
           >
-            <UIcon
-              :name="!collapsed.has(folder.id) || query ? 'i-lucide-folder-open' : 'i-lucide-folder'"
-              class="size-4 shrink-0 text-muted"
+            <EntityIcon
+              :value="folder.icon || DEFAULT_FOLDER_ICON"
+              class="size-4 text-base text-muted"
             />
-            <span class="truncate">{{ folder.name }}</span>
+            <span
+              class="min-w-0 flex-1 truncate"
+              :title="folder.name"
+            >{{ folder.name }}</span>
           </NuxtLink>
-          <UDropdownMenu :items="folderItems(folder)">
+          <UDropdownMenu
+            :items="folderItems(folder)"
+            :content="{ align: 'start', onCloseAutoFocus: preserveCreationFocus }"
+          >
             <UButton
               icon="i-lucide-ellipsis"
               :aria-label="`Actions for ${folder.name}`"
@@ -236,7 +235,7 @@ watch(() => props.overview.workspace.id, () => {
             />
           </li>
           <li
-            v-if="!folderPages(folder).length"
+            v-if="!pagesLoading && !folderPages(folder).length"
             class="px-2 py-2 text-xs text-muted"
           >
             {{ draggedPage ? 'Drop on the folder to move here' : 'Empty folder' }}
@@ -261,13 +260,13 @@ watch(() => props.overview.workspace.id, () => {
       </li>
     </ul>
     <p
-      v-if="query && !rootPages.length && !visibleFolders.length"
+      v-if="!pagesLoading && !foldersLoading && query && !rootPages.length && !visibleFolders.length"
       class="px-2 py-3 text-xs text-muted"
     >
       No pages or folders match “{{ search }}”.
     </p>
     <p
-      v-else-if="!overview.pages.length && !overview.folders.length"
+      v-else-if="!pagesLoading && !foldersLoading && !overview.pages.length && !overview.folders.length"
       class="px-2 py-2 text-xs leading-relaxed text-muted"
     >
       Add your first page or folder.

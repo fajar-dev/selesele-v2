@@ -1,5 +1,6 @@
 export interface PageInput {
   title: string
+  description?: string
   icon?: string | null
   folderId?: string | null
 }
@@ -11,6 +12,7 @@ export interface PageItem {
   workspaceId: string
   folderId: string | null
   title: string
+  description: string
   icon: string | null
   createdBy: string
   createdAt: string

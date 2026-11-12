@@ -21,7 +21,7 @@ export class MySqlPageRepository implements PageRepository {
   async create(workspaceId: string, input: PageDraft, userId: string): Promise<Page> {
     const now = new Date()
     const page: Page = { id: uuidv7(), workspaceId, folderId: input.folderId ?? null,
-      title: input.title, icon: input.icon ?? null,
+      title: input.title, description: input.description ?? '', icon: input.icon ?? null,
       createdBy: userId, createdAt: now, updatedAt: now, deletedAt: null }
     await this.db.transaction(async (transaction) => {
       await transaction.insert(pages).values(page)

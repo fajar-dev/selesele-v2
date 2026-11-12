@@ -2,13 +2,13 @@
 const props = withDefaults(defineProps<{
   value: string
   label: string
-  fallback: string
+  fallback?: string
   onSave: (value: string) => Promise<void>
   maxlength?: number
   autofocus?: boolean
   forceSave?: boolean
   placeholder?: string
-}>(), { maxlength: 255, autofocus: false, forceSave: false, placeholder: '' })
+}>(), { maxlength: 255, autofocus: false, forceSave: false, placeholder: '', fallback: '' })
 const emit = defineEmits<{ done: [], cancel: [] }>()
 const draft = ref(props.value)
 const busy = ref(false)
@@ -92,7 +92,7 @@ defineExpose({ focus })
       :placeholder="placeholder"
       style="font: inherit; letter-spacing: inherit"
       class="w-full"
-      :ui="{ base: 'w-full resize-none rounded-none p-0 bg-transparent ring-0 shadow-none focus-visible:ring-0 focus-visible:shadow-[0_1px_0_var(--ui-border-accented)]', root: 'w-full' }"
+      :ui="{ base: 'w-full text-inherit resize-none rounded-none p-0 bg-transparent ring-0 shadow-none focus-visible:ring-0 focus-visible:shadow-[0_1px_0_var(--ui-border-accented)]', root: 'w-full' }"
       @focus="cancelled = false"
       @blur="save"
       @keydown="keydown"

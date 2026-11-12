@@ -1,6 +1,6 @@
 import type { Workspace, WorkspaceAccess } from './Workspace'
 
-export interface WorkspaceDraft { name: string, icon: string }
+export interface WorkspaceDraft { name: string, icon: string, description?: string }
 export type WorkspaceChanges = Partial<WorkspaceDraft>
 
 export interface WorkspaceRepository {

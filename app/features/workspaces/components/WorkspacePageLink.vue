@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EntityIcon from '~/components/ui/EntityIcon.vue'
 import type { PageItem } from '#shared/contracts/page'
 
 const props = defineProps<{ page: PageItem, home: string, active: boolean, moving: boolean, disabled: boolean }>()
@@ -26,7 +27,8 @@ const actions = computed(() => [{
       :draggable="!disabled"
       color="neutral"
       variant="ghost"
-      class="sidebar-link min-w-0 flex-1"
+      class="sidebar-link min-w-0 flex-1 overflow-hidden"
+      :title="page.title"
       :class="{ 'is-active': active }"
       :ui="{ label: 'truncate' }"
       @dragstart="emit('dragPage', $event, page)"
@@ -38,11 +40,13 @@ const actions = computed(() => [{
           name="i-lucide-loader-circle"
           class="size-4 animate-spin"
         />
-        <span
+        <EntityIcon
           v-else
-          class="text-base leading-none"
-        >{{ page.icon || '📄' }}</span>
-      </template>{{ page.title }}
+          :value="page.icon"
+          fallback="i-lucide-file"
+          class="size-4 text-base"
+        />
+      </template><span class="min-w-0 flex-1 truncate text-left">{{ page.title }}</span>
     </UButton>
     <UDropdownMenu
       :items="actions"

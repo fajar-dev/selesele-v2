@@ -15,7 +15,7 @@ bun run db:migrate
 bun run dev
 ```
 
-Open http://localhost:3000, sign in with Microsoft, and create a workspace. New accounts start with an empty workspace home. Workspaces are created explicitly; the application does not generate demonstration content.
+Open http://localhost:3000, sign in with Microsoft, and create a workspace. New accounts start with an empty workspace home. Creating a workspace immediately opens an Untitled workspace with its name focused for inline editing; the application does not generate demonstration content.
 
 Startup does not reset or migrate the database. For schema changes, run `bun run db:generate`, review and commit the SQL and migration metadata, then run `bun run db:migrate`. The optional `bun run db:reset` command removes every table in a disposable local development database; it refuses production and remote hosts.
 
@@ -33,7 +33,7 @@ The workspace creator becomes its owner in the same database transaction. No API
 
 Owners and admins invite an email address with a role. Invitations appear in the recipient's workspace home after Microsoft sign-in; no email delivery service is configured. The recipient must accept before gaining access. Only the matching signed-in email can accept or decline. Invitations expire after seven days, can be cancelled, and are consumed atomically. Re-inviting refreshes an outstanding invitation without creating duplicates. Accepting an invitation never overwrites an existing membership role.
 
-Folders are one level deep inside their workspace. Pages can live at the workspace root or inside a folder. Drag pages onto a sidebar folder to move them, or onto the Pages heading to return them to the workspace root. Page and folder action menus contain only Delete. Create pages directly and edit their titles and icons inline; create folders inline and rename them on their folder page. Pages have no description field. Application validation and a composite database foreign key prevent moving a page into another workspace's folder. Deleting a folder moves its pages to the root in one transaction. It does not delete their content.
+Folders are one level deep inside their workspace. Pages can live at the workspace root or inside a folder. Drag pages onto a sidebar folder to move them, or onto the Pages heading to return them to the workspace root. Page action menus contain Delete; folder menus offer New page and Delete. New page creates directly inside that folder. Create pages directly and edit their titles and icons inline; new folders open immediately with a default 📁 icon and a focused inline name field. Workspace and folder headings expose inline name, emoji icon and description editing; pages expose inline title, icon and description editing. Descriptions are optional and can be cleared. Workspace metadata is editable by owners and admins. Page, folder and workspace icon selection share one component; saved icons appear in navigation, breadcrumbs, the directory and page locations. Application validation and a composite database foreign key prevent moving a page into another workspace's folder. Deleting a folder moves its pages to the root in one transaction. It does not delete their content.
 
 Members can select page text and choose **Comment** (or use **Cmd/Ctrl + Alt + M**) to start a discussion. Click a highlighted passage or the Comments toolbar button to open its replies. Members can resolve and reopen discussions; creators and workspace managers can delete them. Open and resolved discussions are stored separately from the document, using Yjs relative text positions so highlights follow collaborative edits. If the selected text is removed, its discussion and original quotation remain available. Comment changes notify authorized page viewers immediately over the existing collaboration WebSocket. Clients fetch a fresh snapshot on each notification and after reconnecting; overlapping requests are coalesced, and transient fetch failures retry automatically. No periodic comment polling is used. Failed submissions preserve the draft for retry. Closing the panel preserves a new comment draft.
 
@@ -94,11 +94,11 @@ Endpoints share the application origin and use `{ success, message, data }`. Err
 | POST | `/api/auth/refresh` | Rotate session |
 | POST | `/api/auth/logout` | Revoke session and connections |
 | GET / POST | `/api/workspaces` | List memberships / create workspace |
-| GET | `/api/workspaces/:workspaceId` | Workspace overview with folders, pages and members |
+| GET | `/api/workspaces/:workspaceId` | Workspace metadata and current role |
 | PATCH / DELETE | `/api/workspaces/:workspaceId` | Rename / delete workspace |
-| POST | `/api/workspaces/:workspaceId/folders` | Create folder |
-| PATCH / DELETE | `/api/workspaces/:workspaceId/folders/:folderId` | Rename / delete folder |
-| POST | `/api/workspaces/:workspaceId/pages` | Create page, optionally in a folder |
+| GET / POST | `/api/workspaces/:workspaceId/folders` | List / create folders |
+| PATCH / DELETE | `/api/workspaces/:workspaceId/folders/:folderId` | Edit name/description / delete folder |
+| GET / POST | `/api/workspaces/:workspaceId/pages` | List / create pages, optionally in a folder |
 | GET | `/api/workspaces/:workspaceId/members` | List members |
 | PATCH / DELETE | `/api/workspaces/:workspaceId/members/:userId` | Change role / revoke member |
 | GET / POST | `/api/workspaces/:workspaceId/invitations` | List / create invitations |

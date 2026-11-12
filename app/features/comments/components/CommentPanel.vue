@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import CommentComposer from '~/features/comments/components/CommentComposer.vue'
 import CommentThread from '~/features/comments/components/CommentThread.vue'
@@ -126,13 +127,12 @@ watch(activeId, async (id) => {
           />
         </div>
       </section>
-      <p
+      <DataSkeleton
         v-if="loading && !threads.length"
-        role="status"
-        class="px-5 text-xs text-muted py-8"
-      >
-        Loading comments…
-      </p>
+        label="Loading comments"
+        class="px-5 py-6"
+        :rows="4"
+      />
       <div
         v-else-if="!filtered.length && !draft"
         class="px-8 pt-16 pb-10 flex flex-col items-center text-center"

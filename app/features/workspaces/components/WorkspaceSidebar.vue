@@ -6,13 +6,15 @@ import WorkspaceSwitcher from '~/features/workspaces/components/WorkspaceSwitche
 import WorkspaceTree from '~/features/workspaces/components/WorkspaceTree.vue'
 import { usePageCreation } from '~/features/pages/composables/usePageCreation'
 import { useAuth } from '~/features/auth/composables/useAuth'
-import { refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
+import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import type { PageItem } from '#shared/contracts/page'
-import type { WorkspaceOverview, FolderItem } from '#shared/contracts/workspace'
+import type { FolderItem } from '#shared/contracts/workspace'
 
 const { folders: folderApi } = useApi()
 
-const props = defineProps<{ overview: WorkspaceOverview }>()
+const { workspaceId } = defineProps<{ workspaceId: string }>()
+const { data: overview, loading, error, refresh, pagesLoading, foldersLoading, membersLoading, pagesError, foldersError } = useWorkspace(workspaceId)
 const route = useRoute()
 const { state: auth, service: authService } = useAuth()
 const toast = useToast()
@@ -21,19 +23,19 @@ const deletingPage = ref<PageItem | null>(null)
 const deletePageOpen = ref(false)
 const deletingFolder = ref<FolderItem | null>(null)
 const search = ref('')
-const workspace = computed(() => props.overview.workspace)
-const manager = computed(() => workspace.value.role !== 'member')
-const home = computed(() => `/workspaces/${workspace.value.id}`)
-const { deletePage: removePage } = usePageDeletion(props.overview.workspace.id)
-const { createPage } = usePageCreation(props.overview.workspace.id)
+const workspace = computed(() => overview.value?.workspace)
+const manager = computed(() => !!workspace.value && workspace.value.role !== 'member')
+const home = computed(() => `/workspaces/${workspaceId}`)
+const { deletePage: removePage } = usePageDeletion(workspaceId)
+const { createPage } = usePageCreation(workspaceId)
 function deleteFolder(folder: FolderItem) {
   deletingFolder.value = folder
   deleteOpen.value = true
 }
 async function confirmDelete() {
   if (deletingFolder.value) {
-    await folderApi.delete(workspace.value.id, deletingFolder.value.id)
-    await refreshWorkspace(workspace.value.id)
+    await folderApi.delete(workspaceId, deletingFolder.value.id)
+    await refreshWorkspace(workspaceId)
   }
 }
 function deletePage(page: PageItem) {
@@ -59,7 +61,21 @@ async function logout() {
 <template>
   <div class="flex flex-col h-full app-sidebar">
     <div class="px-3 pt-4 pb-4 space-y-4">
-      <WorkspaceSwitcher :workspace="workspace" />
+      <WorkspaceSwitcher
+        v-if="workspace"
+        :workspace="workspace"
+      />
+      <DataSkeleton
+        v-else-if="loading"
+        label="Loading workspace switcher"
+        :rows="1"
+      />
+      <UAlert
+        v-else-if="error"
+        title="Unable to load workspace"
+        color="error"
+        :actions="[{ label: 'Retry', onClick: refresh }]"
+      />
       <UInput
         v-model="search"
         icon="i-lucide-search"
@@ -97,7 +113,14 @@ async function logout() {
           :class="{ 'is-active': route.path === `${home}/members` }"
         >
           <template #trailing>
-            <span class="ml-auto text-xs text-muted">{{ overview.members.length }}</span>
+            <USkeleton
+              v-if="membersLoading"
+              class="ml-auto h-3 w-4"
+            />
+            <span
+              v-else
+              class="ml-auto text-xs text-muted"
+            >{{ overview?.members.length }}</span>
           </template>
         </UButton>
         <UButton
@@ -111,8 +134,17 @@ async function logout() {
           :ui="{ leadingIcon: 'size-4.5' }"
         />
       </div>
+      <UAlert
+        v-if="pagesError || foldersError"
+        title="Unable to load navigation"
+        color="error"
+        :actions="[{ label: 'Retry', onClick: refresh }]"
+      />
       <WorkspaceTree
+        v-if="overview"
         :overview="overview"
+        :pages-loading="pagesLoading"
+        :folders-loading="foldersLoading"
         :search="search"
         @create-page="createPage"
         @clear-search="search = ''"
@@ -143,7 +175,7 @@ async function logout() {
           <p class="text-xs font-semibold text-highlighted truncate">
             {{ auth.user?.name || auth.user?.email }}
           </p><p class="text-[11px] text-muted capitalize mt-0.5">
-            {{ workspace.role }} workspace
+            {{ workspace?.role || '' }} workspace
           </p>
         </div>
         <UColorModeButton
@@ -166,14 +198,14 @@ async function logout() {
     <ConfirmationDialog
       v-model:open="deletePageOpen"
       title="Delete page"
-      description="Are you sure you want to delete this page? This action cannot be undone."
+      :description="`“${deletingPage?.title || 'This page'}” will be deleted. This action cannot be undone.`"
       confirm-label="Delete"
       :on-confirm="confirmDeletePage"
     />
     <ConfirmationDialog
       v-model:open="deleteOpen"
       title="Delete folder"
-      description="Pages in this folder will be moved to the workspace root."
+      :description="`“${deletingFolder?.name || 'This folder'}” will be deleted. Its pages will be moved to the workspace root.`"
       confirm-label="Delete"
       :on-confirm="confirmDelete"
     />

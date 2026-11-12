@@ -1,3 +1,4 @@
+import type { FolderChanges } from '../domain/Folder'
 import type { FolderRepository } from '../domain/FolderRepository'
 import type { WorkspaceAuthorization } from '../domain/WorkspaceAuthorization'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
@@ -23,10 +24,11 @@ export class FolderService {
     return this.folders.create(workspaceId, name)
   }
 
-  async rename(workspaceId: string, id: string, name: string, userId: string) {
+  async update(workspaceId: string, id: string, input: FolderChanges, userId: string) {
     await this.access.requireMember(workspaceId, userId)
     await this.requireFolder(id, workspaceId)
-    await this.folders.rename(id, workspaceId, name)
+    await this.folders.update(id, workspaceId, input)
+    return this.requireFolder(id, workspaceId)
   }
 
   async delete(workspaceId: string, id: string, userId: string) {

@@ -1,22 +1,26 @@
 <script setup lang="ts">
+import EntityIcon from '~/components/ui/EntityIcon.vue'
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspaceDirectory } from '~/features/workspaces/composables/useWorkspaceDirectory'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { WorkspaceItem } from '#shared/contracts/workspace'
 
 defineProps<{ workspace: WorkspaceItem }>()
-const { data, error, status, refresh } = await useWorkspaceDirectory()
+const { data, error, status, refresh } = useWorkspaceDirectory()
 const route = useRoute()
-const items = computed<DropdownMenuItem[][]>(() => [
+type WorkspaceMenuItem = DropdownMenuItem | (DropdownMenuItem & { slot: 'workspace', emoji: string, checked: boolean })
+const items = computed<WorkspaceMenuItem[][]>(() => [
   [
     { label: 'Switch workspace', type: 'label' },
     ...data.value.map(workspace => ({
       label: workspace.name,
-      icon: route.params.workspaceId === workspace.id ? 'i-lucide-check' : 'i-lucide-panels-top-left',
+      slot: 'workspace',
+      emoji: workspace.icon,
+      checked: route.params.workspaceId === workspace.id,
       to: `/workspaces/${workspace.id}`,
       description: workspace.role
     })),
-    ...(error.value ? [{ label: 'Unable to load workspaces. Retry', icon: 'i-lucide-refresh-cw', onSelect: () => refresh() }] : []),
-    ...(!data.value.length && status.value === 'pending' ? [{ label: 'Loading workspaces…', disabled: true }] : [])
+    ...(error.value ? [{ label: 'Unable to load workspaces. Retry', icon: 'i-lucide-refresh-cw', onSelect: () => refresh() }] : [])
   ],
   [{ label: 'All workspaces', icon: 'i-lucide-layout-grid', to: '/' }]
 ])
@@ -34,6 +38,28 @@ function opened(open: boolean) {
     :ui="{ content: 'w-64', itemLabel: 'truncate', itemDescription: 'capitalize text-xs' }"
     @update:open="opened"
   >
+    <template #workspace-leading="{ item }">
+      <EntityIcon
+        :value="item.emoji"
+        fallback="i-lucide-panels-top-left"
+        class="size-4 text-base"
+      />
+    </template>
+    <template #workspace-trailing="{ item }">
+      <UIcon
+        v-if="item.checked"
+        name="i-lucide-check"
+        class="size-4 text-muted"
+      />
+    </template>
+    <template #content-top>
+      <DataSkeleton
+        v-if="!data.length && (status === 'idle' || status === 'pending')"
+        label="Loading workspaces"
+        :rows="3"
+        class="p-3"
+      />
+    </template>
     <UButton
       :label="workspace.name"
       aria-label="Switch workspace"
@@ -44,9 +70,10 @@ function opened(open: boolean) {
       :ui="{ label: 'truncate flex-1 text-left' }"
     >
       <template #leading>
-        <UIcon
-          name="i-lucide-panels-top-left"
-          class="size-5 text-highlighted"
+        <EntityIcon
+          :value="workspace.icon"
+          fallback="i-lucide-panels-top-left"
+          class="size-5 text-xl text-highlighted"
         />
       </template>
     </UButton>

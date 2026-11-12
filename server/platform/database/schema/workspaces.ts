@@ -5,6 +5,7 @@ import { users } from './identity'
 export const workspaces = mysqlTable('workspaces', {
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
   name: varchar('name', { length: 120 }).notNull(),
+  description: varchar('description', { length: 2000 }).notNull().default(''),
   icon: varchar('icon', { length: 32 }).notNull().default('🏡'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
@@ -30,9 +31,11 @@ export const workspaceInvitations = mysqlTable('workspace_invitations', {
 }, table => [uniqueIndex('workspace_invitation_email_unique').on(table.workspaceId, table.email), index('workspace_invitation_email_index').on(table.email)])
 
 export const folders = mysqlTable('folders', {
+  icon: varchar('icon', { length: 32 }),
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id),
   name: varchar('name', { length: 120 }).notNull(),
+  description: varchar('description', { length: 2000 }).notNull().default(''),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow()
 }, table => [uniqueIndex('folders_workspace_identity_unique').on(table.id, table.workspaceId), index('folders_workspace_index').on(table.workspaceId)])

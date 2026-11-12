@@ -1,5 +1,5 @@
+import type { WorkspaceUpdate, WorkspaceItem } from '#shared/contracts/workspace'
 import type { ApiResponse } from '#shared/contracts/api'
-import type { WorkspaceItem, WorkspaceOverview } from '#shared/contracts/workspace'
 import type { ApiTransport } from '~/core/http/ApiTransport'
 
 export class WorkspaceClient {
@@ -10,15 +10,15 @@ export class WorkspaceClient {
   }
 
   get(id: string) {
-    return this.http.request<ApiResponse<WorkspaceOverview>>(`/workspaces/${encodeURIComponent(id)}`)
+    return this.http.request<ApiResponse<WorkspaceItem>>(`/workspaces/${encodeURIComponent(id)}`)
   }
 
   create(name: string) {
     return this.http.request<ApiResponse<WorkspaceItem>>('/workspaces', { method: 'POST', body: { name } })
   }
 
-  rename(id: string, name: string) {
-    return this.http.request(`/workspaces/${encodeURIComponent(id)}`, { method: 'PATCH', body: { name } })
+  update(id: string, body: WorkspaceUpdate) {
+    return this.http.request<ApiResponse<WorkspaceItem>>(`/workspaces/${encodeURIComponent(id)}`, { method: 'PATCH', body })
   }
 
   delete(id: string) {

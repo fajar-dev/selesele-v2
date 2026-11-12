@@ -21,9 +21,9 @@ export class MySqlWorkspaceRepository implements WorkspaceRepository {
     return row ? { ...row.workspace, role: row.role } : null
   }
 
-  async create(input: { name: string, icon: string }, userId: string) {
+  async create(input: { name: string, icon: string, description?: string }, userId: string) {
     const now = new Date()
-    const workspace = { id: uuidv7(), ...input, createdAt: now, updatedAt: now, deletedAt: null }
+    const workspace = { id: uuidv7(), ...input, description: input.description ?? '', createdAt: now, updatedAt: now, deletedAt: null }
     await this.db.transaction(async (transaction) => {
       await transaction.insert(workspaces).values(workspace)
       await transaction.insert(workspaceMembers).values({ workspaceId: workspace.id, userId, role: 'owner' })
@@ -31,7 +31,7 @@ export class MySqlWorkspaceRepository implements WorkspaceRepository {
     return workspace
   }
 
-  async update(id: string, input: { name?: string, icon?: string }) {
+  async update(id: string, input: { name?: string, icon?: string, description?: string }) {
     await this.db.update(workspaces).set({ ...input, updatedAt: new Date() }).where(eq(workspaces.id, id))
   }
 

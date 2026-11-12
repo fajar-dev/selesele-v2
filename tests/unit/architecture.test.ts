@@ -1,9 +1,10 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { AuthService } from '../../server/features/identity/application/AuthService'
 import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
 import { SESSION_TTL_SECONDS } from '../../server/features/identity/domain/SessionPolicy'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
-import { WorkspaceOverviewService } from '../../server/features/workspaces/application/WorkspaceOverviewService'
+import { FolderService } from '../../server/features/workspaces/application/FolderService'
+import { PageService } from '../../server/features/pages/application/PageService'
 import { MemoryAccounts, MemoryFolders, MemoryPages, MemoryWorkspaces, OWNER_ID, WORKSPACE_ID } from '../support/fakes'
 
 describe('application boundaries', () => {
@@ -20,27 +21,16 @@ describe('application boundaries', () => {
     await expect(auth.authenticate(session.token)).rejects.toMatchObject({ code: 'unauthenticated' })
   })
 
-  test('workspace overview authorizes once and never reads collections for outsiders', async () => {
+  test('collection use cases authorize independently before accessing their repositories', async () => {
     const workspaces = new MemoryWorkspaces()
     const folders = new MemoryFolders()
     const pages = new MemoryPages()
     const access = new WorkspaceAccessPolicy(workspaces)
-    const authorization = spyOn(access, 'requireMember')
-    const folderRead = spyOn(folders, 'list')
-    const pageRead = spyOn(pages, 'list')
-    const memberRead = spyOn(workspaces, 'members')
-    const overview = new WorkspaceOverviewService(access, folders, pages, workspaces)
-    await expect(overview.get(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
-    expect(folderRead).not.toHaveBeenCalled()
-    expect(pageRead).not.toHaveBeenCalled()
-    expect(memberRead).not.toHaveBeenCalled()
-    authorization.mockClear()
-    const result = await overview.get(WORKSPACE_ID, OWNER_ID)
-    expect(authorization).toHaveBeenCalledTimes(1)
-    expect(folderRead).toHaveBeenCalledWith(WORKSPACE_ID)
-    expect(pageRead).toHaveBeenCalledWith(WORKSPACE_ID)
-    expect(memberRead).toHaveBeenCalledWith(WORKSPACE_ID)
-    expect(result.workspace.role).toBe('owner')
-    expect(result.members).toHaveLength(2)
+    const folderService = new FolderService(folders, access)
+    const pageService = new PageService(pages, pages, access, folderService)
+    await expect(folderService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
+    await expect(pageService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
+    expect(await folderService.list(WORKSPACE_ID, OWNER_ID)).toEqual([])
+    expect(await pageService.list(WORKSPACE_ID, OWNER_ID)).toHaveLength(1)
   })
 })

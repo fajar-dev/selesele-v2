@@ -1,40 +1,42 @@
 <script setup lang="ts">
+import EntityIcon from '~/components/ui/EntityIcon.vue'
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
+import { useWorkspaceDirectory } from '~/features/workspaces/composables/useWorkspaceDirectory'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
 import { useApi } from '~/core/http/useApi'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import PageToolbar from '~/components/ui/PageToolbar.vue'
 import PageHeading from '~/components/ui/PageHeading.vue'
-import WorkspaceCreateDialog from '~/features/workspaces/components/WorkspaceCreateDialog.vue'
+import { useWorkspaceCreation } from '~/features/workspaces/composables/useWorkspaceCreation'
 
-const { invitations: invitationApi, workspaces: workspaceApi } = useApi()
+const { invitations: invitationApi } = useApi()
 
 const toast = useToast()
-const createOpen = ref(false)
+const { createWorkspace, creatingWorkspace } = useWorkspaceCreation()
 const busy = ref<string | null>(null)
 const search = ref('')
-const { data, error, refresh } = await useAsyncData(workspaceKeys.home, async () => {
-  const [workspaces, invitations] = await Promise.all([workspaceApi.list(), invitationApi.inbox()])
-  return { workspaces: workspaces.data, invitations: invitations.data }
-})
+const { data, error, status, refresh: refreshDirectory } = useWorkspaceDirectory()
+const { data: invitations, error: inboxError, status: inboxStatus, refresh: refreshInbox } = useLazyAsyncData(
+  workspaceKeys.inbox, async () => (await invitationApi.inbox()).data, { server: false, default: () => [] }
+)
+const loading = computed(() => status.value === 'idle' || status.value === 'pending')
+const inboxLoading = computed(() => inboxStatus.value === 'idle' || inboxStatus.value === 'pending')
+const refresh = () => Promise.all([refreshDirectory(), refreshInbox()])
 const workspaces = computed(() => {
   const query = search.value.trim().toLocaleLowerCase()
-  return data.value?.workspaces.filter(workspace => workspace.name.toLocaleLowerCase().includes(query)) || []
+  return data.value.filter(workspace => workspace.name.toLocaleLowerCase().includes(query))
 })
 const dateFormatter = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 function createdDate(value: string) {
   return dateFormatter.format(new Date(value))
-}
-async function create(name: string) {
-  const response = await workspaceApi.create(name)
-  await refresh()
-  await navigateTo(`/workspaces/${response.data.id}`)
 }
 async function respond(id: string, accept: boolean) {
   busy.value = id
   try {
     if (accept) {
       const response = await invitationApi.accept(id)
-      await refresh()
+      invitations.value = invitations.value.filter(item => item.id !== id)
+      void refreshDirectory()
       await navigateTo(`/workspaces/${response.data.workspaceId}`)
     } else {
       await invitationApi.decline(id)
@@ -67,7 +69,8 @@ async function respond(id: string, accept: boolean) {
             label="New workspace"
             icon="i-lucide-plus"
             size="md"
-            @click="createOpen = true"
+            :loading="creatingWorkspace"
+            @click="createWorkspace"
           />
         </template>
       </PageHeading>
@@ -86,8 +89,19 @@ async function respond(id: string, accept: boolean) {
           />
         </template>
       </UAlert>
+      <DataSkeleton
+        v-if="inboxLoading"
+        label="Loading invitations"
+        :rows="2"
+      />
+      <UAlert
+        v-else-if="inboxError"
+        title="Unable to load invitations"
+        color="error"
+        :actions="[{ label: 'Retry', onClick: () => refreshInbox() }]"
+      />
       <section
-        v-if="data?.invitations.length"
+        v-else-if="invitations.length"
         aria-label="Workspace invitations"
         class="space-y-3"
       >
@@ -97,11 +111,11 @@ async function respond(id: string, accept: boolean) {
             class="size-4 text-muted"
           />
           <h2>Invitations</h2>
-          <span class="text-xs text-muted tabular-nums">{{ data.invitations.length }}</span>
+          <span class="text-xs text-muted tabular-nums">{{ invitations.length }}</span>
         </div>
         <ul class="divide-y divide-muted border-y border-muted">
           <li
-            v-for="invitation in data.invitations"
+            v-for="invitation in invitations"
             :key="invitation.id"
             class="flex flex-wrap items-center justify-between gap-4 py-4"
           >
@@ -146,11 +160,17 @@ async function respond(id: string, accept: boolean) {
             <h2 class="text-sm font-medium whitespace-nowrap">
               Your workspaces
             </h2>
-            <span class="text-xs text-muted tabular-nums">{{ data?.workspaces.length || 0 }}</span>
+            <USkeleton
+              v-if="loading"
+              class="h-3 w-4"
+            /><span
+              v-else-if="!error"
+              class="text-xs text-muted tabular-nums"
+            >{{ data.length }}</span>
           </template>
           <template #right>
             <UInput
-              v-if="data?.workspaces.length"
+              v-if="data.length"
               v-model="search"
               icon="i-lucide-search"
               placeholder="Find a workspace…"
@@ -160,8 +180,12 @@ async function respond(id: string, accept: boolean) {
             />
           </template>
         </PageToolbar>
+        <DataSkeleton
+          v-if="loading"
+          label="Loading workspace directory"
+        />
         <ul
-          v-if="workspaces.length"
+          v-else-if="workspaces.length"
           class="divide-y divide-muted"
         >
           <li
@@ -174,9 +198,10 @@ async function respond(id: string, accept: boolean) {
               class="group flex min-w-0 items-center gap-3 px-3 sm:px-4 py-5 -mx-3 sm:-mx-4 rounded-[5px] hover:bg-(--app-hover) focus-visible:outline-2 focus-visible:outline-primary transition-colors"
             >
               <div class="size-10 flex shrink-0 items-center justify-center rounded-[5px] border border-muted bg-muted">
-                <UIcon
-                  name="i-lucide-panels-top-left"
-                  class="size-5 text-toned"
+                <EntityIcon
+                  :value="workspace.icon"
+                  fallback="i-lucide-panels-top-left"
+                  class="size-5 text-xl text-toned"
                 />
               </div>
               <div class="min-w-0 flex-1">
@@ -197,7 +222,7 @@ async function respond(id: string, accept: boolean) {
           </li>
         </ul>
         <UEmpty
-          v-else-if="data && !data.workspaces.length"
+          v-else-if="!error && !data.length"
           variant="naked"
           icon="i-lucide-panels-top-left"
           title="Create your first workspace"
@@ -209,12 +234,13 @@ async function respond(id: string, accept: boolean) {
             <UButton
               label="Create workspace"
               icon="i-lucide-plus"
-              @click="createOpen = true"
+              :loading="creatingWorkspace"
+              @click="createWorkspace"
             />
           </template>
         </UEmpty>
         <UEmpty
-          v-else-if="data"
+          v-else-if="!error"
           variant="naked"
           icon="i-lucide-search"
           title="No matching workspaces"
@@ -233,10 +259,5 @@ async function respond(id: string, accept: boolean) {
         </UEmpty>
       </section>
     </main>
-    <WorkspaceCreateDialog
-      v-model:open="createOpen"
-      title="Create workspace"
-      :on-save="create"
-    />
   </div>
 </template>

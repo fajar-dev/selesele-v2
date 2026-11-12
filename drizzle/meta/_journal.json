@@ -22,6 +22,20 @@
       "when": 1794446802329,
       "tag": "0002_page_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1794452690910,
+      "tag": "0003_editable_descriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1794454195202,
+      "tag": "0004_folder_icons",
+      "breakpoints": true
     }
   ]
 }

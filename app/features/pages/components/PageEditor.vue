@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
 import { usePageEditor } from '~/features/pages/composables/usePageEditor'
 import PageMetadata from '~/features/pages/components/PageMetadata.vue'
 import { usePageActions } from '~/features/pages/composables/usePageActions'
@@ -10,7 +11,7 @@ import PageToolbar from '~/components/ui/PageToolbar.vue'
 import CommentPanel from '~/features/comments/components/CommentPanel.vue'
 import EditorCollaborationUsers from '~/features/editor/components/EditorCollaborationUsers.vue'
 import EditorLinkPopover from '~/features/editor/components/EditorLinkPopover.vue'
-import EditorLoadingState from '~/features/editor/components/EditorLoadingState.vue'
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useAuth } from '~/features/auth/composables/useAuth'
 import { usePageComments } from '~/features/comments/composables/usePageComments'
 import type { DropdownMenuItem } from '@nuxt/ui'
@@ -19,7 +20,7 @@ import type { WorkspaceMember, FolderItem } from '#shared/contracts/workspace'
 import type { PageItem } from '#shared/contracts/page'
 import { showImageToolbar, showTableToolbar, showTextToolbar } from '~/features/editor/utils/editorSelection'
 
-const props = defineProps<{ page: PageItem, members: WorkspaceMember[], folders: FolderItem[], workspaceName: string }>()
+const props = defineProps<{ page: PageItem, members: WorkspaceMember[], folders: FolderItem[], workspaceName: string, workspaceIcon?: string }>()
 const emit = defineEmits<{ updated: [page: PageItem] }>()
 const { state: auth } = useAuth()
 const { save: saveMetadata, exporting: isExporting, exportMarkdown, remove: onConfirmDelete } = usePageActions(() => props.page, page => emit('updated', page))
@@ -35,9 +36,9 @@ const {
   emojiItems, mentionItems, suggestionItems, getDragHandleItems, onNodeChange
 } = usePageEditor(props.page.id, () => props.members, editorRef, { annotationExtension: comments.extension, onCommentsChanged: comments.synchronize })
 const breadcrumbItems = computed(() => [
-  { label: props.workspaceName, icon: 'i-lucide-panels-top-left', to: `/workspaces/${props.page.workspaceId}` },
-  ...(props.page.folderId ? [{ label: props.folders.find(folder => folder.id === props.page.folderId)?.name || 'Folder', icon: 'i-lucide-folder', to: `/workspaces/${props.page.workspaceId}?folder=${props.page.folderId}` }] : []),
-  { label: `${props.page.icon || '📖'} ${props.page.title}`, to: `/workspaces/${props.page.workspaceId}/pages/${props.page.id}` }
+  { label: props.workspaceName, emoji: props.workspaceIcon, icon: 'i-lucide-panels-top-left', to: `/workspaces/${props.page.workspaceId}` },
+  ...(props.page.folderId ? [{ label: props.folders.find(folder => folder.id === props.page.folderId)?.name || 'Folder', emoji: props.folders.find(folder => folder.id === props.page.folderId)?.icon || DEFAULT_FOLDER_ICON, to: `/workspaces/${props.page.workspaceId}?folder=${props.page.folderId}` }] : []),
+  { label: props.page.title, emoji: props.page.icon, icon: 'i-lucide-file', to: `/workspaces/${props.page.workspaceId}/pages/${props.page.id}` }
 ])
 const pagesItems: DropdownMenuItem[] = [
   { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: openDeleteDialog }
@@ -56,9 +57,51 @@ function openDeleteDialog(): void {
       :description="collaborationError"
       color="warning"
     />
-    <EditorLoadingState v-if="!collaborationReady" />
+    <AppHeader>
+      <template #right>
+        <UTooltip :text="collaborationConnected ? 'Changes sync automatically with your workspace' : 'Trying to restore the live connection'">
+          <span
+            role="status"
+            :aria-label="collaborationConnected ? 'Live sync' : 'Reconnecting…'"
+            class="inline-flex items-center gap-1.5 text-xs text-muted whitespace-nowrap"
+          >
+            <UIcon
+              :name="collaborationConnected ? 'i-lucide-cloud-check' : 'i-lucide-loader-circle'"
+              :class="['size-3.5', { 'animate-spin': !collaborationConnected }]"
+            />
+            <span class="hidden sm:inline">{{ collaborationConnected ? 'Live sync' : 'Reconnecting…' }}</span>
+          </span>
+        </UTooltip>
+        <EditorCollaborationUsers
+          :users="connectedUsers"
+        />
+        <ConfirmationDialog
+          v-model:open="deleteOpen"
+          title="Delete page"
+          :description="`“${page.title}” will be deleted. This action cannot be undone.`"
+          confirm-label="Delete"
+          :on-confirm="onConfirmDelete"
+        />
+      </template>
+
+      <template #left>
+        <PageBreadcrumbs :items="breadcrumbItems" />
+      </template>
+    </AppHeader>
+    <PageContent>
+      <PageMetadata
+        :page="page"
+        :on-save="saveMetadata"
+      />
+      <DataSkeleton
+        v-if="!collaborationReady"
+        kind="editor"
+        label="Loading document content"
+        :rows="7"
+      />
+    </PageContent>
     <UEditor
-      v-else
+      v-if="collaborationReady"
       ref="editorRef"
       v-slot="{ editor, handlers }"
       :model-value="undefined"
@@ -67,7 +110,6 @@ function openDeleteDialog(): void {
       :extensions="extensions"
       :starter-kit="{ undoRedo: false, codeBlock: false }"
       :handlers="customHandlers"
-      :autofocus="page.title !== 'Untitled'"
       placeholder="Write something, or type '/' for commands…"
       class="min-h-screen editor-document"
       :ui="{
@@ -75,44 +117,7 @@ function openDeleteDialog(): void {
         content: 'workspace-content'
       }"
     >
-      <AppHeader>
-        <template #right>
-          <UTooltip :text="collaborationConnected ? 'Changes sync automatically with your workspace' : 'Trying to restore the live connection'">
-            <span
-              role="status"
-              :aria-label="collaborationConnected ? 'Live sync' : 'Reconnecting…'"
-              class="inline-flex items-center gap-1.5 text-xs text-muted whitespace-nowrap"
-            >
-              <UIcon
-                :name="collaborationConnected ? 'i-lucide-cloud-check' : 'i-lucide-loader-circle'"
-                :class="['size-3.5', { 'animate-spin': !collaborationConnected }]"
-              />
-              <span class="hidden sm:inline">{{ collaborationConnected ? 'Live sync' : 'Reconnecting…' }}</span>
-            </span>
-          </UTooltip>
-          <EditorCollaborationUsers
-            :users="connectedUsers"
-          />
-          <ConfirmationDialog
-            v-model:open="deleteOpen"
-            title="Delete Page"
-            description="Are you sure you want to delete this page? This action cannot be undone."
-            confirm-label="Delete"
-            :on-confirm="onConfirmDelete"
-          />
-        </template>
-
-        <template #left>
-          <PageBreadcrumbs :items="breadcrumbItems" />
-        </template>
-      </AppHeader>
-      <PageContent>
-        <PageMetadata
-          :page="page"
-          :workspace-name="workspaceName"
-          :member-count="members.length"
-          :on-save="saveMetadata"
-        />
+      <div class="workspace-content mt-6">
         <PageToolbar>
           <template #left>
             <UEditorToolbar
@@ -178,7 +183,7 @@ function openDeleteDialog(): void {
             </UDropdownMenu>
           </template>
         </PageToolbar>
-      </PageContent>
+      </div>
       <UEditorToolbar
         :editor="editor"
         :items="textToolbarItems"
