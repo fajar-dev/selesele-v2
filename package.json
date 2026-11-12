@@ -5,7 +5,7 @@
   "scripts": {
     "build": "bun --bun nuxt build",
     "db:generate": "bun --bun drizzle-kit generate",
-    "db:migrate": "bun --bun drizzle-kit migrate",
+    "db:migrate": "bun scripts/migrate-database.ts",
     "db:studio": "bun --bun drizzle-kit studio",
     "deps:check": "bun scripts/check-dependencies.ts",
     "dev": "bun --bun nuxt dev",

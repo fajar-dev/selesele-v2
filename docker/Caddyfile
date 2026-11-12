@@ -1,0 +1,9 @@
+{$APP_ORIGIN} {
+	encode zstd gzip
+	request_body {
+		max_size 3MB
+	}
+	reverse_proxy app:3000 {
+		flush_interval -1
+	}
+}
