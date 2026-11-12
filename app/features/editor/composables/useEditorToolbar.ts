@@ -1,11 +1,18 @@
+import { blockTypeItems } from '../utils/blockTypeItems'
 import type { EditorToolbarItem, EditorCustomHandlers } from '@nuxt/ui'
 import type { Editor } from '@tiptap/vue-3'
+
+function selectedImageRange(editor: Editor) {
+  const from = editor.state.selection.from
+  const node = editor.state.doc.nodeAt(from)
+  return node?.type.name === 'image' ? { from, to: from + node.nodeSize } : null
+}
 
 interface UseEditorToolbarOptions {
   aiLoading?: Ref<boolean | undefined>
 }
 
-export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers?: T, options: UseEditorToolbarOptions = {}) {
+export function useEditorToolbar<T extends EditorCustomHandlers>(options: UseEditorToolbarOptions = {}) {
   const { aiLoading } = options
 
   const toolbarItems: EditorToolbarItem<T>[][] = [[{
@@ -141,51 +148,7 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
     items: [{
       type: 'label',
       label: 'Turn into'
-    }, {
-      kind: 'paragraph',
-      label: 'Paragraph',
-      icon: 'i-lucide-type'
-    }, {
-      kind: 'heading',
-      level: 1,
-      label: 'Heading 1',
-      icon: 'i-lucide-heading-1'
-    }, {
-      kind: 'heading',
-      level: 2,
-      label: 'Heading 2',
-      icon: 'i-lucide-heading-2'
-    }, {
-      kind: 'heading',
-      level: 3,
-      label: 'Heading 3',
-      icon: 'i-lucide-heading-3'
-    }, {
-      kind: 'heading',
-      level: 4,
-      label: 'Heading 4',
-      icon: 'i-lucide-heading-4'
-    }, {
-      kind: 'bulletList',
-      label: 'Bullet List',
-      icon: 'i-lucide-list'
-    }, {
-      kind: 'orderedList',
-      label: 'Ordered List',
-      icon: 'i-lucide-list-ordered'
-    }, {
-      kind: 'taskList',
-      label: 'Task List',
-      icon: 'i-lucide-list-check'
-    }, {
-      kind: 'blockquote',
-      label: 'Blockquote',
-      icon: 'i-lucide-text-quote'
-    }, {
-      kind: 'codeBlock',
-      label: 'Code Block',
-      icon: 'i-lucide-square-code'
-    }]
+    }, ...blockTypeItems()]
   }], [{
     kind: 'mark',
     mark: 'bold',
@@ -233,14 +196,9 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
       icon: 'i-lucide-refresh-cw',
       tooltip: { text: 'Replace' },
       onClick: () => {
-        const { state } = editor
-        const { selection } = state
-
-        const pos = selection.from
-        const node = state.doc.nodeAt(pos)
-
-        if (node && node.type.name === 'image') {
-          editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).insertContentAt(pos, { type: 'imageUpload' }).run()
+        const range = selectedImageRange(editor)
+        if (range) {
+          editor.chain().focus().deleteRange(range).insertContentAt(range.from, { type: 'imageUpload' }).run()
         }
       }
     }], [{
@@ -248,14 +206,9 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
       tooltip: { text: 'Delete' },
       color: 'error',
       onClick: () => {
-        const { state } = editor
-        const { selection } = state
-
-        const pos = selection.from
-        const node = state.doc.nodeAt(pos)
-
-        if (node && node.type.name === 'image') {
-          editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run()
+        const range = selectedImageRange(editor)
+        if (range) {
+          editor.chain().focus().deleteRange(range).run()
         }
       }
     }]]

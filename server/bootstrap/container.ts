@@ -15,6 +15,7 @@ import { MySqlWorkspaceRepository } from '../features/workspaces/infrastructure/
 import { MySqlFolderRepository } from '../features/workspaces/infrastructure/MySqlFolderRepository'
 import { MySqlDocumentRepository } from '../features/pages/infrastructure/MySqlDocumentRepository'
 import { PageService } from '../features/pages/application/PageService'
+import { PageDocumentService } from '../features/pages/application/PageDocumentService'
 import { GoogleCompletionProvider } from '../features/writing/infrastructure/GoogleCompletionProvider'
 import { MicrosoftIdentityProvider } from '../features/identity/infrastructure/MicrosoftIdentityProvider'
 import { OAuthService } from '../features/identity/application/OAuthService'
@@ -46,7 +47,7 @@ function createContainer() {
   const memberships = new MembershipService(memberRepository, workspaceAccess)
   const invitations = new InvitationService(invitationRepository, memberRepository, workspaceAccess)
   const folders = new FolderService(folderRepository, workspaceAccess)
-  const pages = new PageService(pageRepository, documents, workspaceAccess, folders)
+  const pages = new PageService(pageRepository, workspaceAccess, folders)
   const collaboration = new CollaborationHub(pages, auth, documents)
   const completions = new CompletionService(new GoogleCompletionProvider({
     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || '',
@@ -66,6 +67,7 @@ function createContainer() {
     invitations,
     folders,
     pages,
+    documents: new PageDocumentService(pages, documents, collaboration),
     collaboration,
     completions,
     comments: new CommentService(new MySqlCommentRepository(database.db), pages, workspaceAccess, collaboration),

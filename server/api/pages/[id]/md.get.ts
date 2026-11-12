@@ -6,7 +6,7 @@ import { idSchema } from '../../../../shared/validation/workspace'
 
 export default apiHandler(async (event) => {
   const id = idSchema.parse(getRouterParam(event, 'id'))
-  const content = await getContainer().pages.content(id, currentUser(event).id)
+  const content = await getContainer().documents.content(id, currentUser(event).id)
   setHeader(event, 'Content-Type', 'text/markdown; charset=utf-8')
   setHeader(event, 'Content-Disposition', `attachment; filename="${id}.md"`)
   return content

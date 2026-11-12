@@ -6,7 +6,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { captureTextRange, resolveTextRange } from '../../editor/utils/textAnchors'
 import type { CommentAnchor } from '#shared/contracts/comment'
 
-export interface TextAnnotation { id: string, anchor: CommentAnchor }
+interface TextAnnotation { id: string, anchor: CommentAnchor }
 interface HighlightOptions {
   annotations: () => TextAnnotation[]
   activeId: () => string | null

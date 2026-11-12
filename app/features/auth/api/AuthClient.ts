@@ -12,8 +12,4 @@ export class AuthClient {
   async logout() {
     await this.http.request('/auth/logout', { method: 'POST' })
   }
-
-  async refresh() {
-    return this.http.request<ApiResponse<{ user: User }>>('/auth/refresh', { method: 'POST' })
-  }
 }

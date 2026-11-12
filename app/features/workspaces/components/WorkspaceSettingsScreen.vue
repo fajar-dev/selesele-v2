@@ -1,19 +1,17 @@
 <script setup lang="ts">
-import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
-import { useApi } from '~/core/http/useApi'
+import { useWorkspaceActions } from '~/features/workspaces/composables/useWorkspaceActions'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import PageBreadcrumbs from '~/components/ui/PageBreadcrumbs.vue'
 import PageContent from '~/components/ui/PageContent.vue'
 import PageHeading from '~/components/ui/PageHeading.vue'
-import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
+import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { workspaceInputSchema } from '#shared/validation/workspace'
 
-const { workspaces: workspaceApi } = useApi()
-
 const { workspaceId } = defineProps<{ workspaceId: string }>()
+const { save: saveWorkspace, remove: deleteWorkspace } = useWorkspaceActions(workspaceId)
 const { data, loading, error, refresh } = useWorkspace(workspaceId)
 const toast = useToast()
 const schema = workspaceInputSchema.pick({ name: true })
@@ -36,29 +34,13 @@ async function save(event: FormSubmitEvent<{ name: string }>) {
   }
   saving.value = true
   try {
-    await workspaceApi.update(workspaceId, { name: event.data.name })
+    await saveWorkspace({ name: event.data.name })
+    toast.add({ title: 'Workspace updated', color: 'success' })
   } catch (cause) {
     toast.add({ title: 'Unable to update workspace', description: errorMessage(cause), color: 'error' })
-    saving.value = false
-    return
-  }
-  try {
-    await Promise.all([refreshWorkspace(workspaceId), refreshNuxtData(workspaceKeys.directory)])
-    toast.add({ title: 'Workspace updated', color: 'success' })
-  } catch {
-    toast.add({ title: 'Workspace updated. Reload to refresh the workspace details.', color: 'warning' })
   } finally {
     saving.value = false
   }
-}
-async function deleteWorkspace() {
-  if (data.value?.workspace.role !== 'owner') {
-    return
-  }
-  await workspaceApi.delete(workspaceId)
-  await Promise.allSettled([refreshNuxtData(workspaceKeys.directory)])
-  await navigateTo('/')
-  clearNuxtData(workspaceKeys.detail(workspaceId))
 }
 </script>
 

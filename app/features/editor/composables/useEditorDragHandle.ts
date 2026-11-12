@@ -1,4 +1,4 @@
-import { upperFirst } from 'scule'
+import { blockTypeItems } from '../utils/blockTypeItems'
 import type { DropdownMenuItem, EditorCustomHandlers } from '@nuxt/ui'
 import type { Editor, JSONContent } from '@tiptap/vue-3'
 import { mapEditorItems } from '@nuxt/ui/utils/editor'
@@ -16,18 +16,7 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
       return [{
         label: 'Turn into',
         icon: 'i-lucide-repeat-2',
-        children: [
-          { kind: 'paragraph', label: 'Paragraph', icon: 'i-lucide-type' },
-          { kind: 'heading', level: 1, label: 'Heading 1', icon: 'i-lucide-heading-1' },
-          { kind: 'heading', level: 2, label: 'Heading 2', icon: 'i-lucide-heading-2' },
-          { kind: 'heading', level: 3, label: 'Heading 3', icon: 'i-lucide-heading-3' },
-          { kind: 'heading', level: 4, label: 'Heading 4', icon: 'i-lucide-heading-4' },
-          { kind: 'bulletList', label: 'Bullet List', icon: 'i-lucide-list' },
-          { kind: 'orderedList', label: 'Ordered List', icon: 'i-lucide-list-ordered' },
-          { kind: 'taskList', label: 'Task List', icon: 'i-lucide-list-check' },
-          { kind: 'blockquote', label: 'Blockquote', icon: 'i-lucide-text-quote' },
-          { kind: 'codeBlock', label: 'Code Block', icon: 'i-lucide-square-code' }
-        ]
+        children: [...blockTypeItems()]
       }, {
         kind: 'clearFormatting',
         pos,
@@ -100,7 +89,7 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
     return mapEditorItems(editor, [[
       {
         type: 'label',
-        label: upperFirst(nodeType)
+        label: nodeType.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, character => character.toUpperCase())
       },
       ...typeSpecificItems
     ], [
@@ -153,7 +142,6 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
   }
 
   return {
-    selectedNode,
     getItems,
     onNodeChange
   }

@@ -17,6 +17,8 @@ bun run dev
 
 Open http://localhost:3000, sign in with Microsoft, and create a workspace. New accounts start with an empty workspace home. Creating a workspace immediately opens an Untitled workspace with its name focused for inline editing; the application does not generate demonstration content.
 
+The development schema starts from one baseline: `drizzle/0000_initial_schema.sql`, covering all ten application tables. To adopt it in an existing disposable development database, run `bun run db:reset`; this removes all development records, including sessions. Fresh databases use `bun run db:migrate`.
+
 Startup does not reset or migrate the database. For schema changes, run `bun run db:generate`, review and commit the SQL and migration metadata, then run `bun run db:migrate`. The optional `bun run db:reset` command removes every table in a disposable local development database; it refuses production and remote hosts.
 
 ## Workspaces, folders and pages
@@ -74,7 +76,7 @@ Workspace, folder, document and settings screens share `PageContent`, `PageHeadi
 
 The sidebar's workspace switcher lists the current user's workspaces and refreshes on opening. Members and Settings are dedicated pages in the sidebar. Members includes invitations, role changes and member removal; Invite teammates links directly to its invitation form. Settings appears below Members. Owners and admins can rename a workspace; members see read-only details, and only owners can delete it. Mutations refresh the workspace directory and home list, while the server remains responsible for enforcing role permissions.
 
-The workspace sidebar has one combined page/folder list. Its add menu creates either a page or a folder; page and folder context menus contain only Delete. Drag a page onto a folder row to move it, or onto the Pages heading to return it to the workspace root. Collapsed destinations open while dragging. Moves persist through the existing workspace-scoped location endpoint, and failed saves preserve the original location. Search matches page titles and folder names while retaining their hierarchy.
+The workspace sidebar has one combined page/folder list. Its add menu creates either a page or a folder; page context menus contain Delete, while folder menus provide New page and Delete. Drag a page onto a folder row to move it, or onto the Pages heading to return it to the workspace root. Collapsed destinations open while dragging. Moves persist through the existing workspace-scoped location endpoint, and failed saves preserve the original location. Search matches page titles and folder names while retaining their hierarchy.
 
 ## Architecture
 
@@ -124,6 +126,8 @@ There are no page invitation, page permission, or global page collection endpoin
 ## Verification
 
 ```sh
+bun run db:check
+bun run audit:code
 bun run lint
 bun run typecheck
 bun run typecheck:server

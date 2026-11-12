@@ -27,7 +27,7 @@ describe('application boundaries', () => {
     const pages = new MemoryPages()
     const access = new WorkspaceAccessPolicy(workspaces)
     const folderService = new FolderService(folders, access)
-    const pageService = new PageService(pages, pages, access, folderService)
+    const pageService = new PageService(pages, access, folderService)
     await expect(folderService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(pageService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     expect(await folderService.list(WORKSPACE_ID, OWNER_ID)).toEqual([])

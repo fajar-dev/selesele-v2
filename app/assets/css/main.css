@@ -139,6 +139,14 @@
     color: var(--ui-text-highlighted);
   }
   .editor-document .tiptap { line-height: 1.8; }
+  .editor-block-drop-indicator {
+    position: fixed;
+    height: 2px;
+    border-radius: 1px;
+    background: #3b82f6;
+    pointer-events: none;
+    z-index: 50;
+  }
   .editor-document .tiptap p.is-editor-empty:first-child::before { color: var(--ui-text-dimmed); }
   .app-enter { animation: app-enter 160ms ease-out both; }
 }

@@ -12,14 +12,6 @@ export class MySqlDocumentRepository implements DocumentRepository {
     return document?.markdown || ''
   }
 
-  async updateContent(id: string, markdown: string): Promise<void> {
-    await this.db.transaction(async (transaction) => {
-      await transaction.insert(documents).values({ pageId: id, markdown })
-        .onDuplicateKeyUpdate({ set: { markdown, state: null } })
-      await transaction.update(pages).set({ updatedAt: new Date() }).where(eq(pages.id, id))
-    })
-  }
-
   async readState(id: string): Promise<Uint8Array | null> {
     const [document] = await this.db.select({ state: documents.state }).from(documents)
       .where(eq(documents.pageId, id)).limit(1)

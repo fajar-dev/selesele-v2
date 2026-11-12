@@ -29,14 +29,6 @@ export class PageClient {
     return this.http.request<ApiResponse<PageItem>>(this.path(id, '/location'), { method: 'PATCH', body: { folderId } })
   }
 
-  replaceContent(id: string, content: string) {
-    return this.http.request(this.path(id, '/content'), { method: 'POST', body: { content } })
-  }
-
-  getContent(id: string) {
-    return this.http.request<ApiResponse<{ content: string }>>(this.path(id, '/content'))
-  }
-
   downloadMarkdown(id: string) {
     return this.http.download(this.path(id, '/md'))
   }

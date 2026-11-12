@@ -1,6 +1,6 @@
 import type { CommentAnchor, CommentAuthor } from '../../../../shared/kernel/comment'
 
-export interface CommentMessage {
+interface CommentMessage {
   id: string
   body: string
   author: CommentAuthor

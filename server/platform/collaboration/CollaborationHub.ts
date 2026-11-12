@@ -4,13 +4,14 @@ import * as Y from 'yjs'
 import type { SessionAuthenticator } from '../../features/identity/domain/SessionAuthenticator'
 import type { PageAccess } from '../../features/pages/domain/PageAccess'
 import type { DocumentRepository } from '../../features/pages/domain/DocumentRepository'
+import type { DocumentEditor } from '../../features/pages/domain/DocumentEditor'
 import { ApplicationError } from '../../core/errors/ApplicationError'
 import type { CollaborationConnection } from './CollaborationRoom'
 import { CollaborationRoom } from './CollaborationRoom'
 import { createDocument } from './document'
 
 /** Owns room lifecycles within one Bun application process. */
-export class CollaborationHub implements CommentEvents {
+export class CollaborationHub implements CommentEvents, DocumentEditor {
   private readonly rooms = new Map<string, Promise<CollaborationRoom>>()
   private readonly peerRooms = new Map<string, string>()
   private readonly roomWorkspaces = new Map<string, string>()
@@ -104,10 +105,23 @@ export class CollaborationHub implements CommentEvents {
   }
 
   async replaceMarkdown(id: string, content: string): Promise<void> {
-    const room = await this.rooms.get(id)
-    if (room && !room.isClosing) {
-      await room.replaceMarkdown(content)
+    while (!this.closed) {
+      const loading = this.getRoom(id)
+      const room = await loading
+      if (room.isClosing) {
+        await this.disposeRoom(id, loading)
+        continue
+      }
+      try {
+        await room.replaceMarkdown(content)
+      } finally {
+        if (!room.connections.size) {
+          await this.disposeRoom(id, loading)
+        }
+      }
+      return
     }
+    throw new ApplicationError('unavailable', 'Collaboration server is shutting down')
   }
 
   async evict(id?: string, userId?: string, token?: string): Promise<void> {

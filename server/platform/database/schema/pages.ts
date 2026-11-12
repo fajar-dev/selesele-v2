@@ -11,7 +11,7 @@ export const pages = mysqlTable('pages', {
   folderId: varchar('folder_id', { length: 36 }),
   title: varchar('title', { length: 255 }).notNull(),
   description: varchar('description', { length: 2000 }).notNull().default(''),
-  icon: varchar('icon', { length: 255 }),
+  icon: varchar('icon', { length: 32 }),
   createdBy: varchar('created_by', { length: 36 }).notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),

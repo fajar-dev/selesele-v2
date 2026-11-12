@@ -6,6 +6,6 @@ import { idSchema } from '../../../../shared/validation/workspace'
 
 export default apiHandler(async (event) => {
   const id = idSchema.parse(getRouterParam(event, 'id'))
-  const result = await getContainer().pages.content(id, currentUser(event).id)
+  const result = await getContainer().documents.content(id, currentUser(event).id)
   return success({ content: result })
 })

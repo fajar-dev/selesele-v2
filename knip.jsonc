@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Nuxt discovers routes/plugins/components; these are additional CLI entry points.
+  "entry": ["scripts/workspace-smoke.ts", "ecosystem.config.cjs"],
+  "ignoreDependencies": [
+    // Nuxt Icon discovers installed collections from icon names in templates/config.
+    "@iconify-json/lucide",
+    "@iconify-json/simple-icons",
+    // Nuxt consumes its schema types and invokes vue-tsc during typecheck.
+    "@nuxt/schema",
+    "vue-tsc"
+  ]
+}

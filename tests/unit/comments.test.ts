@@ -49,7 +49,7 @@ function fixture() {
   const repositoryAccess = new MemoryWorkspaces()
   const access = new WorkspaceAccessPolicy(repositoryAccess)
   const members = new MembershipService(repositoryAccess, access)
-  const pageService = new PageService(pages, pages, access, new FolderService(new MemoryFolders(), access))
+  const pageService = new PageService(pages, access, new FolderService(new MemoryFolders(), access))
   const repository = new MemoryComments()
   const published: string[] = []
   const events = { async commentsChanged(id: string) {

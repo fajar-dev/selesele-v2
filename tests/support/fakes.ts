@@ -149,7 +149,7 @@ export class MemoryPages implements PageRepository, DocumentRepository {
     return this.markdown
   }
 
-  async updateContent(_id: string, content: string) {
+  async replaceMarkdown(_id: string, content: string) {
     this.markdown = content
     this.state = null
   }

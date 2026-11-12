@@ -1,8 +1,8 @@
 import type { CommentAnchor, CommentAuthor } from '../kernel/comment'
 
-export type { RelativeTextPosition, CommentAnchor, CommentAuthor } from '../kernel/comment'
+export type { CommentAnchor } from '../kernel/comment'
 
-export interface CommentMessageItem {
+interface CommentMessageItem {
   id: string
   body: string
   author: CommentAuthor

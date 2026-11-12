@@ -16,6 +16,7 @@ import { useEditorEmojis } from '~/features/editor/composables/useEditorEmojis'
 import { collaborationColor } from '~/features/editor/utils/collaborationIdentity'
 import { ImageUpload } from '~/features/editor/extensions/ImageUploadExtension'
 import { CustomMention } from '~/features/editor/extensions/MentionExtension'
+import { BlockDragDrop } from '~/features/editor/extensions/BlockDragDropExtension'
 
 interface PageEditorOptions {
   annotationExtension: Extension
@@ -62,15 +63,15 @@ export function usePageEditor(room: string, members: () => WorkspaceMember[], ed
   })))
   const { items: emojiItems } = useEditorEmojis()
   const { items: mentionItems } = useEditorMentions(mentionableUsers)
-  const { items: suggestionItems } = useEditorSuggestions(customHandlers)
+  const { items: suggestionItems } = useEditorSuggestions<typeof customHandlers>()
   const { getItems: getDragHandleItems, onNodeChange } = useEditorDragHandle(customHandlers)
-  const { toolbarItems, bubbleToolbarItems, getImageToolbarItems, getTableToolbarItems } = useEditorToolbar(customHandlers, { aiLoading })
+  const { toolbarItems, bubbleToolbarItems, getImageToolbarItems, getTableToolbarItems } = useEditorToolbar<typeof customHandlers>({ aiLoading })
   const extensions = computed(() => [
     CodeBlockShiki.configure({
       defaultTheme: 'material-theme',
       themes: { light: 'material-theme-lighter', dark: 'material-theme-palenight' }
     }),
-    options.annotationExtension, completion, CustomMention, Emoji, ImageUpload, TableKit, TaskList, TaskItem,
+    options.annotationExtension, completion, CustomMention, Emoji, ImageUpload, TableKit, TaskList, TaskItem, BlockDragDrop,
     ...collaborationExtensions.value
   ])
 

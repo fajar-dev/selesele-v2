@@ -57,7 +57,7 @@ async function fixture() {
   const memberships = new MemoryWorkspaces()
   const access = new WorkspaceAccessPolicy(memberships)
   const folders = new FolderService(new MemoryFolders(), access)
-  const hub = new CollaborationHub(new PageService(pages, pages, access, folders), auth, pages)
+  const hub = new CollaborationHub(new PageService(pages, access, folders), auth, pages)
   return { accounts, auth, token, pages, hub, memberships, id: pages.page.id }
 }
 
@@ -195,6 +195,56 @@ describe('persistent collaboration', () => {
       expect(documentMarkdown(restored)).toContain('# Replacement')
       expect(pages.markdown).toContain('**document**')
       restored.destroy()
+    } finally {
+      await hub.close()
+    }
+  })
+
+  test('replaces an offline document through the same writer and retains it on reconnect', async () => {
+    const { hub, pages, token, id } = await fixture()
+    const peer = new TestPeer('reconnecting-editor')
+    try {
+      await hub.replaceMarkdown(id, '# Offline replacement\n\n**Preserved formatting**')
+      expect(pages.state).not.toBeNull()
+      const before = pages.markdown
+      await hub.connect(peer, id, token)
+      const restored = createDocument('', pages.state)
+      try {
+        expect(documentMarkdown(restored)).toBe(before)
+        expect(before).toContain('**Preserved formatting**')
+      } finally {
+        restored.destroy()
+      }
+    } finally {
+      await hub.close()
+    }
+  })
+
+  test('concurrent replacements leave Markdown and Yjs state in agreement', async () => {
+    const { hub, pages, id } = await fixture()
+    try {
+      await Promise.all([hub.replaceMarkdown(id, '# First'), hub.replaceMarkdown(id, '# Second')])
+      const restored = createDocument('', pages.state)
+      try {
+        expect(pages.markdown).toBe('# Second')
+        expect(documentMarkdown(restored)).toBe(pages.markdown)
+      } finally {
+        restored.destroy()
+      }
+    } finally {
+      await hub.close()
+    }
+  })
+
+  test('offline replacement reports persistence failures and can retry with a new room', async () => {
+    const { hub, pages, id } = await fixture()
+    try {
+      pages.failSave = true
+      await expect(hub.replaceMarkdown(id, '# Unavailable')).rejects.toThrow('Disk unavailable')
+      pages.failSave = false
+      await hub.replaceMarkdown(id, '# Retried')
+      expect(pages.markdown).toBe('# Retried')
+      expect(pages.state).not.toBeNull()
     } finally {
       await hub.close()
     }

@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
-import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
 import LayoutToggle from '~/components/ui/LayoutToggle.vue'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import EntityIconPicker from '~/components/ui/EntityIconPicker.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
-import { useWorkspaceState } from '~/features/workspaces/state/useWorkspaceState'
-import { useApi } from '~/core/http/useApi'
-import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
+import { useWorkspaceActions } from '~/features/workspaces/composables/useWorkspaceActions'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import InlineTextField from '~/components/ui/InlineTextField.vue'
 import PageBreadcrumbs from '~/components/ui/PageBreadcrumbs.vue'
@@ -18,26 +15,13 @@ import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorksp
 import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { formatPageCount } from '~/features/workspaces/utils/workspacePresentation'
 import type { TableColumn } from '@nuxt/ui'
-import type { WorkspaceItem, WorkspaceUpdate } from '#shared/contracts/workspace'
 import type { PageItem } from '#shared/contracts/page'
 
 const route = useRoute()
 const { workspaceId } = defineProps<{ workspaceId: string }>()
 const { data, loading, error, refresh, pagesLoading, foldersLoading, membersLoading, pagesError, foldersError } = useWorkspace(workspaceId)
-const { workspaces: workspaceApi } = useApi()
-const cache = useWorkspaceState(workspaceId)
-const manager = computed(() => data.value?.workspace.role !== 'member')
-const directory = useNuxtData<WorkspaceItem[]>(workspaceKeys.directory)
-const writes = new SerialTaskQueue()
-async function updateWorkspace(input: WorkspaceUpdate) {
-  await writes.run(async () => {
-    const result = await workspaceApi.update(workspaceId, input)
-    cache.updateWorkspace(result.data)
-    if (directory.data.value) {
-      directory.data.value = directory.data.value.map(item => item.id === result.data.id ? result.data : item)
-    }
-  })
-}
+const { save: updateWorkspace } = useWorkspaceActions(workspaceId)
+const manager = computed(() => data.value?.workspace.role === 'owner' || data.value?.workspace.role === 'admin')
 const folder = computed(() => data.value?.folders.find(item => item.id === route.query.folder))
 const search = ref('')
 const view = ref<'list' | 'grid'>('list')

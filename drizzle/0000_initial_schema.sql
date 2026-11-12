@@ -1,3 +1,24 @@
+CREATE TABLE `comment_threads` (
+	`id` varchar(36) NOT NULL,
+	`page_id` varchar(36) NOT NULL,
+	`quote` text NOT NULL,
+	`anchor` json NOT NULL,
+	`created_by` varchar(36) NOT NULL,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`resolved_at` timestamp,
+	`resolved_by` varchar(36),
+	CONSTRAINT `comment_threads_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `comments` (
+	`id` varchar(36) NOT NULL,
+	`thread_id` varchar(36) NOT NULL,
+	`author_id` varchar(36) NOT NULL,
+	`body` text NOT NULL,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `comments_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
 CREATE TABLE `page_documents` (
 	`page_id` varchar(36) NOT NULL,
 	`markdown` longtext NOT NULL,
@@ -10,6 +31,8 @@ CREATE TABLE `folders` (
 	`id` varchar(36) NOT NULL,
 	`workspace_id` varchar(36) NOT NULL,
 	`name` varchar(120) NOT NULL,
+	`icon` varchar(32),
+	`description` varchar(2000) NOT NULL DEFAULT '',
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `folders_id` PRIMARY KEY(`id`),
@@ -21,8 +44,8 @@ CREATE TABLE `pages` (
 	`workspace_id` varchar(36) NOT NULL,
 	`folder_id` varchar(36),
 	`title` varchar(255) NOT NULL,
-	`icon` varchar(255),
-	`description` text,
+	`description` varchar(2000) NOT NULL DEFAULT '',
+	`icon` varchar(32),
 	`created_by` varchar(36) NOT NULL,
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
@@ -78,6 +101,7 @@ CREATE TABLE `workspace_members` (
 CREATE TABLE `workspaces` (
 	`id` varchar(36) NOT NULL,
 	`name` varchar(120) NOT NULL,
+	`description` varchar(2000) NOT NULL DEFAULT '',
 	`icon` varchar(32) NOT NULL DEFAULT '🏡',
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
@@ -85,6 +109,11 @@ CREATE TABLE `workspaces` (
 	CONSTRAINT `workspaces_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+ALTER TABLE `comment_threads` ADD CONSTRAINT `comment_threads_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `comment_threads` ADD CONSTRAINT `comment_threads_created_by_users_id_fk` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `comment_threads` ADD CONSTRAINT `comment_threads_resolved_by_users_id_fk` FOREIGN KEY (`resolved_by`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `comments` ADD CONSTRAINT `comments_thread_id_comment_threads_id_fk` FOREIGN KEY (`thread_id`) REFERENCES `comment_threads`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `comments` ADD CONSTRAINT `comments_author_id_users_id_fk` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `page_documents` ADD CONSTRAINT `page_documents_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `folders` ADD CONSTRAINT `folders_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `pages` ADD CONSTRAINT `pages_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -95,6 +124,8 @@ ALTER TABLE `workspace_invitations` ADD CONSTRAINT `workspace_invitations_worksp
 ALTER TABLE `workspace_invitations` ADD CONSTRAINT `workspace_invitations_invited_by_users_id_fk` FOREIGN KEY (`invited_by`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `workspace_members` ADD CONSTRAINT `workspace_members_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `workspace_members` ADD CONSTRAINT `workspace_members_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX `comment_threads_page_index` ON `comment_threads` (`page_id`,`created_at`);--> statement-breakpoint
+CREATE INDEX `comments_thread_index` ON `comments` (`thread_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `folders_workspace_index` ON `folders` (`workspace_id`);--> statement-breakpoint
 CREATE INDEX `pages_workspace_folder_index` ON `pages` (`workspace_id`,`folder_id`);--> statement-breakpoint
 CREATE INDEX `sessions_user_index` ON `sessions` (`user_id`);--> statement-breakpoint

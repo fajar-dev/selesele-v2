@@ -1,3 +1,4 @@
+import { PageDocumentService } from '../../server/features/pages/application/PageDocumentService'
 import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
 import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
@@ -19,14 +20,16 @@ function fixture() {
   const members = new MembershipService(memberships, access)
   const invitations = new InvitationService(memberships, memberships, access)
   const folders = new FolderService(folderRows, access)
-  return { repository, memberships, folderRows, workspaces, members, invitations, access, folders, service: new PageService(repository, repository, access, folders), id: repository.page.id }
+  const service = new PageService(repository, access, folders)
+  const documents = new PageDocumentService(service, repository, repository)
+  return { repository, memberships, folderRows, workspaces, members, invitations, access, folders, service, documents, id: repository.page.id }
 }
 
 describe('workspace authorization', () => {
   test('workspace members can create, edit and move pages without page ACLs', async () => {
-    const { service, repository, folders, id } = fixture()
+    const { service, documents, repository, folders, id } = fixture()
     await service.update(id, { title: 'Shared page' }, EDITOR_ID)
-    await service.updateContent(id, '# Shared edit', EDITOR_ID)
+    await documents.replace(id, '# Shared edit', EDITOR_ID)
     const folder = await folders.create(WORKSPACE_ID, 'Projects', EDITOR_ID)
     await service.move(id, folder.id, EDITOR_ID)
     expect(repository.page.folderId).toBe(folder.id)
@@ -36,11 +39,12 @@ describe('workspace authorization', () => {
   })
 
   test('outsiders cannot enumerate or mutate workspace resources', async () => {
-    const { service, access, members, folders, id } = fixture()
+    const { service, documents, access, members, folders, id } = fixture()
     await expect(access.requireMember(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(members.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(service.get(id, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
-    await expect(service.content(id, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
+    await expect(documents.content(id, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
+    await expect(documents.replace(id, 'Injected content', 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(service.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(service.create(WORKSPACE_ID, { title: 'Injected' }, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(folders.create(WORKSPACE_ID, 'Injected', 'outsider')).rejects.toMatchObject({ code: 'not_found' })
@@ -66,11 +70,11 @@ describe('workspace authorization', () => {
   })
 
   test('revocation and workspace deletion remove access to all page content', async () => {
-    const { workspaces, members, service, id } = fixture()
+    const { workspaces, members, documents, id } = fixture()
     await members.remove(WORKSPACE_ID, EDITOR_ID, OWNER_ID)
-    await expect(service.content(id, EDITOR_ID)).rejects.toMatchObject({ code: 'not_found' })
+    await expect(documents.content(id, EDITOR_ID)).rejects.toMatchObject({ code: 'not_found' })
     await workspaces.delete(WORKSPACE_ID, OWNER_ID)
-    await expect(service.content(id, OWNER_ID)).rejects.toMatchObject({ code: 'not_found' })
+    await expect(documents.content(id, OWNER_ID)).rejects.toMatchObject({ code: 'not_found' })
   })
 })
 

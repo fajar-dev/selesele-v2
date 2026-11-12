@@ -14,7 +14,7 @@ import EditorLinkPopover from '~/features/editor/components/EditorLinkPopover.vu
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useAuth } from '~/features/auth/composables/useAuth'
 import { usePageComments } from '~/features/comments/composables/usePageComments'
-import type { DropdownMenuItem } from '@nuxt/ui'
+import type { DropdownMenuItem, EditorDragHandleProps } from '@nuxt/ui'
 import { useFullscreen } from '@vueuse/core'
 import type { WorkspaceMember, FolderItem } from '#shared/contracts/workspace'
 import type { PageItem } from '#shared/contracts/page'
@@ -40,6 +40,14 @@ const breadcrumbItems = computed(() => [
   ...(props.page.folderId ? [{ label: props.folders.find(folder => folder.id === props.page.folderId)?.name || 'Folder', emoji: props.folders.find(folder => folder.id === props.page.folderId)?.icon || DEFAULT_FOLDER_ICON, to: `/workspaces/${props.page.workspaceId}?folder=${props.page.folderId}` }] : []),
   { label: props.page.title, emoji: props.page.icon, icon: 'i-lucide-file', to: `/workspaces/${props.page.workspaceId}/pages/${props.page.id}` }
 ])
+// Keep the visual gutter inside the handle's hit area so leaving the document
+// enters the controls directly instead of crossing a gap that hides them.
+const dragHandleOptions: EditorDragHandleProps['options'] = {
+  offset: ({ rects }) => ({
+    mainAxis: 0,
+    alignmentAxis: rects.reference.height > 40 ? 0 : (rects.reference.height - rects.floating.height) / 2
+  })
+}
 const pagesItems: DropdownMenuItem[] = [
   { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: openDeleteDialog }
 ]
@@ -214,10 +222,16 @@ function openDeleteDialog(): void {
       <UEditorDragHandle
         v-slot="{ ui, onClick }"
         :editor="editor"
+        :options="dragHandleOptions"
+        :ui="{ root: 'pe-2 transition-none' }"
+        :on-element-drag-start="() => editor.commands.beginBlockDrag()"
+        :on-element-drag-end="() => editor.commands.endBlockDrag()"
+        @hover="onNodeChange"
         @node-change="onNodeChange"
       >
         <UButton
           icon="i-lucide-plus"
+          aria-label="Add block below"
           color="neutral"
           variant="ghost"
           size="sm"
@@ -226,7 +240,9 @@ function openDeleteDialog(): void {
             e.stopPropagation()
             const node = onClick()
 
-            handlers.suggestion?.execute(editor, { pos: node?.pos }).run()
+            if (node) {
+              handlers.suggestion?.execute(editor, { pos: node.pos }).run()
+            }
           }"
         />
 
@@ -244,6 +260,7 @@ function openDeleteDialog(): void {
             active-variant="soft"
             size="sm"
             icon="i-lucide-grip-vertical"
+            aria-label="Block actions"
             :active="open"
             :class="ui.handle()"
           />

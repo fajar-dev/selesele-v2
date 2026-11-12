@@ -8,7 +8,6 @@ import { contentSchema } from '../../../../shared/validation/page'
 export default apiHandler(async (event) => {
   const id = idSchema.parse(getRouterParam(event, 'id'))
   const { content } = contentSchema.parse(await readBody(event))
-  const result = await getContainer().pages.updateContent(id, content, currentUser(event).id)
-  await getContainer().collaboration.replaceMarkdown(id, content)
-  return success(result ?? null)
+  await getContainer().documents.replace(id, content, currentUser(event).id)
+  return success(null)
 })

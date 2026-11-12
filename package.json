@@ -6,7 +6,6 @@
     "build": "bun --bun nuxt build",
     "db:generate": "bun --bun drizzle-kit generate",
     "db:migrate": "bun --bun drizzle-kit migrate",
-    "db:push": "bun --bun drizzle-kit push",
     "db:studio": "bun --bun drizzle-kit studio",
     "deps:check": "bun scripts/check-dependencies.ts",
     "dev": "bun --bun nuxt dev",
@@ -20,7 +19,9 @@
     "typecheck:server": "bun --bun tsc --noEmit --project .nuxt/tsconfig.server.json",
     "db:reset": "bun scripts/reset-database.ts",
     "test:integration": "bun scripts/integration.ts",
-    "verify": "bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration"
+    "verify": "bun run db:check && bun run audit:code && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration",
+    "db:check": "bun --bun drizzle-kit check",
+    "audit:code": "bun --bun knip"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.118",
@@ -70,6 +71,7 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.14.0",
+    "knip": "6.45.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vue-tsc": "^3.3.14"
   },

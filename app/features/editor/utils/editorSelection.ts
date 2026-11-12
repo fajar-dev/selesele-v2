@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/core'
-import type { EditorState } from '@tiptap/pm/state'
+import { TextSelection, type EditorState } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { CellSelection } from '@tiptap/pm/tables'
 
@@ -11,8 +11,8 @@ interface ToolbarContext {
 
 export function showTextToolbar({ editor, state, view }: ToolbarContext): boolean {
   return view.hasFocus()
+    && state.selection instanceof TextSelection
     && !state.selection.empty
-    && !(state.selection instanceof CellSelection)
     && !editor.isActive('image')
     && !editor.isActive('imageUpload')
 }

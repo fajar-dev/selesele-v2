@@ -16,9 +16,6 @@ export const ImageUpload = Node.create({
   group: 'block',
   atom: true,
   draggable: true,
-  addAttributes() {
-    return {}
-  },
   parseHTML() {
     return [{
       tag: 'div[data-type="image-upload"]'
@@ -38,5 +35,3 @@ export const ImageUpload = Node.create({
     }
   }
 })
-
-export default ImageUpload

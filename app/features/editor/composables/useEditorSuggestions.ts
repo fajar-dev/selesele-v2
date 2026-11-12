@@ -1,6 +1,7 @@
+import { blockTypeItems } from '../utils/blockTypeItems'
 import type { EditorSuggestionMenuItem, EditorCustomHandlers } from '@nuxt/ui'
 
-export function useEditorSuggestions<T extends EditorCustomHandlers>(_customHandlers?: T) {
+export function useEditorSuggestions<T extends EditorCustomHandlers>() {
   const items = [[{
     type: 'label',
     label: 'AI'
@@ -11,49 +12,10 @@ export function useEditorSuggestions<T extends EditorCustomHandlers>(_customHand
   }], [{
     type: 'label',
     label: 'Style'
-  }, {
-    kind: 'paragraph',
-    label: 'Paragraph',
-    icon: 'i-lucide-type'
-  }, {
-    kind: 'heading',
-    level: 1,
-    label: 'Heading 1',
-    icon: 'i-lucide-heading-1'
-  }, {
-    kind: 'heading',
-    level: 2,
-    label: 'Heading 2',
-    icon: 'i-lucide-heading-2'
-  }, {
-    kind: 'heading',
-    level: 3,
-    label: 'Heading 3',
-    icon: 'i-lucide-heading-3'
-  }, {
+  }, ...blockTypeItems(), {
     kind: 'horizontalRule',
     label: 'Divider',
     icon: 'i-lucide-separator-horizontal'
-  }, {
-    kind: 'bulletList',
-    label: 'Bullet List',
-    icon: 'i-lucide-list'
-  }, {
-    kind: 'orderedList',
-    label: 'Numbered List',
-    icon: 'i-lucide-list-ordered'
-  }, {
-    kind: 'taskList',
-    label: 'Task List',
-    icon: 'i-lucide-list-check'
-  }, {
-    kind: 'blockquote',
-    label: 'Blockquote',
-    icon: 'i-lucide-text-quote'
-  }, {
-    kind: 'codeBlock',
-    label: 'Code Block',
-    icon: 'i-lucide-square-code'
   }], [{
     type: 'label',
     label: 'Insert'
@@ -73,10 +35,6 @@ export function useEditorSuggestions<T extends EditorCustomHandlers>(_customHand
     kind: 'table',
     label: 'Table',
     icon: 'i-lucide-table'
-  }, {
-    kind: 'horizontalRule',
-    label: 'Horizontal Rule',
-    icon: 'i-lucide-separator-horizontal'
   }]] satisfies EditorSuggestionMenuItem<T>[][]
 
   return {

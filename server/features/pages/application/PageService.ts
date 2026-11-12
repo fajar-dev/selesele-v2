@@ -1,12 +1,11 @@
 import type { PageDraft, PageChanges } from '../domain/Page'
 import type { PageRepository } from '../domain/PageRepository'
-import type { DocumentRepository } from '../domain/DocumentRepository'
 import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
 import type { FolderLookup } from '../../workspaces/domain/FolderLookup'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class PageService {
-  constructor(private readonly pages: PageRepository, private readonly documents: DocumentRepository,
+  constructor(private readonly pages: PageRepository,
     private readonly access: WorkspaceAuthorization, private readonly folders: FolderLookup) {}
 
   async list(workspaceId: string, userId: string) {
@@ -49,15 +48,5 @@ export class PageService {
   async delete(id: string, userId: string) {
     await this.get(id, userId)
     await this.pages.delete(id)
-  }
-
-  async content(id: string, userId: string) {
-    await this.get(id, userId)
-    return this.documents.readContent(id)
-  }
-
-  async updateContent(id: string, content: string, userId: string) {
-    await this.get(id, userId)
-    await this.documents.updateContent(id, content)
   }
 }
