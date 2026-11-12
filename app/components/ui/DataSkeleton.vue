@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ label?: string, kind?: 'heading' | 'rows' | 'editor', rows?: number }>(), {
+withDefaults(defineProps<{ label?: string, kind?: 'heading' | 'rows' | 'editor' | 'cards', rows?: number }>(), {
   label: 'Loading data', kind: 'rows', rows: 4
 })
 </script>
@@ -10,29 +10,86 @@ withDefaults(defineProps<{ label?: string, kind?: 'heading' | 'rows' | 'editor',
     :aria-label="label"
     aria-busy="true"
     :data-skeleton="kind"
-    class="space-y-4 motion-reduce:animate-none"
+    class="space-y-ui-lg motion-reduce:animate-none"
   >
     <span class="sr-only">{{ label }}</span>
     <template v-if="kind === 'heading'">
-      <div class="flex items-center gap-3">
-        <USkeleton class="size-10 rounded-[4px] shrink-0" />
-        <USkeleton class="h-9 w-64 max-w-[70%] rounded-[3px]" />
+      <div class="flex items-center gap-ui-md">
+        <USkeleton
+          aria-hidden="true"
+          class="size-ui-5xl rounded-sm shrink-0"
+        />
+        <USkeleton
+          aria-hidden="true"
+          class="h-ui-4xl w-ui-16xl max-w-proportion-two-thirds rounded-sm"
+        />
       </div>
-      <USkeleton class="h-4 w-80 max-w-[85%] rounded-[3px]" />
+      <USkeleton
+        aria-hidden="true"
+        class="h-ui-lg w-ui-18xl max-w-proportion-wide rounded-sm"
+      />
     </template>
+    <div
+      v-else-if="kind === 'cards'"
+      class="grid sm:grid-cols-2 gap-ui-lg"
+    >
+      <div
+        v-for="row in rows"
+        :key="row"
+        class="border border-muted rounded-md p-ui-xl space-y-ui-xl"
+      >
+        <div class="flex items-center gap-ui-md">
+          <USkeleton
+            aria-hidden="true"
+            class="size-ui-5xl shrink-0"
+          />
+          <USkeleton
+            aria-hidden="true"
+            class="h-ui-lg w-proportion-three-fifths"
+          />
+        </div>
+        <div class="flex items-center justify-between">
+          <USkeleton
+            aria-hidden="true"
+            class="h-ui-md w-ui-6xl"
+          />
+          <USkeleton
+            aria-hidden="true"
+            class="size-ui-lg"
+          />
+        </div>
+      </div>
+    </div>
     <template v-else>
       <div
         v-for="row in rows"
         :key="row"
-        class="flex items-center gap-3 py-2"
+        class="flex items-center gap-ui-md py-ui-sm"
       >
         <USkeleton
           v-if="kind === 'rows'"
-          class="size-5 shrink-0 rounded-[3px]"
+          aria-hidden="true"
+          class="size-ui-4xl shrink-0 rounded-sm"
         />
+        <div
+          v-if="kind === 'rows'"
+          class="flex-1 space-y-ui-sm"
+        >
+          <USkeleton
+            aria-hidden="true"
+            class="h-ui-md"
+            :class="row % 2 === 0 ? 'w-proportion-two-thirds' : 'w-proportion-four-fifths'"
+          />
+          <USkeleton
+            aria-hidden="true"
+            class="h-ui-sm w-proportion-two-fifths"
+          />
+        </div>
         <USkeleton
-          class="h-4 rounded-[3px]"
-          :class="row % 3 === 0 ? 'w-1/2' : row % 2 === 0 ? 'w-2/3' : 'w-5/6'"
+          v-else
+          aria-hidden="true"
+          class="h-ui-lg rounded-sm"
+          :class="row % 3 === 0 ? 'w-proportion-half' : row % 2 === 0 ? 'w-proportion-two-thirds' : 'w-proportion-wide'"
         />
       </div>
     </template>

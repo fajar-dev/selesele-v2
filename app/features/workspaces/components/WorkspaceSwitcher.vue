@@ -35,21 +35,21 @@ function opened(open: boolean) {
   <UDropdownMenu
     :items="items"
     :content="{ align: 'start' }"
-    :ui="{ content: 'w-64', itemLabel: 'truncate', itemDescription: 'capitalize text-xs' }"
+    :ui="{ content: 'w-ui-16xl', itemLabel: 'truncate', itemDescription: 'capitalize text-xs' }"
     @update:open="opened"
   >
     <template #workspace-leading="{ item }">
       <EntityIcon
         :value="item.emoji"
         fallback="i-lucide-panels-top-left"
-        class="size-4 text-base"
+        class="size-ui-lg text-base"
       />
     </template>
     <template #workspace-trailing="{ item }">
       <UIcon
         v-if="item.checked"
         name="i-lucide-check"
-        class="size-4 text-muted"
+        class="size-ui-lg text-muted"
       />
     </template>
     <template #content-top>
@@ -57,7 +57,7 @@ function opened(open: boolean) {
         v-if="!data.length && (status === 'idle' || status === 'pending')"
         label="Loading workspaces"
         :rows="3"
-        class="p-3"
+        class="p-ui-md"
       />
     </template>
     <UButton
@@ -66,14 +66,14 @@ function opened(open: boolean) {
       trailing-icon="i-lucide-chevrons-up-down"
       color="neutral"
       variant="ghost"
-      class="w-full text-sm justify-between py-2 font-semibold"
+      class="w-full text-sm justify-between py-ui-sm font-semibold"
       :ui="{ label: 'truncate flex-1 text-left' }"
     >
       <template #leading>
         <EntityIcon
           :value="workspace.icon"
           fallback="i-lucide-panels-top-left"
-          class="size-5 text-xl text-highlighted"
+          class="size-ui-xl text-xl text-highlighted"
         />
       </template>
     </UButton>

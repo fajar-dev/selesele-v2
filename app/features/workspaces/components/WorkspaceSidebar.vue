@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { libraryKeys } from '~/features/library/state/libraryKeys'
+
+import WorkspaceFavorites from '~/features/library/components/WorkspaceFavorites.vue'
+import { useLibrarySearch } from '~/features/library/composables/useLibrarySearch'
 import { usePageDeletion } from '~/features/pages/composables/usePageDeletion'
 import { useApi } from '~/core/http/useApi'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
@@ -22,7 +26,8 @@ const deleteOpen = ref(false)
 const deletingPage = ref<PageItem | null>(null)
 const deletePageOpen = ref(false)
 const deletingFolder = ref<FolderItem | null>(null)
-const search = ref('')
+const searchOpen = useLibrarySearch()
+const questionsOpen = useState('workspace-questions-open', () => false)
 const workspace = computed(() => overview.value?.workspace)
 const manager = computed(() => !!workspace.value && workspace.value.role !== 'member')
 const home = computed(() => `/workspaces/${workspaceId}`)
@@ -34,7 +39,12 @@ function deleteFolder(folder: FolderItem) {
 }
 async function confirmDelete() {
   if (deletingFolder.value) {
+    const viewingChild = overview.value?.pages.some(page => page.folderId === deletingFolder.value!.id && page.id === route.params.id)
     await folderApi.delete(workspaceId, deletingFolder.value.id)
+    void refreshNuxtData(libraryKeys.personal)
+    if (viewingChild) {
+      await navigateTo(home.value)
+    }
     await refreshWorkspace(workspaceId)
   }
 }
@@ -60,7 +70,7 @@ async function logout() {
 
 <template>
   <div class="flex flex-col h-full app-sidebar">
-    <div class="px-3 pt-4 pb-4 space-y-4">
+    <div class="px-ui-md pt-ui-lg pb-ui-lg space-y-ui-lg">
       <WorkspaceSwitcher
         v-if="workspace"
         :workspace="workspace"
@@ -76,21 +86,25 @@ async function logout() {
         color="error"
         :actions="[{ label: 'Retry', onClick: refresh }]"
       />
-      <UInput
-        v-model="search"
+      <UButton
+        label="Search"
+        aria-label="Search all content"
         icon="i-lucide-search"
-        placeholder="Find a page…"
-        aria-label="Find a page"
-        size="sm"
-        class="w-full"
-        :ui="{ base: 'bg-default ring-muted placeholder:text-dimmed py-2' }"
-      />
+        color="neutral"
+        variant="ghost"
+        class="sidebar-link"
+        @click="searchOpen = true"
+      >
+        <template #trailing>
+          <span class="ms-auto text-xs text-muted">⌘ / Ctrl K</span>
+        </template>
+      </UButton>
     </div>
     <nav
-      class="flex-1 min-h-0 overflow-y-auto px-3 pb-5 space-y-6"
+      class="flex-1 min-h-ui-zero overflow-y-auto px-ui-md pb-ui-xl space-y-ui-2xl"
       aria-label="Workspace navigation"
     >
-      <div class="space-y-1">
+      <div class="space-y-ui-xs">
         <UButton
           label="Workspace home"
           icon="i-lucide-house"
@@ -99,7 +113,16 @@ async function logout() {
           variant="ghost"
           class="sidebar-link"
           :class="{ 'is-active': route.path === home && !route.query.folder }"
-          :ui="{ leadingIcon: 'size-4.5' }"
+          :ui="{ leadingIcon: 'size-ui-lg' }"
+        />
+        <UButton
+          label="Ask workspace"
+          icon="i-lucide-sparkles"
+          color="neutral"
+          variant="ghost"
+          class="sidebar-link"
+          :ui="{ leadingIcon: 'size-ui-lg' }"
+          @click="questionsOpen = true"
         />
         <UButton
           label="Members"
@@ -108,14 +131,15 @@ async function logout() {
           color="neutral"
           variant="ghost"
           class="sidebar-link"
-          :ui="{ leadingIcon: 'size-4.5' }"
+          :ui="{ leadingIcon: 'size-ui-lg' }"
           :to="`${home}/members`"
           :class="{ 'is-active': route.path === `${home}/members` }"
         >
           <template #trailing>
             <USkeleton
               v-if="membersLoading"
-              class="ml-auto h-3 w-4"
+              aria-hidden="true"
+              class="ml-auto h-ui-md w-ui-lg"
             />
             <span
               v-else
@@ -131,7 +155,7 @@ async function logout() {
           variant="ghost"
           class="sidebar-link"
           :class="{ 'is-active': route.path === `${home}/settings` }"
-          :ui="{ leadingIcon: 'size-4.5' }"
+          :ui="{ leadingIcon: 'size-ui-lg' }"
         />
       </div>
       <UAlert
@@ -140,19 +164,18 @@ async function logout() {
         color="error"
         :actions="[{ label: 'Retry', onClick: refresh }]"
       />
+      <WorkspaceFavorites :workspace-id="workspaceId" />
       <WorkspaceTree
         v-if="overview"
         :overview="overview"
         :pages-loading="pagesLoading"
         :folders-loading="foldersLoading"
-        :search="search"
         @create-page="createPage"
-        @clear-search="search = ''"
         @delete-folder="deleteFolder"
         @delete-page="deletePage"
       />
     </nav>
-    <div class="p-3 space-y-3">
+    <div class="p-ui-md space-y-ui-md">
       <UButton
         v-if="manager"
         label="Invite teammates"
@@ -160,21 +183,21 @@ async function logout() {
         color="primary"
         variant="soft"
         size="sm"
-        class="w-full justify-start py-2 text-muted hover:text-highlighted"
+        class="w-full justify-start py-ui-sm text-muted hover:text-highlighted"
         :to="`${home}/members#invite`"
       />
       <USeparator class="opacity-75" />
-      <div class="flex items-center gap-2 px-1 pb-1">
+      <div class="flex items-center gap-ui-sm px-ui-xs pb-ui-xs">
         <UAvatar
           :alt="auth.user?.name || auth.user?.email"
           :src="auth.user?.avatar || undefined"
           size="sm"
           class="bg-primary/10 text-primary"
         />
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-ui-zero">
           <p class="text-xs font-semibold text-highlighted truncate">
             {{ auth.user?.name || auth.user?.email }}
-          </p><p class="text-[11px] text-muted capitalize mt-0.5">
+          </p><p class="text-xs text-muted capitalize mt-ui-2xs">
             {{ workspace?.role || '' }} workspace
           </p>
         </div>
@@ -198,14 +221,14 @@ async function logout() {
     <ConfirmationDialog
       v-model:open="deletePageOpen"
       title="Delete page"
-      :description="`“${deletingPage?.title || 'This page'}” will be deleted. This action cannot be undone.`"
+      :description="`“${deletingPage?.title || 'This page'}” will be moved to Trash. You can restore it later.`"
       confirm-label="Delete"
       :on-confirm="confirmDeletePage"
     />
     <ConfirmationDialog
       v-model:open="deleteOpen"
       title="Delete folder"
-      :description="`“${deletingFolder?.name || 'This folder'}” will be deleted. Its pages will be moved to the workspace root.`"
+      :description="`“${deletingFolder?.name || 'This folder'}” and its pages will be moved to Trash. You can restore the folder and its contents later.`"
       confirm-label="Delete"
       :on-confirm="confirmDelete"
     />

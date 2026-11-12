@@ -1,0 +1,150 @@
+/* Central sizing vocabulary. Components consume names, never literal dimensions. */
+@theme {
+  --spacing-viewport: 100svh;
+  --spacing-ui-zero: 0px;
+  --spacing-ui-2xs: 0.125rem;
+  --spacing-ui-xs: 0.25rem;
+  --spacing-ui-sm: 0.5rem;
+  --spacing-ui-md: 0.75rem;
+  --spacing-ui-lg: 1rem;
+  --spacing-ui-xl: 1.25rem;
+  --spacing-ui-2xl: 1.5rem;
+  --spacing-ui-3xl: 1.75rem;
+  --spacing-ui-4xl: 2rem;
+  --spacing-ui-5xl: 2.5rem;
+  --spacing-ui-6xl: 3rem;
+  --spacing-ui-7xl: 3.5rem;
+  --spacing-ui-8xl: 4rem;
+  --spacing-ui-9xl: 5rem;
+  --spacing-ui-10xl: 6rem;
+  --spacing-ui-11xl: 7rem;
+  --spacing-ui-12xl: 8rem;
+  --spacing-ui-13xl: 10rem;
+  --spacing-ui-14xl: 12rem;
+  --spacing-ui-15xl: 14rem;
+  --spacing-ui-16xl: 16rem;
+  --spacing-ui-17xl: 18rem;
+  --spacing-ui-18xl: 20rem;
+  --container-sidebar: 17rem;
+  --container-sidebar-mobile: 18rem;
+  --container-panel-md: 30rem;
+  --container-panel-lg: 42rem;
+  --container-popup-sm: 18rem;
+  --container-popup-md: 24rem;
+  --container-popup-lg: 26rem;
+  --container-auth-form: 24rem;
+  --container-auth-story: 34rem;
+  --container-auth-preview: 30rem;
+  --container-directory: 78rem;
+  --container-document: 64rem;
+  --container-timeline: 12rem;
+  --container-rail: 18rem;
+  --container-search: 40rem;
+  --container-inbox: min(24rem, calc(100vw - 1.5rem));
+  --container-floating: calc(100vw - 2rem);
+  --container-floating-desktop: calc(100vw - 20rem);
+  --spacing-proportion-half: 50%;
+  --spacing-proportion-two-thirds: 66.666667%;
+  --spacing-proportion-three-quarters: 75%;
+  --spacing-proportion-wide: 85%;
+  --spacing-proportion-three-fifths: 60%;
+  --spacing-proportion-four-fifths: 80%;
+  --spacing-proportion-two-fifths: 40%;
+  --spacing-sidebar: var(--container-sidebar);
+  --spacing-command: 16dvh;
+  --spacing-command-panel: 52dvh;
+  --spacing-popup-lg: var(--container-popup-lg);
+  --spacing-auth-inset: clamp(2.5rem, 5vw, 5.25rem);
+  --container-editor-menu: calc(100% - 2.25rem);
+  --container-command: 52dvh;
+  --text-auth-display: clamp(2.375rem, 3.8vw, 3.375rem);
+  --color-comment: #c68c1b;
+  --color-comment-highlight: #f5b942;
+  --color-comment-active: #b77912;
+  --color-drag-indicator: #3b82f6;
+  --shadow-panel: -0.75rem 0 2rem #00000006;
+  --shadow-inline: 0 1px 0 var(--ui-border-accented);
+  --animate-skeleton-shimmer: skeleton-sweep 1.8s ease-in-out infinite;
+}
+@custom-variant viewport-short (@media (max-height: 53.125rem));
+@custom-variant viewport-compact (@media (max-height: 45rem));
+@custom-variant viewport-low (@media (max-height: 37.5rem));
+@custom-variant viewport-landscape (@media (max-height: 26.875rem));
+:root {
+  --ui-primary: #242424;
+  --ui-success: #262626;
+  --ui-warning: #404040;
+  --ui-error: #dc2626;
+  --ui-info: #404040;
+  --ui-text: #262626;
+  --ui-text-highlighted: #202020;
+  --ui-text-toned: #404040;
+  --ui-text-muted: #767676;
+  --ui-text-dimmed: #858585;
+  --ui-text-inverted: #ffffff;
+  --ui-bg: #ffffff;
+  --ui-bg-muted: #fcfcfc;
+  --ui-bg-elevated: #ffffff;
+  --ui-bg-accented: #f1f1f1;
+  --ui-bg-inverted: #171717;
+  --ui-border: #e5e5e5;
+  --ui-border-muted: #eeeeee;
+  --ui-border-accented: #a3a3a3;
+  --ui-border-inverted: #262626;
+  --ui-radius: 0.125rem;
+  --app-skeleton: #dedede;
+  --app-skeleton-shine: #ffffff55;
+  --app-sidebar: #fafafa;
+  --app-hover: #f9f9f9;
+  --app-selected: #f5f5f5;
+}
+
+.dark {
+  --ui-primary: #fafafa;
+  --ui-success: #e5e5e5;
+  --ui-warning: #d4d4d4;
+  --ui-error: #f87171;
+  --ui-info: #d4d4d4;
+  --ui-text: #e5e5e5;
+  --ui-text-highlighted: #fafafa;
+  --ui-text-toned: #d4d4d4;
+  --ui-text-muted: #c2c2c2;
+  --ui-text-dimmed: #b0b0b0;
+  --ui-text-inverted: #0a0a0a;
+  --ui-bg: #111111;
+  --ui-bg-muted: #262626;
+  --ui-bg-elevated: #171717;
+  --ui-bg-accented: #303030;
+  --ui-bg-inverted: #fafafa;
+  --ui-border: #343434;
+  --ui-border-muted: #292929;
+  --ui-border-accented: #a3a3a3;
+  --ui-border-inverted: #e5e5e5;
+  --app-skeleton: #3b3b3b;
+  --app-skeleton-shine: #ffffff0d;
+  --app-sidebar: #141414;
+  --app-hover: #222222;
+  --app-selected: #2b2b2b;
+}
+
+
+:root {
+  --app-border-thin: 1px;
+  --app-border-emphasis: 2px;
+  --app-duration-fast: 160ms;
+  --app-duration-reduced: 0.01ms;
+  --app-caret-label-offset: -1.4em;
+  --app-comment-dark: #f5b94220;
+  --app-comment-dark-active: #f5b94240;
+  --app-task-check: url("/icons/task-check-light.svg");
+  --app-duration-normal: 180ms;
+  --app-preview-rotation: rotate(-2deg);
+  --app-preview-shadow: 0 8px 24px #0002;
+  --app-selected-version-shadow: inset 2px 0 var(--ui-text-toned);
+  --app-drop-target-shadow: inset 0 0 0 1px var(--ui-border-accented);
+  --app-card-hover-shadow: 0 2px 8px color-mix(in srgb, var(--ui-text) 4%, transparent);
+  --app-skeleton-gradient: linear-gradient(100deg, transparent 30%, var(--app-skeleton-shine) 50%, transparent 70%);
+  --app-skeleton-gradient-size: 200% 100%;
+}
+
+.dark { --app-task-check: url("/icons/task-check-dark.svg"); }

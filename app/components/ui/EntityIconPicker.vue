@@ -33,7 +33,7 @@ async function select(emoji: { i: string }) {
     v-if="readonly"
     :value="value"
     :fallback="fallback"
-    class="size-10 text-[2rem]"
+    class="size-ui-5xl text-3xl"
   />
   <UPopover
     v-else
@@ -46,13 +46,13 @@ async function select(emoji: { i: string }) {
       variant="ghost"
       :loading="saving"
       :disabled="saving"
-      class="size-10 p-0 justify-center text-[2rem] leading-none"
+      class="size-ui-5xl p-ui-zero justify-center text-3xl leading-none"
     >
       <EntityIcon
         v-if="!saving"
         :value="value"
         :fallback="fallback"
-        class="size-8"
+        class="size-ui-4xl"
       />
     </UButton>
     <template #content>

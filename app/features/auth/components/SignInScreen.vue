@@ -42,7 +42,7 @@ const failed = computed(() => route.query.error === 'microsoft')
     <section class="auth-entry">
       <div class="auth-entry-content app-enter">
         <h1>Good work<br>starts here<span class="text-dimmed">.</span></h1>
-        <p class="auth-entry-description text-sm leading-6 text-muted mt-5 mb-8 max-w-80">
+        <p class="auth-entry-description text-sm leading-relaxed text-muted mt-ui-xl mb-ui-4xl max-w-ui-18xl">
           One home for your notes, your projects, and the people you build with.
         </p>
         <UAlert
@@ -51,19 +51,19 @@ const failed = computed(() => route.query.error === 'microsoft')
           variant="soft"
           title="Microsoft sign-in failed"
           description="Your sign-in was cancelled, expired, or could not be verified. Please try again."
-          class="mb-5"
+          class="mb-ui-xl"
         />
         <UButton
           to="/api/auth/microsoft"
           external
           size="lg"
-          class="w-full justify-center min-h-12 gap-3 auth-sign-in"
+          class="w-full justify-center min-h-ui-6xl gap-ui-md auth-sign-in"
         >
           <template #leading>
             <span class="auth-microsoft-mark">
               <svg
                 viewBox="0 0 21 21"
-                class="size-4"
+                class="size-ui-lg"
                 aria-hidden="true"
               >
                 <path
@@ -89,14 +89,14 @@ const failed = computed(() => route.query.error === 'microsoft')
           <template #trailing>
             <UIcon
               name="i-lucide-arrow-right"
-              class="size-4 ms-auto opacity-70"
+              class="size-ui-lg ms-auto opacity-70"
             />
           </template>
         </UButton>
         <div class="auth-account-note">
           <UIcon
             name="i-lucide-shield-check"
-            class="size-4 shrink-0 mt-0.5 text-muted"
+            class="size-ui-lg shrink-0 mt-ui-2xs text-muted"
           />
           <p>Use your organization’s Microsoft account.<br><span class="text-muted">Your team’s space is just one sign-in away.</span></p>
         </div>
@@ -109,64 +109,66 @@ const failed = computed(() => route.query.error === 'microsoft')
 </template>
 
 <style scoped>
-.auth-screen { position: relative; height: 100svh; overflow: clip; background: var(--ui-bg); }
-.auth-header { position: absolute; inset: 0 0 auto; z-index: 2; display: flex; align-items: center; justify-content: space-between; height: 72px; padding-inline: 20px; }
+@reference "~/assets/css/main.css";
+
+.auth-screen { position: relative; height: var(--spacing-viewport); overflow: clip; background: var(--ui-bg); }
+.auth-header { position: absolute; inset: 0 0 auto; z-index: 2; display: flex; align-items: center; justify-content: space-between; height: var(--spacing-ui-8xl); padding-inline: var(--spacing-ui-xl); }
 .auth-brand { color: var(--ui-text-highlighted); }
 .auth-story { display: none; }
-.auth-entry { height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: 100px 28px 24px; }
-.auth-entry-content { width: 100%; max-width: 360px; margin: auto; }
-.auth-entry h1 { color: var(--ui-text-highlighted); font-size: 34px; font-weight: 600; line-height: 1.15; letter-spacing: -1.3px; }
-.auth-microsoft-mark { display: grid; place-items: center; width: 26px; height: 26px; background: #fff; border-radius: 3px; flex-shrink: 0; }
-.auth-sign-in { padding-inline: 14px; font-size: 14px; }
-.auth-account-note { display: flex; gap: 10px; border-top: 1px solid var(--ui-border-muted); padding-top: 23px; margin-top: 26px; font-size: 11px; line-height: 1.8; color: var(--ui-text-toned); }
-.auth-entry-footer { text-align: center; font-size: 11px; color: var(--ui-text-muted); }
-@media (min-width: 1024px) {
+.auth-entry { height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: var(--spacing-ui-10xl) var(--spacing-ui-3xl) var(--spacing-ui-2xl); }
+.auth-entry-content { width: 100%; max-width: var(--container-auth-form); margin: auto; }
+.auth-entry h1 { color: var(--ui-text-highlighted); font-size: var(--text-4xl); font-weight: var(--font-weight-semibold); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+.auth-microsoft-mark { display: grid; place-items: center; width: var(--spacing-ui-2xl); height: var(--spacing-ui-2xl); background: var(--color-white); border-radius: var(--radius-xs); flex-shrink: 0; }
+.auth-sign-in { padding-inline: var(--spacing-ui-md); font-size: var(--text-sm); }
+.auth-account-note { display: flex; gap: var(--spacing-ui-sm); border-top: var(--app-border-thin) solid var(--ui-border-muted); padding-top: var(--spacing-ui-2xl); margin-top: var(--spacing-ui-2xl); font-size: var(--text-xs); line-height: var(--leading-loose); color: var(--ui-text-toned); }
+.auth-entry-footer { text-align: center; font-size: var(--text-xs); color: var(--ui-text-muted); }
+@variant lg {
   .auth-screen { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
-  .auth-header { padding-inline: 40px; }
+  .auth-header { padding-inline: var(--spacing-ui-5xl); }
   .auth-brand :deep(img) { filter: grayscale(1) invert(1); }
-  .auth-entry h1 { font-size: 38px; }
-  .auth-brand { color: #fff; }
-  .auth-story { position: relative; display: flex; flex-direction: column; justify-content: center; overflow: hidden; min-height: 0; height: 100%; background: #242424; color: #fff; padding: 112px clamp(40px, 5vw, 84px) 25px; }
-  .auth-story-content { width: 100%; max-width: 540px; margin: auto; }
-  .auth-story-label { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; font-size: 10px; letter-spacing: 0.4px; color: #bbb; }
-  .auth-story-rule { width: 23px; height: 1px; background: #888; }
-  .auth-story h2 { font-size: clamp(38px, 3.8vw, 54px); font-weight: 500; line-height: 1.12; letter-spacing: -1.8px; }
-  .auth-story h2 span { color: #c5c5c5; }
-  .auth-story-description { margin-top: 20px; color: #b8b8b8; font-size: 13px; line-height: 1.8; }
-  .auth-story-features { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 46px; color: #c6c6c6; font-size: 10px; }
-  .auth-story-features > span { display: inline-flex; align-items: center; gap: 7px; }
-  .auth-story-features :deep(.iconify) { width: 14px; height: 14px; }
-  .auth-story-footer { margin-top: 45px; color: #8f8f8f; font-size: 10px; }
-  .auth-entry { padding: 110px 50px 25px; }
+  .auth-entry h1 { font-size: var(--text-4xl); }
+  .auth-brand { color: var(--color-white); }
+  .auth-story { position: relative; display: flex; flex-direction: column; justify-content: center; overflow: hidden; min-height: 0; height: 100%; background: var(--color-neutral-800); color: var(--color-white); padding: var(--spacing-ui-11xl) var(--spacing-auth-inset) var(--spacing-ui-2xl); }
+  .auth-story-content { width: 100%; max-width: var(--container-auth-story); margin: auto; }
+  .auth-story-label { display: flex; align-items: center; gap: var(--spacing-ui-sm); margin-bottom: var(--spacing-ui-2xl); font-size: var(--text-xs); letter-spacing: var(--tracking-widest); color: var(--color-neutral-400); }
+  .auth-story-rule { width: var(--spacing-ui-2xl); height: var(--app-border-thin); background: var(--color-neutral-500); }
+  .auth-story h2 { font-size: var(--text-auth-display); font-weight: var(--font-weight-medium); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+  .auth-story h2 span { color: var(--color-neutral-300); }
+  .auth-story-description { margin-top: var(--spacing-ui-xl); color: var(--color-neutral-400); font-size: var(--text-xs); line-height: var(--leading-loose); }
+  .auth-story-features { display: flex; flex-wrap: wrap; gap: var(--spacing-ui-md) var(--spacing-ui-2xl); margin-top: var(--spacing-ui-6xl); color: var(--color-neutral-300); font-size: var(--text-xs); }
+  .auth-story-features > span { display: inline-flex; align-items: center; gap: var(--spacing-ui-sm); }
+  .auth-story-features :deep(.iconify) { width: var(--spacing-ui-md); height: var(--spacing-ui-md); }
+  .auth-story-footer { margin-top: var(--spacing-ui-6xl); color: var(--color-neutral-400); font-size: var(--text-xs); }
+  .auth-entry { padding: var(--spacing-ui-11xl) var(--spacing-ui-6xl) var(--spacing-ui-2xl); }
 }
-@media (min-width: 1600px) {
-  .auth-story { padding-inline: 100px; }
-  .auth-header { padding-inline: 40px; }
+@variant 2xl {
+  .auth-story { padding-inline: var(--spacing-ui-10xl); }
+  .auth-header { padding-inline: var(--spacing-ui-5xl); }
 }
-@media (max-height: 850px) {
-  .auth-story-label { margin-bottom: 18px; }
-  .auth-story-description { margin-top: 14px; }
-  .auth-story-features { margin-top: 35px; }
-  .auth-story-footer { margin-top: 25px; }
+@variant viewport-short {
+  .auth-story-label { margin-bottom: var(--spacing-ui-lg); }
+  .auth-story-description { margin-top: var(--spacing-ui-md); }
+  .auth-story-features { margin-top: var(--spacing-ui-4xl); }
+  .auth-story-footer { margin-top: var(--spacing-ui-2xl); }
 }
-@media (max-height: 720px) {
-  .auth-story { padding-top: 95px; }
+@variant viewport-compact {
+  .auth-story { padding-top: var(--spacing-ui-10xl); }
   .auth-story-features, .auth-story-footer { display: none; }
-  .auth-entry-description { font-size: 13px; line-height: 1.7; margin-top: 12px; margin-bottom: 20px; }
-  .auth-account-note { padding-top: 16px; margin-top: 18px; }
+  .auth-entry-description { font-size: var(--text-xs); line-height: var(--leading-relaxed); margin-top: var(--spacing-ui-md); margin-bottom: var(--spacing-ui-xl); }
+  .auth-account-note { padding-top: var(--spacing-ui-lg); margin-top: var(--spacing-ui-lg); }
 }
-@media (max-height: 600px) {
-  .auth-entry { padding-top: 85px; padding-bottom: 18px; }
+@variant viewport-low {
+  .auth-entry { padding-top: var(--spacing-ui-9xl); padding-bottom: var(--spacing-ui-lg); }
   .auth-entry-footer { display: none; }
   .auth-story-description { display: none; }
 }
-@media (max-height: 430px) {
-  .auth-entry { padding-top: 72px; padding-bottom: 12px; }
-  .auth-entry h1 { font-size: 28px; line-height: 1.15; margin-bottom: 18px; }
+@variant viewport-landscape {
+  .auth-entry { padding-top: var(--spacing-ui-8xl); padding-bottom: var(--spacing-ui-md); }
+  .auth-entry h1 { font-size: var(--text-3xl); line-height: var(--leading-tight); margin-bottom: var(--spacing-ui-lg); }
   .auth-entry-description, .auth-account-note { display: none; }
-  .auth-story h2 { font-size: 34px; }
+  .auth-story h2 { font-size: var(--text-4xl); }
 }
-@media (min-width: 640px) {
-  .auth-header { padding-inline: 40px; }
+@variant sm {
+  .auth-header { padding-inline: var(--spacing-ui-5xl); }
 }
 </style>

@@ -18,7 +18,7 @@ const actions = computed(() => [{
 
 <template>
   <div
-    class="group/page flex items-center rounded-[5px] hover:bg-(--app-hover)"
+    class="group/page flex items-center rounded-md hover:bg-(--app-hover)"
     :class="{ 'bg-(--app-selected)': active, 'opacity-50': moving }"
     :aria-busy="moving || undefined"
   >
@@ -27,7 +27,7 @@ const actions = computed(() => [{
       :draggable="!disabled"
       color="neutral"
       variant="ghost"
-      class="sidebar-link min-w-0 flex-1 overflow-hidden"
+      class="sidebar-link min-w-ui-zero flex-1 overflow-hidden"
       :title="page.title"
       :class="{ 'is-active': active }"
       :ui="{ label: 'truncate' }"
@@ -38,15 +38,15 @@ const actions = computed(() => [{
         <UIcon
           v-if="moving"
           name="i-lucide-loader-circle"
-          class="size-4 animate-spin"
+          class="size-ui-lg animate-spin"
         />
         <EntityIcon
           v-else
           :value="page.icon"
           fallback="i-lucide-file"
-          class="size-4 text-base"
+          class="size-ui-lg text-base"
         />
-      </template><span class="min-w-0 flex-1 truncate text-left">{{ page.title }}</span>
+      </template><span class="min-w-ui-zero flex-1 truncate text-left">{{ page.title }}</span>
     </UButton>
     <UDropdownMenu
       :items="actions"
@@ -59,7 +59,7 @@ const actions = computed(() => [{
         size="xs"
         color="neutral"
         variant="ghost"
-        class="mr-1 shrink-0 opacity-50 sm:opacity-0 sm:group-hover/page:opacity-60 sm:group-focus-within/page:opacity-100 focus-visible:opacity-100"
+        class="mr-ui-xs shrink-0 opacity-50 sm:opacity-0 sm:group-hover/page:opacity-60 sm:group-focus-within/page:opacity-100 focus-visible:opacity-100"
       />
     </UDropdownMenu>
   </div>

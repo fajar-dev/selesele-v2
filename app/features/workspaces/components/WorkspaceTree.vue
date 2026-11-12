@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePageTemplates } from '~/features/library/composables/usePageTemplates'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
 import WorkspacePageLink from '~/features/workspaces/components/WorkspacePageLink.vue'
@@ -7,10 +8,9 @@ import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorksp
 import type { WorkspaceOverview, FolderItem } from '#shared/contracts/workspace'
 import type { PageItem } from '#shared/contracts/page'
 
-const props = defineProps<{ overview: WorkspaceOverview, search: string, pagesLoading: boolean, foldersLoading: boolean }>()
+const props = defineProps<{ overview: WorkspaceOverview, pagesLoading: boolean, foldersLoading: boolean }>()
 const emit = defineEmits<{
   createPage: [folderId: string | null]
-  clearSearch: []
   deleteFolder: [folder: FolderItem]
   deletePage: [page: PageItem]
 }>()
@@ -18,7 +18,6 @@ const creatingFromMenu = ref(false)
 const { createFolder, creatingFolder } = useWorkspaceFolders(props.overview.workspace.id)
 function beginFolder() {
   creatingFromMenu.value = true
-  emit('clearSearch')
   void createFolder()
 }
 function beginPage(folderId: string | null) {
@@ -34,27 +33,28 @@ function preserveCreationFocus(event: Event) {
 const route = useRoute()
 const { movingPageId, announcement, movePage } = usePageMovement(() => props.overview)
 const home = computed(() => `/workspaces/${props.overview.workspace.id}`)
-const query = computed(() => props.search.trim().toLowerCase())
-const matchingPages = computed(() => props.overview.pages.filter(page => page.title.toLowerCase().includes(query.value)))
-const rootPages = computed(() => matchingPages.value.filter(page => !page.folderId))
-const visibleFolders = computed(() => props.overview.folders.filter(folder => folder.name.toLowerCase().includes(query.value) || matchingPages.value.some(page => page.folderId === folder.id)))
+const rootPages = computed(() => props.overview.pages.filter(page => !page.folderId))
+const templates = usePageTemplates(props.overview.workspace.id, () => {
+  creatingFromMenu.value = true
+})
 const collapsed = ref(new Set<string>())
 const draggedPage = ref<PageItem | null>(null)
 const dropTarget = ref<string | null>(null)
 const pageDragType = 'application/x-sele-page'
 const rootTarget = 'workspace-root'
-const addItems = [
+const addItems = computed(() => [
   { label: 'Page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(null) },
-  { label: 'Folder', icon: 'i-lucide-folder-plus', onSelect: beginFolder }
-]
+  { label: 'Folder', icon: 'i-lucide-folder-plus', onSelect: beginFolder },
+  templates.items(null)
+])
 
 function folderPages(folder: FolderItem) {
-  const pages = folder.name.toLowerCase().includes(query.value) ? props.overview.pages : matchingPages.value
-  return pages.filter(page => page.folderId === folder.id)
+  return props.overview.pages.filter(page => page.folderId === folder.id)
 }
 function folderItems(folder: FolderItem) {
   return [
     { label: 'New page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(folder.id) },
+    templates.items(folder.id),
     { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: () => emit('deleteFolder', folder) }
   ]
 }
@@ -135,7 +135,7 @@ watch(() => props.overview.workspace.id, () => {
     @keydown.esc="endDrag"
   >
     <div
-      class="flex items-center justify-between gap-2 px-2 py-1 mb-2 rounded-[5px] transition-colors"
+      class="flex items-center justify-between gap-ui-sm px-ui-sm py-ui-xs mb-ui-sm rounded-md transition-colors"
       :class="{ 'workspace-drop-target': dropTarget === rootTarget }"
       data-workspace-root-drop
       @dragover="dragOver($event, null)"
@@ -145,11 +145,12 @@ watch(() => props.overview.workspace.id, () => {
       <span class="sidebar-section-label">Pages</span>
       <span
         v-if="draggedPage?.folderId"
-        class="ml-auto text-[11px] text-muted"
+        class="ml-auto text-xs text-muted"
       >Drop here to move out</span>
       <UDropdownMenu
         :items="addItems"
         :content="{ align: 'start', onCloseAutoFocus: preserveCreationFocus }"
+        @update:open="templates.load"
       >
         <UButton
           icon="i-lucide-plus"
@@ -161,14 +162,14 @@ watch(() => props.overview.workspace.id, () => {
         />
       </UDropdownMenu>
     </div>
-    <ul class="space-y-0.5 min-w-0 overflow-hidden">
+    <ul class="space-y-ui-2xs min-w-ui-zero overflow-hidden">
       <li
-        v-for="folder in visibleFolders"
+        v-for="folder in overview.folders"
         :key="folder.id"
         :data-folder-id="folder.id"
       >
         <div
-          class="group/folder flex items-center gap-1 rounded-[5px] min-h-[34px] px-1 hover:bg-(--app-hover) transition-colors"
+          class="group/folder flex items-center gap-ui-xs rounded-md min-h-ui-4xl px-ui-xs hover:bg-(--app-hover) transition-colors"
           :class="{ 'workspace-drop-target': dropTarget === folder.id, 'bg-(--app-selected)': route.path === home && route.query.folder === folder.id }"
           @dragover="dragOver($event, folder.id)"
           @dragleave="dragLeave"
@@ -176,33 +177,33 @@ watch(() => props.overview.workspace.id, () => {
         >
           <UButton
             icon="i-lucide-chevron-right"
-            :aria-label="`${collapsed.has(folder.id) && !query ? 'Expand' : 'Collapse'} ${folder.name}`"
-            :aria-expanded="!collapsed.has(folder.id) || !!query"
-            :disabled="!!query"
+            :aria-label="`${collapsed.has(folder.id) ? 'Expand' : 'Collapse'} ${folder.name}`"
+            :aria-expanded="!collapsed.has(folder.id)"
             size="xs"
             color="neutral"
             variant="ghost"
-            class="shrink-0 p-0.5"
-            :ui="{ leadingIcon: `size-3 text-muted transition-transform ${!collapsed.has(folder.id) || query ? 'rotate-90' : ''}` }"
+            class="shrink-0 p-ui-2xs"
+            :ui="{ leadingIcon: `size-ui-md text-muted transition-transform ${!collapsed.has(folder.id) ? 'rotate-90' : ''}` }"
             @click="toggleFolder(folder.id)"
           />
           <NuxtLink
             :to="`${home}?folder=${folder.id}`"
-            class="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-[13px] text-toned"
+            class="flex min-w-ui-zero flex-1 items-center gap-ui-sm py-ui-xs text-xs text-toned"
             :aria-current="route.path === home && route.query.folder === folder.id ? 'page' : undefined"
           >
             <EntityIcon
               :value="folder.icon || DEFAULT_FOLDER_ICON"
-              class="size-4 text-base text-muted"
+              class="size-ui-lg text-base text-muted"
             />
             <span
-              class="min-w-0 flex-1 truncate"
+              class="min-w-ui-zero flex-1 truncate"
               :title="folder.name"
             >{{ folder.name }}</span>
           </NuxtLink>
           <UDropdownMenu
             :items="folderItems(folder)"
             :content="{ align: 'start', onCloseAutoFocus: preserveCreationFocus }"
+            @update:open="templates.load"
           >
             <UButton
               icon="i-lucide-ellipsis"
@@ -215,8 +216,8 @@ watch(() => props.overview.workspace.id, () => {
           </UDropdownMenu>
         </div>
         <ul
-          v-if="!collapsed.has(folder.id) || query"
-          class="ml-5 border-l border-muted pl-1.5 mt-0.5 space-y-0.5"
+          v-if="!collapsed.has(folder.id)"
+          class="ml-ui-xl border-l border-muted pl-ui-xs mt-ui-2xs space-y-ui-2xs"
         >
           <li
             v-for="page in folderPages(folder)"
@@ -236,7 +237,7 @@ watch(() => props.overview.workspace.id, () => {
           </li>
           <li
             v-if="!pagesLoading && !folderPages(folder).length"
-            class="px-2 py-2 text-xs text-muted"
+            class="px-ui-sm py-ui-sm text-xs text-muted"
           >
             {{ draggedPage ? 'Drop on the folder to move here' : 'Empty folder' }}
           </li>
@@ -260,14 +261,8 @@ watch(() => props.overview.workspace.id, () => {
       </li>
     </ul>
     <p
-      v-if="!pagesLoading && !foldersLoading && query && !rootPages.length && !visibleFolders.length"
-      class="px-2 py-3 text-xs text-muted"
-    >
-      No pages or folders match “{{ search }}”.
-    </p>
-    <p
-      v-else-if="!pagesLoading && !foldersLoading && !overview.pages.length && !overview.folders.length"
-      class="px-2 py-2 text-xs leading-relaxed text-muted"
+      v-if="!pagesLoading && !foldersLoading && !overview.pages.length && !overview.folders.length"
+      class="px-ui-sm py-ui-sm text-xs leading-relaxed text-muted"
     >
       Add your first page or folder.
     </p>

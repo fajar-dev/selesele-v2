@@ -77,7 +77,7 @@ defineExpose({ focus })
 </script>
 
 <template>
-  <span class="block min-w-0 w-full">
+  <span class="block min-w-ui-zero w-full">
     <UTextarea
       ref="input"
       v-model="draft"
@@ -90,9 +90,9 @@ defineExpose({ focus })
       :aria-invalid="!!error || undefined"
       :readonly="busy"
       :placeholder="placeholder"
-      style="font: inherit; letter-spacing: inherit"
-      class="w-full"
-      :ui="{ base: 'w-full text-inherit resize-none rounded-none p-0 bg-transparent ring-0 shadow-none focus-visible:ring-0 focus-visible:shadow-[0_1px_0_var(--ui-border-accented)]', root: 'w-full' }"
+
+      class="inherit-typography w-full"
+      :ui="{ base: 'inherit-typography w-full text-inherit resize-none rounded-none p-ui-zero bg-transparent ring-0 shadow-none focus-visible:ring-0 focus-visible:shadow-inline', root: 'w-full' }"
       @focus="cancelled = false"
       @blur="save"
       @keydown="keydown"
@@ -105,7 +105,7 @@ defineExpose({ focus })
     <span
       v-if="error"
       role="alert"
-      class="block mt-1 text-xs leading-5 font-normal text-muted"
+      class="block mt-ui-xs text-xs leading-normal font-normal text-muted"
     >
       {{ error }}
       <UButton
@@ -113,7 +113,7 @@ defineExpose({ focus })
         size="xs"
         color="neutral"
         variant="link"
-        class="ml-1 p-0"
+        class="ml-ui-xs p-ui-zero"
         @mousedown.prevent
         @click="save"
       />

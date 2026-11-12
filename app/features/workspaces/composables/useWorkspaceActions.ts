@@ -1,3 +1,4 @@
+import { libraryKeys } from '~/features/library/state/libraryKeys'
 import type { WorkspaceItem, WorkspaceUpdate } from '#shared/contracts/workspace'
 import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
 import { useApi } from '~/core/http/useApi'
@@ -21,6 +22,7 @@ export function useWorkspaceActions(workspaceId: string) {
 
   async function remove(): Promise<void> {
     await workspaces.delete(workspaceId)
+    void refreshNuxtData(libraryKeys.personal)
     directory.value = directory.value?.filter(item => item.id !== workspaceId)
     await navigateTo('/')
     clearNuxtData([

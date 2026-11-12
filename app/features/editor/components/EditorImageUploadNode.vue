@@ -54,7 +54,7 @@ async function onFileChange() {
       label="Upload an image"
       :description="error || 'PNG, JPG, WebP or GIF (max. 2MB)'"
       :preview="false"
-      class="min-h-48 rounded-[6px] bg-muted/50"
+      class="min-h-ui-14xl rounded-md bg-muted/50"
       :ui="{ description: error ? 'text-error' : '' }"
       @update:model-value="onFileChange"
     >

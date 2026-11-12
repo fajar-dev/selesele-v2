@@ -28,13 +28,13 @@ const { page, overview, error, updated, loading, refresh } = usePageDocument(wor
       label="Loading page"
     /><DataSkeleton
       kind="editor"
-      class="mt-10"
+      class="mt-ui-5xl"
       :rows="7"
     />
   </div>
   <div
     v-else
-    class="p-8 space-y-4"
+    class="p-ui-4xl space-y-ui-lg"
   >
     <UAlert
       title="Unable to open page"

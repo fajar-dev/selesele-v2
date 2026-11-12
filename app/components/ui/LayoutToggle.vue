@@ -7,7 +7,7 @@ defineProps<{ label: string }>()
   <div
     role="group"
     :aria-label="label"
-    class="flex shrink-0 items-center gap-0.5 rounded-[5px] border border-muted bg-muted/70 p-0.5"
+    class="flex shrink-0 items-center gap-ui-2xs rounded-md border border-muted bg-muted/70 p-ui-2xs"
   >
     <UTooltip
       v-for="mode in (['list', 'grid'] as const)"

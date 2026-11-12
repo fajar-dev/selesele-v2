@@ -1,3 +1,6 @@
+import { LibraryClient } from '~/features/library/api/LibraryClient'
+import { RecoveryClient } from '~/features/recovery/api/RecoveryClient'
+import { NotificationClient } from '~/features/notifications/api/NotificationClient'
 import { MediaClient } from '~/features/editor/api/MediaClient'
 import { NuxtApiTransport } from '~/core/http/ApiTransport'
 import { AuthClient } from '~/features/auth/api/AuthClient'
@@ -14,6 +17,9 @@ export default defineNuxtPlugin(() => {
     provide: {
       api: {
         auth: new AuthClient(http),
+        library: new LibraryClient(http),
+        recovery: new RecoveryClient(http),
+        notifications: new NotificationClient(http),
         media: new MediaClient(http),
         comments: new CommentClient(http),
         pages: new PageClient(http),

@@ -36,6 +36,7 @@ export function useAuth() {
           }
         }
         user.value = null
+        clearNuxtData()
         initialized.value = true
         await navigateTo('/sign-in')
       }

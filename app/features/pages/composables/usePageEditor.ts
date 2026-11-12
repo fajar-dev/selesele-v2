@@ -57,6 +57,7 @@ export function usePageEditor(room: string, members: () => WorkspaceMember[], ed
   } satisfies EditorCustomHandlers
 
   const mentionableUsers = computed(() => members().map(member => ({
+    id: member.userId,
     name: member.name || member.email,
     color: collaborationColor(member.email),
     avatar: member.avatar || undefined

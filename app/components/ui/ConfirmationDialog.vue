@@ -43,23 +43,23 @@ async function confirm(): Promise<void> {
     :dismissible="!isSubmitting"
     :ui="{
       overlay: 'bg-black/35 dark:bg-black/60',
-      content: 'w-[calc(100vw-2rem)] max-w-[420px] divide-y-0 rounded-[8px] ring-1 ring-default shadow-xl',
-      header: 'p-6 sm:p-6 pb-0 sm:pb-0 border-b-0',
+      content: 'w-floating max-w-popup-lg divide-y-0 rounded-lg ring-1 ring-default shadow-xl',
+      header: 'p-ui-2xl sm:p-ui-2xl pb-ui-zero sm:pb-ui-zero border-b-0',
       title: 'text-base font-semibold tracking-tight text-highlighted',
-      description: 'mt-3 text-sm leading-6 text-muted break-words',
-      body: 'px-6 sm:px-6 pt-4 sm:pt-4 pb-0 sm:pb-0',
-      footer: 'flex justify-end gap-2 p-6 sm:p-6 pt-5 sm:pt-5 border-t-0'
+      description: 'mt-ui-md text-sm leading-relaxed text-muted break-words',
+      body: 'px-ui-2xl sm:px-ui-2xl pt-ui-lg sm:pt-ui-lg pb-ui-zero sm:pb-ui-zero',
+      footer: 'flex justify-end gap-ui-sm p-ui-2xl sm:p-ui-2xl pt-ui-xl sm:pt-ui-xl border-t-0'
     }"
   >
     <template #title>
-      <span class="flex items-center gap-3">
+      <span class="flex items-center gap-ui-md">
         <span
-          class="inline-flex size-9 shrink-0 items-center justify-center rounded-[6px] bg-error/8 text-error ring-1 ring-inset ring-error/15"
+          class="inline-flex size-ui-4xl shrink-0 items-center justify-center rounded-md bg-error/8 text-error ring-1 ring-inset ring-error/15"
           aria-hidden="true"
         >
           <UIcon
             name="i-lucide-trash-2"
-            class="size-4.5"
+            class="size-ui-lg"
           />
         </span>
         <span>{{ title }}</span>
@@ -82,7 +82,7 @@ async function confirm(): Promise<void> {
         label="Cancel"
         color="neutral"
         variant="outline"
-        class="min-w-20 justify-center px-4"
+        class="min-w-ui-9xl justify-center px-ui-lg"
         :disabled="isSubmitting"
         @click="open = false"
       />
@@ -90,7 +90,7 @@ async function confirm(): Promise<void> {
         :label="confirmLabel"
         color="error"
         variant="solid"
-        class="min-w-20 justify-center px-4"
+        class="min-w-ui-9xl justify-center px-ui-lg"
         :loading="isSubmitting"
         :disabled="isSubmitting"
         @click="confirm"

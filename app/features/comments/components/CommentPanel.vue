@@ -47,19 +47,19 @@ watch(activeId, async (id) => {
     :dismissible="false"
     :close="{ size: 'xs', class: 'text-muted' }"
     :ui="{
-      content: 'w-full sm:max-w-[400px] divide-muted border-l border-muted ring-0 sm:ring-0 shadow-none sm:shadow-none',
-      header: 'min-h-14 px-5 sm:px-5 py-3 gap-1',
-      wrapper: 'min-w-0 flex-1',
-      title: 'text-[14px] tracking-[-0.01em] font-semibold',
+      content: 'w-full sm:max-w-popup-md divide-muted border-l border-muted ring-0 sm:ring-0 shadow-none sm:shadow-none',
+      header: 'min-h-ui-7xl px-ui-xl sm:px-ui-xl py-ui-md gap-ui-xs',
+      wrapper: 'min-w-ui-zero flex-1',
+      title: 'text-sm tracking-tight font-semibold',
       description: 'sr-only',
       close: 'static',
-      body: 'p-0 sm:p-0'
+      body: 'p-ui-zero sm:p-ui-zero'
     }"
   >
     <template #body>
       <nav
         aria-label="Filter comments"
-        class="sticky top-0 z-10 bg-default px-5 flex items-center gap-5 border-b border-muted"
+        class="sticky top-ui-zero z-10 bg-default px-ui-xl flex items-center gap-ui-xl border-b border-muted"
       >
         <UButton
           label="Open"
@@ -68,12 +68,12 @@ watch(activeId, async (id) => {
           size="sm"
           color="neutral"
           variant="ghost"
-          class="h-11 px-0 rounded-none border-b-2 hover:bg-transparent"
+          class="h-ui-5xl px-ui-zero rounded-none border-b-2 hover:bg-transparent"
           :class="filter === 'open' ? 'border-(--ui-text-highlighted) text-highlighted' : 'border-transparent text-muted'"
           @click="filter = 'open'"
         >
           <template #trailing>
-            <span class="text-[11px] font-normal tabular-nums text-muted">{{ openCount }}</span>
+            <span class="text-xs font-normal tabular-nums text-muted">{{ openCount }}</span>
           </template>
         </UButton>
         <UButton
@@ -83,12 +83,12 @@ watch(activeId, async (id) => {
           size="sm"
           color="neutral"
           variant="ghost"
-          class="h-11 px-0 rounded-none border-b-2 hover:bg-transparent"
+          class="h-ui-5xl px-ui-zero rounded-none border-b-2 hover:bg-transparent"
           :class="filter === 'resolved' ? 'border-(--ui-text-highlighted) text-highlighted' : 'border-transparent text-muted'"
           @click="filter = 'resolved'"
         >
           <template #trailing>
-            <span class="text-[11px] font-normal tabular-nums text-muted">{{ resolvedCount }}</span>
+            <span class="text-xs font-normal tabular-nums text-muted">{{ resolvedCount }}</span>
           </template>
         </UButton>
       </nav>
@@ -97,23 +97,23 @@ watch(activeId, async (id) => {
         title="Unable to sync comments"
         :description="loadError"
         color="error"
-        class="m-5"
+        class="m-ui-xl"
       />
       <section
         v-if="draft"
         aria-label="New discussion"
-        class="px-5 py-5 border-b border-muted space-y-3"
+        class="px-ui-xl py-ui-xl border-b border-muted space-y-ui-md"
       >
-        <p class="ml-9 border-l-2 border-[#c68c1b]/50 pl-3 text-xs text-muted leading-relaxed line-clamp-4">
+        <p class="ml-ui-4xl border-l-2 border-comment/50 pl-ui-md text-xs text-muted leading-relaxed line-clamp-4">
           {{ draft.quote }}
         </p>
-        <div class="flex items-start gap-2.5">
+        <div class="flex items-start gap-ui-sm">
           <UAvatar
             :src="auth.user?.avatar || undefined"
             :alt="auth.user?.name || auth.user?.email || 'You'"
             size="xs"
-            class="mt-1 shrink-0"
-            :ui="{ root: 'rounded-full', fallback: 'text-[10px] font-medium' }"
+            class="mt-ui-xs shrink-0"
+            :ui="{ root: 'rounded-full', fallback: 'text-xs font-medium' }"
           />
           <CommentComposer
             v-model="draftBody"
@@ -121,7 +121,7 @@ watch(activeId, async (id) => {
             submit-label="Comment"
             autofocus
             cancellable
-            class="flex-1 min-w-0"
+            class="flex-1 min-w-ui-zero"
             :on-submit="comments.create"
             @cancel="cancelDraft"
           />
@@ -130,21 +130,21 @@ watch(activeId, async (id) => {
       <DataSkeleton
         v-if="loading && !threads.length"
         label="Loading comments"
-        class="px-5 py-6"
+        class="px-ui-xl py-ui-2xl"
         :rows="4"
       />
       <div
         v-else-if="!filtered.length && !draft"
-        class="px-8 pt-16 pb-10 flex flex-col items-center text-center"
+        class="px-ui-4xl pt-ui-8xl pb-ui-5xl flex flex-col items-center text-center"
       >
         <UIcon
           name="i-lucide-message-square"
-          class="size-7 text-dimmed mb-5"
+          class="size-ui-3xl text-dimmed mb-ui-xl"
         />
-        <p class="text-[13px] font-medium text-highlighted">
+        <p class="text-xs font-medium text-highlighted">
           {{ filter === 'resolved' ? 'No resolved discussions' : 'Start a conversation' }}
         </p>
-        <p class="text-xs text-muted leading-relaxed max-w-60 mt-2">
+        <p class="text-xs text-muted leading-relaxed max-w-ui-15xl mt-ui-sm">
           {{ filter === 'resolved' ? 'Completed discussions will appear here.' : 'Select text in the page, then choose Comment.' }}
         </p>
       </div>

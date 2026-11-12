@@ -8,15 +8,15 @@ defineProps<{ items: (BreadcrumbItem & { emoji?: string | null })[] }>()
 <template>
   <UBreadcrumb
     :items="items"
-    class="min-w-0"
-    :ui="{ list: 'gap-1.5 sm:gap-2', link: 'max-w-20 sm:max-w-44 truncate text-xs sm:text-[13px] font-normal', separatorIcon: 'size-3 text-dimmed' }"
+    class="min-w-ui-zero"
+    :ui="{ list: 'gap-ui-xs sm:gap-ui-sm', link: 'max-w-ui-9xl sm:max-w-ui-13xl truncate text-xs sm:text-xs font-normal', separatorIcon: 'size-ui-md text-dimmed' }"
   >
     <template #item-leading="{ item }">
       <EntityIcon
         v-if="item.emoji || item.icon"
         :value="item.emoji"
         :fallback="item.icon || 'i-lucide-file'"
-        class="size-4 text-base"
+        class="size-ui-lg text-base"
       />
     </template>
   </UBreadcrumb>

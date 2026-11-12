@@ -39,7 +39,7 @@ const breadcrumbs = computed(() => [
 
 <template>
   <div
-    class="app-enter pb-14"
+    class="app-enter pb-ui-7xl"
   >
     <AppHeader>
       <template #left>
@@ -104,7 +104,8 @@ const breadcrumbs = computed(() => [
         <template #metadata>
           <USkeleton
             v-if="membersLoading"
-            class="h-5 w-28"
+            aria-hidden="true"
+            class="h-ui-xl w-ui-11xl"
           />
           <UAvatarGroup
             v-else
@@ -121,7 +122,8 @@ const breadcrumbs = computed(() => [
           </UAvatarGroup>
           <span v-if="!membersLoading">{{ data.members.length }} {{ data.members.length === 1 ? 'member' : 'members' }}</span><span class="text-dimmed">·</span><USkeleton
             v-if="pagesLoading"
-            class="h-4 w-12"
+            aria-hidden="true"
+            class="h-ui-lg w-ui-6xl"
           /><span v-else>{{ formatPageCount(scopedPages.length) }}</span><UBadge
             color="neutral"
             variant="soft"
@@ -143,13 +145,13 @@ const breadcrumbs = computed(() => [
       </PageHeading>
       <section
         v-if="data && !folder"
-        class="space-y-3"
+        class="space-y-ui-md"
         aria-label="Workspace folders"
       >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-ui-sm">
           <UIcon
             name="i-lucide-folder-open"
-            class="size-4 text-muted"
+            class="size-ui-lg text-muted"
           /><h2 class="text-sm font-semibold">
             Folders
           </h2>
@@ -167,7 +169,7 @@ const breadcrumbs = computed(() => [
         />
         <div
           v-else
-          class="grid sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-1"
+          class="grid sm:grid-cols-2 xl:grid-cols-3 gap-x-ui-2xl gap-y-ui-xs"
         >
           <NuxtLink
             v-for="item in data.folders"
@@ -177,35 +179,36 @@ const breadcrumbs = computed(() => [
           >
             <EntityIcon
               :value="item.icon || DEFAULT_FOLDER_ICON"
-              class="size-5 text-xl text-muted"
+              class="size-ui-xl text-xl text-muted"
             />
-            <div class="min-w-0 flex-1">
+            <div class="min-w-ui-zero flex-1">
               <h3 class="font-medium text-sm truncate">{{ item.name }}</h3>
               <USkeleton
                 v-if="pagesLoading"
-                class="h-3 w-12 mt-1"
+                aria-hidden="true"
+                class="h-ui-md w-ui-6xl mt-ui-xs"
               /><p
                 v-else
-                class="text-xs text-muted mt-1"
+                class="text-xs text-muted mt-ui-xs"
               >{{ formatPageCount(data.pages.filter(page => page.folderId === item.id).length) }}</p>
             </div>
             <UIcon
               name="i-lucide-chevron-right"
-              class="size-3.5 text-dimmed group-hover:text-toned transition-colors"
+              class="size-ui-md text-dimmed group-hover:text-toned transition-colors"
             />
           </NuxtLink>
         </div>
       </section>
       <section
         v-if="data"
-        class="space-y-4"
+        class="space-y-ui-lg"
         aria-label="Workspace pages"
       >
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-between gap-ui-md">
+          <div class="flex items-center gap-ui-sm">
             <UIcon
               name="i-lucide-files"
-              class="size-4 text-muted"
+              class="size-ui-lg text-muted"
             /><h2 class="text-sm font-semibold">
               {{ folder ? 'Pages in this folder' : 'All pages' }}
             </h2><UBadge
@@ -216,14 +219,14 @@ const breadcrumbs = computed(() => [
               {{ pages.length }}
             </UBadge>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-ui-sm">
             <UInput
               v-model="search"
               placeholder="Search pages…"
               aria-label="Search workspace pages"
               icon="i-lucide-search"
               size="sm"
-              class="w-40 sm:w-48"
+              class="w-ui-13xl sm:w-ui-14xl"
             />
             <LayoutToggle
               v-model="view"
@@ -246,29 +249,29 @@ const breadcrumbs = computed(() => [
           :data="pages"
           :columns="columns"
           class="workspace-page-table"
-          :ui="{ root: 'border-t border-muted', thead: 'bg-transparent', separator: 'bg-(--ui-border-muted)', tbody: 'divide-y divide-muted', th: 'text-xs font-normal text-muted py-3 border-muted', td: 'py-3.5 border-muted', tr: 'hover:bg-muted/65 transition-colors' }"
+          :ui="{ root: 'border-t border-muted', thead: 'bg-transparent', separator: 'bg-(--ui-border-muted)', tbody: 'divide-y divide-muted', th: 'text-xs font-normal text-muted py-ui-md border-muted', td: 'py-ui-md border-muted', tr: 'hover:bg-muted/65 transition-colors' }"
         >
           <template #title-cell="{ row }">
             <UButton
               :to="`/workspaces/${workspaceId}/pages/${row.original.id}`"
               color="neutral"
               variant="link"
-              class="px-0 font-medium text-highlighted max-w-60 sm:max-w-80"
+              class="px-ui-zero font-medium text-highlighted max-w-ui-15xl sm:max-w-ui-18xl"
             >
               <template #leading>
                 <EntityIcon
                   :value="row.original.icon"
                   fallback="i-lucide-file"
-                  class="size-5 text-xl mr-1"
+                  class="size-ui-xl text-xl mr-ui-xs"
                 />
               </template><span class="truncate">{{ row.original.title }}</span>
             </UButton>
           </template>
           <template #location-cell="{ row }">
-            <span class="inline-flex items-center gap-1.5 text-xs text-muted"><EntityIcon
+            <span class="inline-flex items-center gap-ui-xs text-xs text-muted"><EntityIcon
               :value="row.original.folderId ? data.folders.find(item => item.id === row.original.folderId)?.icon || DEFAULT_FOLDER_ICON : data.workspace.icon"
               :fallback="row.original.folderId ? undefined : 'i-lucide-panels-top-left'"
-              class="size-3.5 text-sm"
+              class="size-ui-md text-sm"
             />{{ data.folders.find(item => item.id === row.original.folderId)?.name || 'Workspace' }}</span>
           </template>
           <template #updatedAt-cell="{ row }">
@@ -277,7 +280,7 @@ const breadcrumbs = computed(() => [
         </UTable>
         <div
           v-else-if="pages.length"
-          class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4"
+          class="grid sm:grid-cols-2 xl:grid-cols-3 gap-ui-lg"
         >
           <NuxtLink
             v-for="page in pages"
@@ -287,12 +290,12 @@ const breadcrumbs = computed(() => [
           >
             <UCard
               class="workspace-card surface-card h-full"
-              :ui="{ body: 'p-5 sm:p-5' }"
+              :ui="{ body: 'p-ui-xl sm:p-ui-xl' }"
             ><EntityIcon
               :value="page.icon"
               fallback="i-lucide-file"
-              class="size-8 text-3xl"
-            /><h3 class="font-semibold text-sm mt-4 truncate">{{ page.title }}</h3><p class="text-xs text-muted mt-5">Edited {{ formatRelativeTime(page.updatedAt) }}</p></UCard>
+              class="size-ui-4xl text-3xl"
+            /><h3 class="font-semibold text-sm mt-ui-lg truncate">{{ page.title }}</h3><p class="text-xs text-muted mt-ui-xl">Edited {{ formatRelativeTime(page.updatedAt) }}</p></UCard>
           </NuxtLink>
         </div>
         <UEmpty
@@ -301,7 +304,7 @@ const breadcrumbs = computed(() => [
           :icon="search ? 'i-lucide-search' : 'i-lucide-file-pen-line'"
           :title="search ? 'No pages found' : 'Start with a blank page'"
           :description="search ? 'Try another title or clear your search.' : 'A quick thought, a project plan, a shared idea. It all starts here.'"
-          class="bg-default py-14"
+          class="bg-default py-ui-7xl"
           :ui="{ avatar: 'bg-transparent text-muted ring-0', title: 'text-base', description: 'max-w-sm' }"
         >
           <template #actions>

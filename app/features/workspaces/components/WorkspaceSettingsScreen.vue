@@ -52,7 +52,7 @@ async function save(event: FormSubmitEvent<{ name: string }>) {
     <DataSkeleton
       kind="heading"
       label="Loading workspace settings"
-    /><DataSkeleton class="mt-10" />
+    /><DataSkeleton class="mt-ui-5xl" />
   </div>
   <UAlert
     v-else-if="error"
@@ -62,7 +62,7 @@ async function save(event: FormSubmitEvent<{ name: string }>) {
   />
   <div
     v-else-if="data"
-    class="pb-14 app-enter"
+    class="pb-ui-7xl app-enter"
   >
     <AppHeader>
       <template #left>
@@ -77,25 +77,25 @@ async function save(event: FormSubmitEvent<{ name: string }>) {
         <template #icon>
           <UIcon
             name="i-lucide-settings-2"
-            class="size-7"
+            class="size-ui-3xl"
           />
         </template>
       </PageHeading>
       <section
         aria-label="General settings"
-        class="border-t border-muted pt-6 space-y-5"
+        class="border-t border-muted pt-ui-2xl space-y-ui-xl"
       >
         <div>
           <h2 class="text-sm font-semibold text-highlighted">
             General
-          </h2><p class="text-sm text-muted mt-1">
+          </h2><p class="text-sm text-muted mt-ui-xs">
             The name appears in navigation and your workspace list.
           </p>
         </div>
         <UForm
           :schema="schema"
           :state="state"
-          class="max-w-lg space-y-5"
+          class="max-w-lg space-y-ui-xl"
           @submit="save"
         >
           <UFormField
@@ -126,14 +126,34 @@ async function save(event: FormSubmitEvent<{ name: string }>) {
         </UForm>
       </section>
       <section
+        aria-label="Trash and recovery"
+        class="border-t border-muted pt-ui-2xl flex flex-wrap items-center justify-between gap-ui-xl"
+      >
+        <div class="max-w-lg">
+          <h2 class="text-sm font-semibold text-highlighted">
+            Trash and recovery
+          </h2>
+          <p class="text-sm text-muted mt-ui-xs leading-relaxed">
+            Restore deleted pages and folders in this workspace.
+          </p>
+        </div>
+        <UButton
+          label="Open trash"
+          icon="i-lucide-trash-2"
+          color="neutral"
+          variant="outline"
+          :to="`/trash?workspace=${workspaceId}`"
+        />
+      </section>
+      <section
         v-if="data.workspace.role === 'owner'"
         aria-label="Delete workspace"
-        class="border-t border-muted pt-6 flex flex-wrap items-center justify-between gap-5"
+        class="border-t border-muted pt-ui-2xl flex flex-wrap items-center justify-between gap-ui-xl"
       >
         <div class="max-w-lg">
           <h2 class="text-sm font-semibold text-highlighted">
             Delete workspace
-          </h2><p class="text-sm text-muted mt-1 leading-relaxed">
+          </h2><p class="text-sm text-muted mt-ui-xs leading-relaxed">
             Delete this workspace and remove access to its folders and pages for all members.
           </p>
         </div>

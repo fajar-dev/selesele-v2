@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDebounce } from '@vueuse/core'
+import { useApi } from '~/core/http/useApi'
 import type { Editor } from '@tiptap/vue-3'
 
 const props = defineProps<{
@@ -8,15 +10,24 @@ const props = defineProps<{
 
 const open = ref(false)
 const url = ref('')
+const { library } = useApi()
+const route = useRoute()
+const search = ref('')
+const query = useDebounce(search, 200)
+const { data: pages } = useLazyAsyncData('page-link-picker', async () => open.value && query.value.trim() ? (await library.search(query.value, String(route.params.workspaceId))).data.filter(item => item.kind === 'page') : [], { server: false, default: () => [], watch: [query, open] })
+function linkPage(item: { id: string, title: string, workspaceId: string }) {
+  const href = `/workspaces/${item.workspaceId}/pages/${item.id}`
+  if (props.editor.state.selection.empty) {
+    props.editor.chain().focus().insertContent({ type: 'text', text: item.title, marks: [{ type: 'link', attrs: { href } }] }).run()
+    open.value = false
+  } else {
+    url.value = href
+    setLink()
+  }
+}
 
 const active = computed(() => props.editor.isActive('link'))
-const disabled = computed(() => {
-  if (!props.editor.isEditable) {
-    return true
-  }
-  const { selection } = props.editor.state
-  return selection.empty && !props.editor.isActive('link')
-})
+const disabled = computed(() => !props.editor.isEditable)
 
 watch(() => props.editor, (editor, _, onCleanup) => {
   if (!editor) {
@@ -99,7 +110,7 @@ function handleKeyDown(event: KeyboardEvent) {
 <template>
   <UPopover
     v-model:open="open"
-    :ui="{ content: 'p-0.5' }"
+    :ui="{ content: 'p-ui-2xs' }"
   >
     <UTooltip text="Link">
       <UButton
@@ -115,51 +126,77 @@ function handleKeyDown(event: KeyboardEvent) {
     </UTooltip>
 
     <template #content>
-      <UInput
-        v-model="url"
-        autofocus
-        name="url"
-        type="url"
-        variant="none"
-        placeholder="Paste a link..."
-        @keydown="handleKeyDown"
-      >
-        <div class="flex items-center mr-0.5">
+      <div class="w-ui-17xl p-ui-sm space-y-ui-sm">
+        <UInput
+          v-model="search"
+          aria-label="Find page to link"
+          icon="i-lucide-search"
+          placeholder="Find a page in this workspace…"
+          class="w-full"
+        />
+        <div
+          v-if="pages.length"
+          class="max-h-ui-14xl overflow-y-auto"
+        >
           <UButton
-            icon="i-lucide-corner-down-left"
-            variant="ghost"
-            size="sm"
-            :disabled="!url && !active"
-            title="Apply link"
-            @click="setLink"
-          />
-
-          <USeparator
-            orientation="vertical"
-            class="h-6 mx-1"
-          />
-
-          <UButton
-            icon="i-lucide-external-link"
+            v-for="item in pages"
+            :key="item.id"
+            :label="item.title"
+            class="w-full justify-start truncate"
             color="neutral"
             variant="ghost"
-            size="sm"
-            :disabled="!url && !active"
-            title="Open in new window"
-            @click="openLink"
-          />
-
-          <UButton
-            icon="i-lucide-trash"
-            color="error"
-            variant="ghost"
-            size="sm"
-            :disabled="!url && !active"
-            title="Remove link"
-            @click="removeLink"
+            @click="linkPage(item)"
           />
         </div>
-      </UInput>
+        <p class="text-xs text-muted px-ui-xs">
+          Or paste a URL
+        </p>
+        <UInput
+          v-model="url"
+          autofocus
+          name="url"
+          type="url"
+          variant="none"
+          placeholder="Paste a link..."
+          @keydown="handleKeyDown"
+        >
+          <div class="flex items-center mr-ui-2xs">
+            <UButton
+              icon="i-lucide-corner-down-left"
+              variant="ghost"
+              size="sm"
+              :disabled="!url && !active"
+              title="Apply link"
+              @click="setLink"
+            />
+
+            <USeparator
+              orientation="vertical"
+              class="h-ui-2xl mx-ui-xs"
+            />
+
+            <UButton
+              icon="i-lucide-external-link"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :disabled="!url && !active"
+              title="Open in new window"
+              @click="openLink"
+            />
+
+            <UButton
+              icon="i-lucide-trash"
+              color="error"
+              variant="ghost"
+              size="sm"
+              :disabled="!url && !active"
+              title="Remove link"
+              @click="removeLink"
+            />
+          </div>
+        </UInput>
+      </div>
     </template>
   </UPopover>
 </template>

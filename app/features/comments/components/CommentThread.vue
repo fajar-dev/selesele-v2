@@ -33,38 +33,38 @@ async function resolve() {
 <template>
   <article
     :data-comment-id="thread.id"
-    class="group/thread px-5 py-5 border-b border-muted last:border-b-0 transition-colors"
+    class="group/thread px-ui-xl py-ui-xl border-b border-muted last:border-b-0 transition-colors"
     :class="{ 'bg-(--app-hover)': active }"
   >
     <button
       type="button"
       aria-label="Go to commented text"
-      class="block w-[calc(100%-2.25rem)] ml-9 mb-4 text-left border-l-2 border-[#c68c1b]/50 pl-3 text-xs text-muted leading-relaxed line-clamp-2 hover:text-highlighted transition-colors"
+      class="block w-editor-menu ml-ui-4xl mb-ui-lg text-left border-l-2 border-comment/50 pl-ui-md text-xs text-muted leading-relaxed line-clamp-2 hover:text-highlighted transition-colors"
       @click="emit('jump')"
     >
       {{ thread.quote }}
     </button>
     <div
       v-if="firstMessage"
-      class="flex gap-2.5"
+      class="flex gap-ui-sm"
     >
       <UAvatar
         :src="firstMessage.author.avatar || undefined"
         :alt="firstMessage.author.name || firstMessage.author.email"
         size="xs"
-        class="shrink-0 mt-0.5"
-        :ui="{ root: 'rounded-full', fallback: 'text-[10px] font-medium' }"
+        class="shrink-0 mt-ui-2xs"
+        :ui="{ root: 'rounded-full', fallback: 'text-xs font-medium' }"
       />
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-1 min-h-6">
+      <div class="min-w-ui-zero flex-1">
+        <div class="flex items-center gap-ui-xs min-h-ui-2xl">
           <span
-            class="truncate text-[13px] font-medium text-highlighted"
+            class="truncate text-xs font-medium text-highlighted"
             :title="firstMessage.author.name || firstMessage.author.email"
           >{{ firstMessage.author.name || firstMessage.author.email }}</span>
           <time
             :datetime="firstMessage.createdAt"
             :title="new Date(firstMessage.createdAt).toLocaleString()"
-            class="shrink-0 ml-1 mr-auto text-[11px] text-dimmed"
+            class="shrink-0 ml-ui-xs mr-auto text-xs text-dimmed"
           >{{ formatRelativeTime(firstMessage.createdAt) }}</time>
           <UTooltip :text="thread.resolvedAt ? 'Reopen discussion' : 'Resolve discussion'">
             <UButton
@@ -73,7 +73,7 @@ async function resolve() {
               color="neutral"
               variant="ghost"
               size="xs"
-              class="size-6 justify-center p-0 text-muted"
+              class="size-ui-2xl justify-center p-ui-zero text-muted"
               :loading="busy"
               @click="resolve"
             />
@@ -88,11 +88,11 @@ async function resolve() {
               color="neutral"
               variant="ghost"
               size="xs"
-              class="size-6 justify-center p-0 text-muted"
+              class="size-ui-2xl justify-center p-ui-zero text-muted"
             />
           </UDropdownMenu>
         </div>
-        <p class="text-[13px] leading-[1.65] whitespace-pre-wrap break-words mt-1">
+        <p class="text-xs leading-relaxed whitespace-pre-wrap break-words mt-ui-xs">
           {{ firstMessage.body }}
         </p>
       </div>
@@ -100,36 +100,36 @@ async function resolve() {
     <p
       v-if="error"
       role="alert"
-      class="ml-9 mt-2 text-xs text-error"
+      class="ml-ui-4xl mt-ui-sm text-xs text-error"
     >
       {{ error }}
     </p>
     <div
       v-if="replies.length"
-      class="ml-3 mt-4 border-l border-muted pl-5 space-y-4"
+      class="ml-ui-md mt-ui-lg border-l border-muted pl-ui-xl space-y-ui-lg"
     >
       <div
         v-for="message in replies"
         :key="message.id"
-        class="flex gap-2.5"
+        class="flex gap-ui-sm"
       >
         <UAvatar
           :src="message.author.avatar || undefined"
           :alt="message.author.name || message.author.email"
           size="2xs"
-          class="shrink-0 mt-0.5"
-          :ui="{ root: 'rounded-full', fallback: 'text-[9px] font-medium' }"
+          class="shrink-0 mt-ui-2xs"
+          :ui="{ root: 'rounded-full', fallback: 'text-xs font-medium' }"
         />
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-baseline gap-x-2">
+        <div class="min-w-ui-zero flex-1">
+          <div class="flex flex-wrap items-baseline gap-x-ui-sm">
             <span class="text-xs font-medium text-highlighted">{{ message.author.name || message.author.email }}</span>
             <time
               :datetime="message.createdAt"
               :title="new Date(message.createdAt).toLocaleString()"
-              class="text-[11px] text-dimmed"
+              class="text-xs text-dimmed"
             >{{ formatRelativeTime(message.createdAt) }}</time>
           </div>
-          <p class="text-[13px] leading-[1.65] whitespace-pre-wrap break-words mt-1">
+          <p class="text-xs leading-relaxed whitespace-pre-wrap break-words mt-ui-xs">
             {{ message.body }}
           </p>
         </div>
@@ -137,7 +137,7 @@ async function resolve() {
     </div>
     <div
       v-if="!thread.resolvedAt"
-      class="ml-9 mt-4"
+      class="ml-ui-4xl mt-ui-lg"
     >
       <CommentComposer
         v-if="active"
@@ -152,17 +152,17 @@ async function resolve() {
         color="neutral"
         variant="ghost"
         size="xs"
-        class="p-0 text-xs text-dimmed hover:text-toned hover:bg-transparent"
+        class="p-ui-zero text-xs text-dimmed hover:text-toned hover:bg-transparent"
         @click="emit('select')"
       />
     </div>
     <div
       v-else
-      class="ml-9 mt-3 flex items-center gap-1 text-[11px] text-muted"
+      class="ml-ui-4xl mt-ui-md flex items-center gap-ui-xs text-xs text-muted"
     >
       <UIcon
         name="i-lucide-check-check"
-        class="size-3.5"
+        class="size-ui-md"
       />
       Resolved
     </div>

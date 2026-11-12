@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
+
+const route = useRoute()
+const { data: workspace } = useWorkspace(String(route.params.workspaceId))
+const mentions = computed(() => (workspace.value?.members || []).map(member => ({ label: member.name || member.email, description: member.email, onSelect: () => {
+  body.value += `@${member.email} `
+} })))
 const props = withDefaults(defineProps<{ label: string, submitLabel?: string, autofocus?: boolean, cancellable?: boolean, onSubmit: (body: string) => Promise<void> }>(), { submitLabel: 'Send', autofocus: false, cancellable: false })
 const emit = defineEmits<{ cancel: [] }>()
 const body = defineModel<string>({ default: '' })
@@ -35,7 +42,7 @@ async function submit() {
 
 <template>
   <form
-    class="comment-composer overflow-hidden rounded-[6px] border border-default bg-default transition-colors focus-within:border-accented"
+    class="comment-composer overflow-hidden rounded-md border border-default bg-default transition-colors focus-within:border-accented"
     @submit.prevent="submit"
   >
     <UTextarea
@@ -50,19 +57,30 @@ async function submit() {
       variant="none"
       autoresize
       class="w-full"
-      :ui="{ base: 'resize-none rounded-none border-0 bg-transparent px-3 pt-2.5 pb-1 text-[13px] leading-5 ring-0 shadow-none focus-visible:ring-0 focus-visible:outline-none placeholder:text-dimmed' }"
+      :ui="{ base: 'resize-none rounded-none border-0 bg-transparent px-ui-md pt-ui-sm pb-ui-xs text-xs leading-normal ring-0 shadow-none focus-visible:ring-0 focus-visible:outline-none placeholder:text-dimmed' }"
       @keydown="keydown"
     />
     <p
       v-if="error"
       role="alert"
-      class="px-3 py-1 text-xs text-error"
+      class="px-ui-md py-ui-xs text-xs text-error"
     >
       {{ error }}
     </p>
-    <div class="flex justify-between items-center gap-2 px-2 pb-2">
-      <span class="pl-1 text-[10px] text-dimmed select-none">Ctrl / Cmd + Enter</span>
-      <div class="flex items-center gap-1">
+    <div class="flex justify-between items-center gap-ui-sm px-ui-sm pb-ui-sm">
+      <div class="flex items-center gap-ui-xs">
+        <UDropdownMenu :items="mentions">
+          <UButton
+            icon="i-lucide-at-sign"
+            aria-label="Mention a member"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :disabled="busy"
+          />
+        </UDropdownMenu><span class="text-xs text-dimmed select-none">Ctrl / Cmd + Enter</span>
+      </div>
+      <div class="flex items-center gap-ui-xs">
         <UButton
           v-if="cancellable"
           label="Cancel"
@@ -79,7 +97,7 @@ async function submit() {
             :aria-label="submitLabel"
             icon="i-lucide-arrow-up"
             size="xs"
-            class="size-6 justify-center p-0 rounded-[4px]"
+            class="size-ui-2xl justify-center p-ui-zero rounded-sm"
             :loading="busy"
             :disabled="!body.trim()"
           />

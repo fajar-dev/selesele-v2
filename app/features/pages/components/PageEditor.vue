@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import PageHistory from '~/features/recovery/components/PageHistory.vue'
+import PageBacklinks from '~/features/library/components/PageBacklinks.vue'
+import { usePersonalLibrary } from '~/features/library/composables/usePersonalLibrary'
+import { useApi } from '~/core/http/useApi'
 import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
 import { usePageEditor } from '~/features/pages/composables/usePageEditor'
 import PageMetadata from '~/features/pages/components/PageMetadata.vue'
@@ -24,6 +28,15 @@ const props = defineProps<{ page: PageItem, members: WorkspaceMember[], folders:
 const emit = defineEmits<{ updated: [page: PageItem] }>()
 const { state: auth } = useAuth()
 const { save: saveMetadata, exporting: isExporting, exportMarkdown, remove: onConfirmDelete } = usePageActions(() => props.page, page => emit('updated', page))
+const personal = usePersonalLibrary()
+const { library } = useApi()
+const favorite = computed(() => personal.data.value.favorites.some(item => item.id === props.page.id))
+onMounted(async () => {
+  try {
+    await library.visit(props.page.id)
+    await personal.refresh()
+  } catch { /* Visits must not block document editing. */ }
+})
 const deleteOpen = ref(false)
 const editorRef = useTemplateRef('editorRef')
 const comments = usePageComments(props.page.id, editorRef)
@@ -71,11 +84,11 @@ function openDeleteDialog(): void {
           <span
             role="status"
             :aria-label="collaborationConnected ? 'Live sync' : 'Reconnecting…'"
-            class="inline-flex items-center gap-1.5 text-xs text-muted whitespace-nowrap"
+            class="inline-flex items-center gap-ui-xs text-xs text-muted whitespace-nowrap"
           >
             <UIcon
               :name="collaborationConnected ? 'i-lucide-cloud-check' : 'i-lucide-loader-circle'"
-              :class="['size-3.5', { 'animate-spin': !collaborationConnected }]"
+              :class="['size-ui-md', { 'animate-spin': !collaborationConnected }]"
             />
             <span class="hidden sm:inline">{{ collaborationConnected ? 'Live sync' : 'Reconnecting…' }}</span>
           </span>
@@ -86,7 +99,7 @@ function openDeleteDialog(): void {
         <ConfirmationDialog
           v-model:open="deleteOpen"
           title="Delete page"
-          :description="`“${page.title}” will be deleted. This action cannot be undone.`"
+          :description="`“${page.title}” will be moved to Trash. You can restore it later.`"
           confirm-label="Delete"
           :on-confirm="onConfirmDelete"
         />
@@ -121,21 +134,35 @@ function openDeleteDialog(): void {
       placeholder="Write something, or type '/' for commands…"
       class="min-h-screen editor-document"
       :ui="{
-        base: 'px-0 sm:px-0 py-6 text-base leading-relaxed',
+        base: 'px-ui-zero sm:px-ui-zero py-ui-2xl text-base leading-relaxed',
         content: 'workspace-content'
       }"
     >
-      <div class="workspace-content mt-6">
+      <div class="workspace-content mt-ui-2xl">
         <PageToolbar>
           <template #left>
             <UEditorToolbar
               :editor="editor"
               :items="toolbarItems"
-              :ui="{ base: 'gap-1.5', group: 'gap-1', separator: 'h-4 self-center mx-1 bg-(--ui-border-muted)' }"
+              :ui="{ base: 'gap-ui-xs', group: 'gap-ui-xs', separator: 'h-ui-lg self-center mx-ui-xs bg-(--ui-border-muted)' }"
             />
           </template>
 
           <template #right>
+            <UButton
+              :aria-label="favorite ? 'Remove from favorites' : 'Add to favorites'"
+              icon="i-lucide-star"
+              :active="favorite"
+              :aria-pressed="favorite"
+              active-variant="soft"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :loading="personal.busy.value"
+              @click="personal.favorite(page.id)"
+            />
+            <PageHistory :page-id="page.id" />
+            <PageBacklinks :page-id="page.id" />
             <UButton
               :label="comments.openCount.value ? `Comments ${comments.openCount.value}` : 'Comments'"
               aria-label="Open comments"
@@ -177,7 +204,7 @@ function openDeleteDialog(): void {
                 sideOffset: 8
               }"
               :ui="{
-                content: 'w-48'
+                content: 'w-ui-14xl'
               }"
             >
               <UButton
@@ -196,7 +223,7 @@ function openDeleteDialog(): void {
         :editor="editor"
         :items="textToolbarItems"
         :options="{ shift: { padding: 8, boundary: editor.view.dom } }"
-        :ui="{ root: 'z-40', base: 'flex-wrap max-w-[calc(100vw-2rem)] lg:max-w-[calc(100vw-20rem)] rounded-[6px]', group: 'flex-wrap' }"
+        :ui="{ root: 'z-40', base: 'flex-wrap max-w-floating lg:max-w-floating-desktop rounded-md', group: 'flex-wrap' }"
         layout="bubble"
         :should-show="showTextToolbar"
       >
@@ -223,7 +250,7 @@ function openDeleteDialog(): void {
         v-slot="{ ui, onClick }"
         :editor="editor"
         :options="dragHandleOptions"
-        :ui="{ root: 'pe-2 transition-none' }"
+        :ui="{ root: 'pe-ui-sm transition-none' }"
         :on-element-drag-start="() => editor.commands.beginBlockDrag()"
         :on-element-drag-end="() => editor.commands.endBlockDrag()"
         @hover="onNodeChange"
@@ -251,7 +278,7 @@ function openDeleteDialog(): void {
           :modal="false"
           :items="getDragHandleItems(editor)"
           :content="{ side: 'left' }"
-          :ui="{ content: 'w-48', label: 'text-xs' }"
+          :ui="{ content: 'w-ui-14xl', label: 'text-xs' }"
           @update:open="editor.chain().setMeta('lockDragHandle', $event).run()"
         >
           <UButton

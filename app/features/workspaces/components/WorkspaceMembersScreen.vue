@@ -69,7 +69,7 @@ async function invite() {
       kind="heading"
       label="Loading members heading"
     /><DataSkeleton
-      class="mt-10"
+      class="mt-ui-5xl"
       label="Loading members"
     />
   </div>
@@ -81,7 +81,7 @@ async function invite() {
   />
   <div
     v-else-if="overview"
-    class="pb-14 app-enter"
+    class="pb-ui-7xl app-enter"
   >
     <AppHeader>
       <template #left>
@@ -96,7 +96,7 @@ async function invite() {
         <template #icon>
           <UIcon
             name="i-lucide-users"
-            class="size-7"
+            class="size-ui-3xl"
           />
         </template>
       </PageHeading>
@@ -120,26 +120,26 @@ async function invite() {
         v-if="manager"
         id="invite"
         aria-label="Invite people"
-        class="border-t border-muted pt-6 space-y-5 scroll-mt-20"
+        class="border-t border-muted pt-ui-2xl space-y-ui-xl scroll-mt-20"
       >
         <div>
           <h2 class="text-sm font-semibold">
             Invite people
-          </h2><p class="text-sm text-muted mt-1">
+          </h2><p class="text-sm text-muted mt-ui-xs">
             Give your team access to every page and folder in this workspace.
           </p>
         </div>
         <UForm
           :schema="invitationInputSchema"
           :state="state"
-          class="space-y-3"
+          class="space-y-ui-md"
           @submit="invite"
         >
-          <div class="flex flex-wrap items-end gap-3">
+          <div class="flex flex-wrap items-end gap-ui-md">
             <UFormField
               label="Invite by email"
               name="email"
-              class="min-w-0 flex-1 basis-60"
+              class="min-w-ui-zero flex-1 basis-ui-15xl"
               required
             >
               <UInput
@@ -160,7 +160,7 @@ async function invite() {
                 :items="roles"
                 aria-label="Invitation role"
                 :disabled="busy"
-                class="w-28"
+                class="w-ui-11xl"
               />
             </UFormField>
             <UButton
@@ -177,7 +177,7 @@ async function invite() {
       </section>
       <section
         aria-label="Workspace members"
-        class="space-y-3 border-t border-muted pt-6"
+        class="space-y-ui-md border-t border-muted pt-ui-2xl"
       >
         <h2 class="text-sm font-semibold">
           Members <span v-if="!membersLoading">· {{ overview.members.length }}</span>
@@ -195,14 +195,14 @@ async function invite() {
         <div
           v-for="member in overview.members"
           :key="member.userId"
-          class="flex items-center gap-3 rounded-[5px] py-3 border-b border-muted hover:bg-muted/60 transition-colors"
+          class="flex items-center gap-ui-md rounded-md py-ui-md border-b border-muted hover:bg-muted/60 transition-colors"
         >
           <UAvatar
             :alt="member.name || member.email"
             :src="member.avatar || undefined"
             class="bg-primary/10 text-primary"
           />
-          <div class="flex-1 min-w-0">
+          <div class="flex-1 min-w-ui-zero">
             <p class="text-sm font-medium truncate">
               {{ member.name || member.email }}
             </p><p class="text-xs text-muted truncate">
@@ -222,7 +222,7 @@ async function invite() {
               :items="roles"
               :disabled="busy"
               :aria-label="`Role for ${member.email}`"
-              class="w-28"
+              class="w-ui-11xl"
               @update:model-value="action(() => membershipApi.changeRole(workspaceId, member.userId, $event as InviteRole))"
             />
             <UButton
@@ -244,7 +244,7 @@ async function invite() {
       <section
         v-if="manager && invitations.length"
         aria-label="Pending invitations"
-        class="space-y-3 border-t border-muted pt-6"
+        class="space-y-ui-md border-t border-muted pt-ui-2xl"
       >
         <h2 class="text-sm font-semibold">
           Pending invitations
@@ -252,9 +252,9 @@ async function invite() {
         <div
           v-for="invitation in invitations"
           :key="invitation.id"
-          class="flex flex-wrap items-center gap-3 text-sm border-b border-muted py-3"
+          class="flex flex-wrap items-center gap-ui-md text-sm border-b border-muted py-ui-md"
         >
-          <div class="min-w-0 flex-1">
+          <div class="min-w-ui-zero flex-1">
             <p class="truncate">
               {{ invitation.email }}
             </p><p class="text-xs text-muted">

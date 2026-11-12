@@ -7,7 +7,7 @@ const props = defineProps(nodeViewProps)
 <template>
   <NodeViewWrapper
     as="span"
-    class="inline-flex items-center gap-1 rounded-md bg-primary/8 px-1.5 py-0.5 align-middle border border-primary/15"
+    class="inline-flex items-center gap-ui-xs rounded-md bg-primary/8 px-ui-xs py-ui-2xs align-middle border border-primary/15"
   >
     <UAvatar
       v-if="props.node.attrs.avatar.src"
