@@ -60,6 +60,32 @@ bun run dev
 
 Buka **http://localhost:3000**. Migrasi lokal dijalankan manual; Docker menjalankannya sebelum aplikasi dimulai.
 
+## Menjalankan dengan PM2
+
+Memerlukan Node.js LTS untuk PM2, Bun, MySQL, dan reverse proxy HTTPS. Siapkan `.env` seperti development, lalu ubah `APP_ORIGIN` ke domain HTTPS dan gunakan `UPLOAD_DIR` persisten di luar `.output`.
+
+```sh
+npm install -g pm2
+bun install --frozen-lockfile
+bun run build
+bun run db:migrate
+BUN_BIN="$(command -v bun)" pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
+# Jalankan perintah yang ditampilkan oleh pm2 startup.
+```
+
+Aplikasi mendengarkan `127.0.0.1:8030`; arahkan reverse proxy ke alamat ini dengan dukungan WebSocket dan streaming. Untuk port berbeda, tambahkan `PORT=3000` pada perintah start. Konfigurasi memakai satu proses Bun dan memberi waktu 30 detik untuk shutdown.
+
+```sh
+pm2 status
+pm2 logs sele-sele
+pm2 restart sele-sele
+pm2 stop sele-sele
+```
+
+Untuk update, hentikan aplikasi, install dependency, build, jalankan migrasi, lalu restart. Jika mengubah nilai `HOST`/`PORT` dari shell, jalankan ulang ecosystem dengan `pm2 restart ecosystem.config.cjs --update-env`, lalu `pm2 save`. Secrets dibaca Bun dari `.env` pada direktori project.
+
 ## Konfigurasi Microsoft dan AI
 
 Daftarkan aplikasi **Web, single-tenant** di Microsoft Entra ID. Isi tenant/client ID serta client secret, lalu daftarkan redirect URI sesuai `APP_ORIGIN`:
