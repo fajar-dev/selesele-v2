@@ -33,10 +33,54 @@ CREATE TABLE `folders` (
 	`name` varchar(120) NOT NULL,
 	`icon` varchar(32),
 	`description` varchar(2000) NOT NULL DEFAULT '',
+	`deleted_at` timestamp,
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `folders_id` PRIMARY KEY(`id`),
 	CONSTRAINT `folders_workspace_identity_unique` UNIQUE(`id`,`workspace_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `notifications` (
+	`id` varchar(36) NOT NULL,
+	`user_id` varchar(36) NOT NULL,
+	`workspace_id` varchar(36) NOT NULL,
+	`page_id` varchar(36),
+	`kind` varchar(20) NOT NULL,
+	`title` varchar(320) NOT NULL,
+	`deduplication_key` varchar(120) NOT NULL,
+	`read_at` timestamp,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `notifications_id` PRIMARY KEY(`id`),
+	CONSTRAINT `notifications_dedup` UNIQUE(`user_id`,`deduplication_key`)
+);
+--> statement-breakpoint
+CREATE TABLE `page_activity` (
+	`user_id` varchar(36) NOT NULL,
+	`page_id` varchar(36) NOT NULL,
+	`favorite_at` timestamp,
+	`visited_at` timestamp,
+	CONSTRAINT `page_activity_user_id_page_id_pk` PRIMARY KEY(`user_id`,`page_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `page_links` (
+	`source_id` varchar(36) NOT NULL,
+	`target_id` varchar(36) NOT NULL,
+	CONSTRAINT `page_links_source_id_target_id_pk` PRIMARY KEY(`source_id`,`target_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `page_mentions` (
+	`page_id` varchar(36) NOT NULL,
+	`user_id` varchar(36) NOT NULL,
+	CONSTRAINT `page_mentions_page_id_user_id_pk` PRIMARY KEY(`page_id`,`user_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `page_versions` (
+	`id` varchar(36) NOT NULL,
+	`page_id` varchar(36) NOT NULL,
+	`markdown` longtext NOT NULL,
+	`author_id` varchar(36),
+	`created_at` timestamp(3) NOT NULL DEFAULT (now()),
+	CONSTRAINT `page_versions_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
 CREATE TABLE `pages` (
@@ -116,6 +160,17 @@ ALTER TABLE `comments` ADD CONSTRAINT `comments_thread_id_comment_threads_id_fk`
 ALTER TABLE `comments` ADD CONSTRAINT `comments_author_id_users_id_fk` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `page_documents` ADD CONSTRAINT `page_documents_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `folders` ADD CONSTRAINT `folders_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `notifications` ADD CONSTRAINT `notifications_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `notifications` ADD CONSTRAINT `notifications_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `notifications` ADD CONSTRAINT `notifications_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_activity` ADD CONSTRAINT `page_activity_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_activity` ADD CONSTRAINT `page_activity_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_links` ADD CONSTRAINT `page_links_source_id_pages_id_fk` FOREIGN KEY (`source_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_links` ADD CONSTRAINT `page_links_target_id_pages_id_fk` FOREIGN KEY (`target_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_mentions` ADD CONSTRAINT `page_mentions_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_mentions` ADD CONSTRAINT `page_mentions_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_versions` ADD CONSTRAINT `page_versions_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `page_versions` ADD CONSTRAINT `page_versions_author_id_users_id_fk` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `pages` ADD CONSTRAINT `pages_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `pages` ADD CONSTRAINT `pages_created_by_users_id_fk` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `pages` ADD CONSTRAINT `pages_folder_workspace_fk` FOREIGN KEY (`folder_id`,`workspace_id`) REFERENCES `folders`(`id`,`workspace_id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -127,6 +182,10 @@ ALTER TABLE `workspace_members` ADD CONSTRAINT `workspace_members_user_id_users_
 CREATE INDEX `comment_threads_page_index` ON `comment_threads` (`page_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `comments_thread_index` ON `comments` (`thread_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `folders_workspace_index` ON `folders` (`workspace_id`);--> statement-breakpoint
+CREATE INDEX `notifications_inbox` ON `notifications` (`user_id`,`created_at`);--> statement-breakpoint
+CREATE INDEX `page_activity_recent` ON `page_activity` (`user_id`,`visited_at`);--> statement-breakpoint
+CREATE INDEX `page_links_target` ON `page_links` (`target_id`);--> statement-breakpoint
+CREATE INDEX `page_versions_page_time` ON `page_versions` (`page_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `pages_workspace_folder_index` ON `pages` (`workspace_id`,`folder_id`);--> statement-breakpoint
 CREATE INDEX `sessions_user_index` ON `sessions` (`user_id`);--> statement-breakpoint
 CREATE INDEX `sessions_expiry_index` ON `sessions` (`expires_at`);--> statement-breakpoint
