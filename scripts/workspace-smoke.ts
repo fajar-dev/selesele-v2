@@ -5,6 +5,7 @@ import { createDatabase } from '../server/infrastructure/database/client'
 import { documents, folders, pages, sessions, users, workspaceInvitations, workspaceMembers, workspaces } from '../server/infrastructure/database/schema'
 import { MySqlUserRepository } from '../server/infrastructure/database/repositories/MySqlUserRepository'
 import { MySqlSessionRepository } from '../server/infrastructure/database/repositories/MySqlSessionRepository'
+import type { CommentThreadItem } from '../shared/types/comment'
 import { AuthService } from '../server/application/AuthService'
 
 const origin = new URL(process.env.SMOKE_ORIGIN || 'http://localhost:3000')
@@ -89,6 +90,29 @@ try {
   await request(1, `${pagePath}/content`, 'POST', { content: '# Shared notes\n\nPersisted by a workspace member.' })
   const content = await request<{ content: string }>(0, `${pagePath}/content`)
   assert.ok(content.content.includes('Persisted by a workspace member'))
+  const commentPath = `${pagePath}/comments`
+  const commentInput = { body: 'Please review this passage.', quote: 'Shared notes', anchor: {
+    from: { tname: 'default', assoc: 0 }, to: { tname: 'default', assoc: -1 }
+  } }
+  const thread = await request<CommentThreadItem>(1, commentPath, 'POST', commentInput, 201)
+  assert.equal(thread.messages[0]!.author.id, accounts[1]!.userId)
+  await request(2, commentPath, 'GET', undefined, 404)
+  await request(2, commentPath, 'POST', commentInput, 404)
+  await request(2, `${commentPath}/${thread.id}/replies`, 'POST', { body: 'Injected' }, 404)
+  await request(2, `${commentPath}/${thread.id}`, 'PATCH', { resolved: true }, 404)
+  await request(1, commentPath, 'POST', { ...commentInput, body: ' ', authorId: accounts[0]!.userId }, 400)
+  const replied = await request<CommentThreadItem>(0, `${commentPath}/${thread.id}/replies`, 'POST', { body: 'Reviewed by owner.' }, 201)
+  assert.equal(replied.messages.length, 2)
+  assert.equal(replied.messages[1]!.author.id, accounts[0]!.userId)
+  await request(1, `${commentPath}/${thread.id}`, 'PATCH', { resolved: true })
+  await request(0, `${commentPath}/${thread.id}/replies`, 'POST', { body: 'Resolved reply' }, 409)
+  await request(0, `${commentPath}/${thread.id}`, 'PATCH', { resolved: false })
+  const ownerThread = await request<CommentThreadItem>(0, commentPath, 'POST', commentInput, 201)
+  await request(1, `${commentPath}/${ownerThread.id}`, 'DELETE', undefined, 403)
+  await request(0, `${commentPath}/${ownerThread.id}`, 'DELETE')
+  const foreignPage = await request<{ id: string }>(0, `/workspaces/${second.id}/pages`, 'POST', { title: 'Private page' }, 201)
+  await request(0, `/pages/${foreignPage.id}/comments/${thread.id}`, 'PATCH', { resolved: true }, 404)
+  assert.equal((await request<CommentThreadItem[]>(0, commentPath))[0]!.messages.length, 2)
   const overview = await request<{ members: unknown[], pages: { folderId: string | null }[] }>(1, path)
   assert.equal(overview.members.length, 2)
   assert.equal(overview.pages[0]!.folderId, folder.id)
@@ -125,6 +149,8 @@ try {
   await request(0, `${path}/members/${accounts[1]!.userId}`, 'DELETE')
   assert.equal(await closed, 1008)
   await request(1, pagePath, 'GET', undefined, 404)
+  await request(1, commentPath, 'GET', undefined, 404)
+  await request(1, `${commentPath}/${thread.id}/replies`, 'POST', { body: 'Revoked' }, 404)
   await request(1, `${pagePath}/content`, 'POST', { content: 'Revoked edit' }, 404)
   await request(0, `${path}/folders/${folder.id}`, 'DELETE')
   const relocated = await request<{ folderId: string | null }>(0, pagePath)
@@ -133,7 +159,7 @@ try {
   await request(0, pagePath, 'GET', undefined, 404)
   await auth.logout(accounts[0]!.token)
   await request(0, '/auth/me', 'GET', undefined, 401)
-  console.log('Workspace integration passed: MySQL, SSR, workspace isolation, folders, page moves, invitations, roles, content, live WebSocket revocation and logout')
+  console.log('Workspace integration passed: MySQL, SSR, workspace isolation, folders, page moves, invitations, roles, anchored comment discussions, content, live WebSocket revocation and logout')
 } finally {
   socket?.close()
   if (workspaceIds.length) {

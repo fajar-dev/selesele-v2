@@ -14,31 +14,36 @@ watch(() => route.fullPath, () => {
       v-if="data"
       class="flex min-h-screen"
     >
-      <button
-        class="lg:hidden fixed bottom-5 right-5 z-40 rounded-full border border-default bg-elevated p-3 shadow-lg"
-        aria-label="Toggle workspace navigation"
-        @click="mobileOpen = !mobileOpen"
-      >
-        <UIcon
-          :name="mobileOpen ? 'i-lucide-x' : 'i-lucide-panel-left'"
-          class="size-5"
+      <UTooltip text="Workspace navigation">
+        <UButton
+          class="lg:hidden fixed bottom-5 right-5 z-40 rounded-[4px]! p-3 border border-default"
+          color="primary"
+          icon="i-lucide-panel-left"
+          aria-label="Toggle workspace navigation"
+          @click="mobileOpen = true"
         />
-      </button>
-      <div
-        v-if="mobileOpen"
-        class="fixed inset-0 z-20 bg-black/30 lg:hidden"
-        @click="mobileOpen = false"
-      />
-      <aside :class="[mobileOpen ? 'flex' : 'hidden', 'lg:flex fixed inset-y-0 left-0 z-30 w-64 border-r border-default bg-muted flex-col']">
+      </UTooltip>
+      <aside class="hidden lg:block fixed inset-y-0 left-0 z-30 w-[268px] border-r border-muted app-sidebar">
         <WorkspacesSidebar :overview="data" />
       </aside>
-      <main class="min-w-0 flex-1 lg:ml-64">
+      <USlideover
+        v-model:open="mobileOpen"
+        side="left"
+        :title="data.workspace.name"
+        description="Your workspace, organized."
+        :ui="{ content: 'max-w-[290px] app-sidebar', body: 'p-0 sm:p-0 min-h-0 flex flex-col', header: 'min-h-0 py-4 px-5' }"
+      >
+        <template #body>
+          <WorkspacesSidebar :overview="data" />
+        </template>
+      </USlideover>
+      <main class="min-w-0 flex-1 lg:ml-[268px]">
         <slot />
       </main>
     </div>
     <main
       v-else
-      class="p-8 max-w-2xl mx-auto space-y-4"
+      class="p-6 sm:p-10 max-w-2xl mx-auto space-y-4"
     >
       <UAlert
         title="Unable to open workspace"
@@ -48,6 +53,7 @@ watch(() => route.fullPath, () => {
       <UButton
         label="All workspaces"
         to="/"
+        icon="i-lucide-arrow-left"
         color="neutral"
       />
       <UButton

@@ -50,7 +50,7 @@ async function confirm(): Promise<void> {
         :description="error"
         color="error"
       />
-      <div class="mt-4 flex justify-end gap-2">
+      <div class="mt-6 pt-5 border-t border-muted flex justify-end gap-2">
         <UButton
           label="Cancel"
           color="neutral"

@@ -103,7 +103,7 @@ export class MemoryFolders implements FolderRepository {
 
 export class MemoryPages implements PageRepository, DocumentRepository {
   readonly page: Page = { id: '019a71f3-32c1-7000-8000-000000000001', workspaceId: WORKSPACE_ID, folderId: null,
-    title: 'Test', icon: null, description: null, createdBy: OWNER_ID, createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
+    title: 'Test', icon: null, createdBy: OWNER_ID, createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
 
   markdown = '# Hello\n\nA persistent document.'
   state: Uint8Array | null = null

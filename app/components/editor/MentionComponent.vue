@@ -7,15 +7,15 @@ const props = defineProps(nodeViewProps)
 <template>
   <NodeViewWrapper
     as="span"
-    class="inline-flex items-center gap-1 rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 align-middle border border-gray-200 dark:border-gray-700"
+    class="inline-flex items-center gap-1 rounded-md bg-primary/8 px-1.5 py-0.5 align-middle border border-primary/15"
   >
     <UAvatar
       v-if="props.node.attrs.avatar.src"
       :src="props.node.attrs.avatar.src"
       :alt="props.node.attrs.label"
       size="xs"
-      class="ring-1 ring-gray-200 dark:ring-gray-700"
+      class="ring-1 ring-primary/15"
     />
-    <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ props.node.attrs.label }}</span>
+    <span class="text-sm font-medium text-primary">{{ props.node.attrs.label }}</span>
   </NodeViewWrapper>
 </template>

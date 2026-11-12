@@ -39,7 +39,10 @@ The workspace creator becomes its owner in the same database transaction. No API
 
 Owners and admins invite an email address with a role. Invitations appear in the recipient's workspace home after Microsoft sign-in; no email delivery service is configured. The recipient must accept before gaining access. Only the matching signed-in email can accept or decline. Invitations expire after seven days, can be cancelled, and are consumed atomically. Re-inviting refreshes an outstanding invitation without creating duplicates. Accepting an invitation never overwrites an existing membership role.
 
-Folders are one level deep inside their workspace. Pages can live at the workspace root or inside a folder. The editor's page menu includes **Move to folder**, with the root as a destination. Application validation and a composite database foreign key prevent moving a page into another workspace's folder. Deleting a folder moves its pages to the root in one transaction. It does not delete their content.
+Folders are one level deep inside their workspace. Pages can live at the workspace root or inside a folder. Drag pages onto a sidebar folder to move them, or onto the Pages heading to return them to the workspace root. Page and folder action menus contain only Delete. Create pages directly and edit their titles and icons inline; create folders inline and rename them on their folder page. Pages have no description field. Application validation and a composite database foreign key prevent moving a page into another workspace's folder. Deleting a folder moves its pages to the root in one transaction. It does not delete their content.
+
+Members can select page text and choose **Comment** (or use **Cmd/Ctrl + Alt + M**) to start a discussion. Click a highlighted passage or the Comments toolbar button to open its replies. Members can resolve and reopen discussions; creators and workspace managers can delete them. Open and resolved discussions are stored separately from the document, using Yjs relative text positions so highlights follow collaborative edits. If the selected text is removed, its discussion and original quotation remain available. Comment changes notify authorized page viewers immediately over the existing collaboration WebSocket. Clients fetch a fresh snapshot on each notification and after reconnecting; overlapping requests are coalesced, and transient fetch failures retry automatically. No periodic comment polling is used. Failed submissions preserve the draft for retry. Closing the panel preserves a new comment draft.
+
 
 Deleting a page or workspace makes it inaccessible. Revoking a member or deleting a workspace disconnects the relevant collaboration sockets. HTTP reads, writes and WebSocket messages independently check workspace membership. Unknown or inaccessible resources return 404.
 
@@ -64,6 +67,20 @@ The editor supports rich text, slash commands, task lists, tables, images, menti
 Native Nitro WebSockets synchronize TipTap/Yjs documents. The server initializes each document once, saves updates before broadcasting, and flushes the final state before disposing a room. Browser clients wait for synchronization. Membership revocation applies to every page in the workspace, including currently connected editors.
 
 Gemini writing assistance is separate from authentication. Set `GOOGLE_GENERATIVE_AI_API_KEY` and optionally `AI_MODEL` to enable it. Image uploads accept PNG, JPEG, GIF and WebP up to 2 MB and use generated filenames. Their URLs are public asset URLs. Persist `UPLOAD_DIR` outside `.output` and limit reverse-proxy request bodies to 3 MB.
+
+## Interface and theming
+
+The interface uses Nuxt UI components for navigation controls, tables, cards, empty states, dialogs, mobile slideovers, forms and the editor. `app/app.config.ts` defines shared component styling; `app/assets/css/main.css` owns the monochrome light/dark palette, typography, subtle separators and motion preferences. Cards use a subtle 6 px radius, controls use 2–5 px, and dialogs use 8 px. Empty states use a single divider instead of a full frame. Folder links and page lists use open rows with subtle separators; sidebar selection uses a light background instead of a heavy accent stripe. Navigation uses Lucide SVG icons with no decorative covers or canvas artwork. `app/utils/workspacePresentation.ts` keeps page-count formatting separate from business logic.
+
+The home header aligns its logo and account controls to the same content gutters as the page. The navbar provides a light/dark toggle beside the account button. The account dropdown contains only the user identity and sign-out action.
+
+Home presents workspaces as a searchable list of full-width links with role and creation date, keeping the create action next to the page heading.
+
+Workspace, folder, document and settings screens share `WorkspacesContent`, `WorkspacesHeading` and `WorkspacesBreadcrumbs`. The shared container fixes content width and responsive gutters; headings use the same typography and inline icon placement. Editor actions live below the document heading rather than adding a second global header row. The editor body and its heading use the same container with no extra text inset.
+
+The sidebar's workspace switcher lists the current user's workspaces and refreshes on opening. Members and Settings are dedicated pages in the sidebar. Members includes invitations, role changes and member removal; Invite teammates links directly to its invitation form. Settings appears below Members. Owners and admins can rename a workspace; members see read-only details, and only owners can delete it. Mutations refresh the workspace directory and home list, while the server remains responsible for enforcing role permissions.
+
+The workspace sidebar has one combined page/folder list. Its add menu creates either a page or a folder; each folder also offers a contextual New page action. Drag a page onto a folder row to move it, or onto the Pages heading to return it to the workspace root. Collapsed destinations open while dragging. Moves persist through the existing workspace-scoped location endpoint, and failed saves preserve the original location. Page action menus expose the same move dialog for keyboard and touch users. Search matches page titles and folder names while retaining their hierarchy.
 
 ## Architecture
 
@@ -124,6 +141,10 @@ Endpoints share the application origin and use `{ success, message, data }`. Err
 | DELETE | `/api/invitations/:invitationId` | Decline invitation |
 | GET / PUT / DELETE | `/api/pages/:id` | Read / edit metadata / delete page |
 | PATCH | `/api/pages/:id/location` | Move page with `{ folderId: UUID or null }` |
+| GET / POST | `/api/pages/:id/comments` | List / create text discussions (quote, relative anchor, body) |
+| POST | `/api/pages/:id/comments/:threadId/replies` | Reply to an open discussion |
+| PATCH | `/api/pages/:id/comments/:threadId` | Resolve / reopen with `{ resolved: boolean }` |
+| DELETE | `/api/pages/:id/comments/:threadId` | Delete a discussion (creator or workspace manager) |
 | GET / POST | `/api/pages/:id/content` | Read / replace Markdown |
 | GET | `/api/pages/:id/md` | Export Markdown |
 | POST | `/api/upload` | Upload image in multipart `file` |

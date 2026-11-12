@@ -1,7 +1,6 @@
 export interface PageInput {
   title: string
   icon?: string | null
-  description?: string | null
   folderId?: string | null
 }
 
@@ -13,7 +12,6 @@ export interface PageItem {
   folderId: string | null
   title: string
   icon: string | null
-  description: string | null
   createdBy: string
   createdAt: string
   updatedAt: string

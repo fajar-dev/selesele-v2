@@ -1,3 +1,4 @@
+import { COMMENTS_CHANGED } from '../../../shared/collaboration/protocol'
 import * as Y from 'yjs'
 import * as sync from 'y-protocols/sync'
 import * as awarenessProtocol from 'y-protocols/awareness'
@@ -111,6 +112,30 @@ export class CollaborationRoom {
     } else {
       peer.close(1003, 'Unsupported protocol message')
     }
+  }
+
+  async notifyCommentsChanged(): Promise<void> {
+    const encoder = encoding.createEncoder()
+    encoding.writeVarUint(encoder, COMMENTS_CHANGED)
+    const message = encoding.toUint8Array(encoder)
+    await Promise.allSettled([...this.connections.values()].map(async (connection) => {
+      try {
+        await this.authorize(connection)
+      } catch {
+        this.remove(connection.peer)
+        connection.peer.close(1008, 'Access expired or revoked')
+        return
+      }
+      if (this.isClosing || this.connections.get(connection.peer.id) !== connection) {
+        return
+      }
+      try {
+        connection.peer.send(message)
+      } catch {
+        this.remove(connection.peer)
+        connection.peer.close(1011, 'Connection interrupted')
+      }
+    }))
   }
 
   async replaceMarkdown(content: string) {

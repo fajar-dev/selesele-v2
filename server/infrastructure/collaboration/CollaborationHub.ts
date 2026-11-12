@@ -1,3 +1,4 @@
+import type { CommentEvents } from '../../domain/ports/CommentEvents'
 import type { CollaborationPeer } from '../../domain/ports/CollaborationPeer'
 import * as Y from 'yjs'
 import type { AuthService } from '../../application/AuthService'
@@ -9,7 +10,7 @@ import { CollaborationRoom } from './CollaborationRoom'
 import { createDocument } from './document'
 
 /** Owns room lifecycles within one Bun application process. */
-export class CollaborationHub {
+export class CollaborationHub implements CommentEvents {
   private readonly rooms = new Map<string, Promise<CollaborationRoom>>()
   private readonly peerRooms = new Map<string, string>()
   private readonly roomWorkspaces = new Map<string, string>()
@@ -82,6 +83,23 @@ export class CollaborationHub {
     room.remove(peer)
     if (!room.connections.size) {
       await this.disposeRoom(id, loading)
+    }
+  }
+
+  async commentsChanged(pageId: string): Promise<void> {
+    const loading = this.rooms.get(pageId)
+    if (!loading) {
+      return
+    }
+    // A failed socket must not turn an already committed comment into a failed POST.
+    // Reconnecting viewers fetch the latest snapshot when document sync completes.
+    try {
+      const room = await loading
+      if (!room.isClosing) {
+        await room.notifyCommentsChanged()
+      }
+    } catch (cause) {
+      console.error('Unable to notify comment viewers', cause)
     }
   }
 

@@ -142,7 +142,7 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
       {
         kind: 'delete',
         pos: selectedNode.value?.pos,
-        label: 'Delete',
+        label: 'Delete', color: 'error' as const,
         icon: 'i-lucide-trash'
       }
     ]], customHandlers) as DropdownMenuItem[][]

@@ -19,10 +19,16 @@ describe('HTTP validation', () => {
     expect(pageUpdateSchema.safeParse({ folderId: null }).success).toBe(false)
   })
 
+  test('rejects removed page descriptions on create and update', () => {
+    expect(pageInputSchema.safeParse({ title: 'Page', description: 'Removed' }).success).toBe(false)
+    expect(pageUpdateSchema.safeParse({ description: null }).success).toBe(false)
+    expect(pageUpdateSchema.safeParse({ title: 'Page', description: 'Removed' }).success).toBe(false)
+  })
+
   test('normalizes email and accepts clearing nullable page fields and content', () => {
     expect(invitationInputSchema.parse({ email: 'Friend@Example.com' }).email).toBe('friend@example.com')
     expect(invitationInputSchema.safeParse({ email: 'invalid' }).success).toBe(false)
-    expect(pageInputSchema.parse({ title: ' Test ', icon: null, description: null }).title).toBe('Test')
+    expect(pageInputSchema.parse({ title: ' Test ', icon: null }).title).toBe('Test')
     expect(contentSchema.parse({ content: '' }).content).toBe('')
     expect(contentSchema.safeParse({ content: {} }).success).toBe(false)
   })

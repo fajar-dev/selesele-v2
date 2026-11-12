@@ -4,6 +4,7 @@ import { folderInputSchema } from '#shared/validation/workspace'
 const props = withDefaults(defineProps<{ title: string, description: string, initialName?: string, onSave: (name: string) => Promise<void> }>(), { initialName: '' })
 const open = defineModel<boolean>('open', { default: false })
 const state = reactive({ name: '' })
+const isFolder = computed(() => props.title.toLowerCase().includes('folder'))
 const busy = ref(false)
 const error = ref<string | null>(null)
 watch(open, (value) => {
@@ -55,10 +56,12 @@ async function submit() {
             v-model="state.name"
             autofocus
             maxlength="120"
+            size="lg"
+            :placeholder="isFolder ? 'e.g. Projects' : 'e.g. Product studio'"
             class="w-full"
           />
         </UFormField>
-        <div class="flex justify-end gap-2">
+        <div class="flex justify-end gap-2 border-t border-muted pt-5">
           <UButton
             label="Cancel"
             color="neutral"
@@ -69,7 +72,7 @@ async function submit() {
           <UButton
             type="submit"
             label="Save"
-            color="neutral"
+            color="primary"
             :loading="busy"
           />
         </div>

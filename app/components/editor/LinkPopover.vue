@@ -151,7 +151,7 @@ function handleKeyDown(event: KeyboardEvent) {
 
           <UButton
             icon="i-lucide-trash"
-            color="neutral"
+            color="error"
             variant="ghost"
             size="sm"
             :disabled="!url && !active"

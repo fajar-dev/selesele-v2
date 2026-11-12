@@ -18,7 +18,7 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
     tooltip: { text: 'Redo' }
   }], [{
     kind: 'imageUpload',
-    label: 'Add',
+    label: 'Image',
     icon: 'i-lucide-image',
     tooltip: { text: 'Add image' }
   }]]
@@ -246,6 +246,7 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
     }], [{
       icon: 'i-lucide-trash',
       tooltip: { text: 'Delete' },
+      color: 'error',
       onClick: () => {
         const { state } = editor
         const { selection } = state
@@ -288,18 +289,21 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
     }], [{
       icon: 'i-lucide-rows-3',
       tooltip: { text: 'Delete row' },
+      color: 'error',
       onClick: () => {
         editor.chain().focus().deleteRow().run()
       }
     }, {
       icon: 'i-lucide-columns-3',
       tooltip: { text: 'Delete column' },
+      color: 'error',
       onClick: () => {
         editor.chain().focus().deleteColumn().run()
       }
     }], [{
       icon: 'i-lucide-trash',
       tooltip: { text: 'Delete table' },
+      color: 'error',
       onClick: () => {
         editor.chain().focus().deleteTable().run()
       }

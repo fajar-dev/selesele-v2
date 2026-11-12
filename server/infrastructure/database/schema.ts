@@ -1,4 +1,5 @@
-import { mysqlTable, varchar, text, longtext, timestamp, boolean, index, uniqueIndex, customType, mysqlEnum, foreignKey } from 'drizzle-orm/mysql-core'
+import type { CommentAnchor } from '../../../shared/types/comment'
+import { mysqlTable, varchar, json, text, longtext, timestamp, boolean, index, uniqueIndex, customType, mysqlEnum, foreignKey } from 'drizzle-orm/mysql-core'
 import { uuidv7 } from 'uuidv7'
 
 const mediumblob = customType<{ data: Buffer }>({ dataType: () => 'mediumblob' })
@@ -57,7 +58,6 @@ export const pages = mysqlTable('pages', {
   folderId: varchar('folder_id', { length: 36 }),
   title: varchar('title', { length: 255 }).notNull(),
   icon: varchar('icon', { length: 255 }),
-  description: text('description'),
   createdBy: varchar('created_by', { length: 36 }).notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
@@ -79,3 +79,22 @@ export const sessions = mysqlTable('sessions', {
   userId: varchar('user_id', { length: 36 }).notNull().references(() => users.id),
   expiresAt: timestamp('expires_at').notNull()
 }, table => [index('sessions_user_index').on(table.userId), index('sessions_expiry_index').on(table.expiresAt)])
+
+export const commentThreads = mysqlTable('comment_threads', {
+  id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
+  pageId: varchar('page_id', { length: 36 }).notNull().references(() => pages.id, { onDelete: 'cascade' }),
+  quote: text('quote').notNull(),
+  anchor: json('anchor').$type<CommentAnchor>().notNull(),
+  createdBy: varchar('created_by', { length: 36 }).notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: varchar('resolved_by', { length: 36 }).references(() => users.id)
+}, table => [index('comment_threads_page_index').on(table.pageId, table.createdAt)])
+
+export const comments = mysqlTable('comments', {
+  id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
+  threadId: varchar('thread_id', { length: 36 }).notNull().references(() => commentThreads.id, { onDelete: 'cascade' }),
+  authorId: varchar('author_id', { length: 36 }).notNull().references(() => users.id),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+}, table => [index('comments_thread_index').on(table.threadId, table.createdAt)])

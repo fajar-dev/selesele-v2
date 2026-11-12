@@ -5,8 +5,11 @@
     aria-busy="true"
   >
     <AppHeader />
-    <div class="mx-auto max-w-4xl space-y-6 p-4 sm:p-14">
-      <USkeleton class="h-12 w-3/4" />
+    <WorkspacesContent>
+      <div class="flex items-center gap-3">
+        <USkeleton class="size-10 rounded-[5px]" />
+        <USkeleton class="h-9 w-2/3" />
+      </div>
       <div
         v-for="paragraph in 3"
         :key="paragraph"
@@ -16,6 +19,6 @@
         <USkeleton class="h-4 w-full" />
         <USkeleton class="h-4 w-2/3" />
       </div>
-    </div>
+    </WorkspacesContent>
   </div>
 </template>

@@ -7,7 +7,7 @@ import { TableKit } from '@tiptap/extension-table'
 import { useFullscreen } from '@vueuse/core'
 import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
 import type { WorkspaceMember, FolderItem } from '#shared/types/workspace'
-import type { PageItem } from '#shared/types/page'
+import type { PageItem, PageUpdate } from '#shared/types/page'
 import { ImageUpload } from '~/editor/extensions/ImageUploadExtension'
 import { CustomMention } from '~/editor/extensions/MentionExtension'
 import { pageService } from '~/services/pageService'
@@ -17,11 +17,39 @@ const props = defineProps<{ page: PageItem, members: WorkspaceMember[], folders:
 const emit = defineEmits<{ updated: [page: PageItem] }>()
 const { state: auth } = useAuth()
 const toast = useToast()
-const editOpen = ref(false)
+const titleInput = useTemplateRef('titleInput')
+const iconOpen = ref(false)
+const iconSaving = ref(false)
+const colorMode = useColorMode()
+let metadataQueue: Promise<void> = Promise.resolve()
+function saveMetadata(input: PageUpdate): Promise<void> {
+  const next = metadataQueue.catch(() => {}).then(async () => {
+    const response = await pageService.update(props.page.id, input)
+    emit('updated', response.data)
+  })
+  metadataQueue = next
+  return next
+}
+async function selectIcon(emoji: { i: string }) {
+  if (iconSaving.value) {
+    return
+  }
+  iconSaving.value = true
+  try {
+    await saveMetadata({ icon: emoji.i })
+    iconOpen.value = false
+  } catch (cause) {
+    toast.add({ title: 'Unable to update page icon', description: errorMessage(cause), color: 'error' })
+  } finally {
+    iconSaving.value = false
+  }
+}
 const deleteOpen = ref(false)
-const moveOpen = ref(false)
 const isExporting = ref(false)
 const editorRef = useTemplateRef('editorRef')
+const comments = usePageComments(props.page.id, editorRef)
+const commentOpen = comments.open
+const textToolbarItems = computed(() => [[{ label: 'Comment', icon: 'i-lucide-message-square-plus', onClick: () => comments.start() }], ...bubbleToolbarItems.value])
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
 const profile = computed(() => ({
   name: auth.user?.name || auth.user?.email || 'User',
@@ -35,7 +63,7 @@ const {
   connectedUsers,
   extensions: collaborationExtensions,
   updateUser
-} = useEditorCollaboration({ room: props.page.id, user: profile.value })
+} = useEditorCollaboration({ room: props.page.id, user: profile.value, onCommentsChanged: comments.synchronize })
 
 watch(profile, updateUser)
 
@@ -69,25 +97,17 @@ const extensions = computed(() => [
     defaultTheme: 'material-theme',
     themes: { light: 'material-theme-lighter', dark: 'material-theme-palenight' }
   }),
-  completion, CustomMention, Emoji, ImageUpload, TableKit, TaskList, TaskItem,
+  comments.extension, completion, CustomMention, Emoji, ImageUpload, TableKit, TaskList, TaskItem,
   ...collaborationExtensions.value
 ])
 const breadcrumbItems = computed(() => [
   { label: props.workspaceName, icon: 'i-lucide-panels-top-left', to: `/workspaces/${props.page.workspaceId}` },
-  ...(props.page.folderId ? [{ label: props.folders.find(folder => folder.id === props.page.folderId)?.name || 'Folder', to: `/workspaces/${props.page.workspaceId}?folder=${props.page.folderId}` }] : []),
+  ...(props.page.folderId ? [{ label: props.folders.find(folder => folder.id === props.page.folderId)?.name || 'Folder', icon: 'i-lucide-folder', to: `/workspaces/${props.page.workspaceId}?folder=${props.page.folderId}` }] : []),
   { label: `${props.page.icon || '📖'} ${props.page.title}`, to: `/workspaces/${props.page.workspaceId}/pages/${props.page.id}` }
 ])
 const pagesItems: DropdownMenuItem[] = [
-  { label: 'Move to folder', icon: 'i-lucide-folder-input', onSelect: () => {
-    moveOpen.value = true
-  } },
-  { label: 'Edit', icon: 'i-lucide-pencil', onSelect: openEditDialog },
-  { label: 'Delete', icon: 'i-lucide-trash', onSelect: openDeleteDialog }
+  { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: openDeleteDialog }
 ]
-
-function openEditDialog(): void {
-  editOpen.value = true
-}
 
 function openDeleteDialog(): void {
   deleteOpen.value = true
@@ -134,31 +154,31 @@ async function onConfirmDelete(): Promise<void> {
       :extensions="extensions"
       :starter-kit="{ undoRedo: false, codeBlock: false }"
       :handlers="customHandlers"
-      autofocus
-      placeholder="Write, type '/' for commands..."
-      class="min-h-screen"
+      :autofocus="page.title !== 'Untitled'"
+      placeholder="Write something, or type '/' for commands…"
+      class="min-h-screen editor-document"
       :ui="{
-        base: 'p-4 sm:px-14 sm:py-6',
-        content: 'max-w-4xl mx-auto'
+        base: 'px-0 sm:px-0 py-6 text-base leading-relaxed',
+        content: 'workspace-content'
       }"
     >
-      <AppHeader :toolbar="true">
+      <AppHeader>
         <template #right>
+          <UTooltip :text="collaborationConnected ? 'Changes sync automatically with your workspace' : 'Trying to restore the live connection'">
+            <span
+              role="status"
+              :aria-label="collaborationConnected ? 'Live sync' : 'Reconnecting…'"
+              class="inline-flex items-center gap-1.5 text-xs text-muted whitespace-nowrap"
+            >
+              <UIcon
+                :name="collaborationConnected ? 'i-lucide-cloud-check' : 'i-lucide-loader-circle'"
+                :class="['size-3.5', { 'animate-spin': !collaborationConnected }]"
+              />
+              <span class="hidden sm:inline">{{ collaborationConnected ? 'Live sync' : 'Reconnecting…' }}</span>
+            </span>
+          </UTooltip>
           <EditorCollaborationUsers
             :users="connectedUsers"
-          />
-          <PagesFormModal
-            v-model:open="editOpen"
-            :page="page"
-            :workspace-id="page.workspaceId"
-            :folders="folders"
-            @success="emit('updated', $event)"
-          />
-          <PagesMoveModal
-            v-model:open="moveOpen"
-            :page="page"
-            :folders="folders"
-            @moved="emit('updated', $event)"
           />
           <DeleteConfirmModal
             v-model:open="deleteOpen"
@@ -169,105 +189,126 @@ async function onConfirmDelete(): Promise<void> {
           />
         </template>
 
-        <template #toolbar-left>
-          <UBreadcrumb
-            class="ms-5"
-            size="sm"
-            :items="breadcrumbItems"
-          />
-        </template>
-
-        <template #toolbar-right>
-          <UEditorToolbar
-            :editor="editor"
-            :items="toolbarItems"
-          />
-
-          <USeparator
-            orientation="vertical"
-            class="h-7"
-          />
-
-          <UBadge
-            variant="subtle"
-            :color="collaborationConnected ? 'success' : 'warning'"
-          >
-            {{ collaborationConnected ? 'Live sync' : 'Reconnecting…' }}
-          </UBadge>
-
-          <USeparator
-            orientation="vertical"
-            class="h-7"
-          />
-          <UButton
-            label="Markdown"
-            icon="i-lucide-download"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :loading="isExporting"
-            @click="exportMarkdown"
-          />
-
-          <USeparator
-            orientation="vertical"
-            class="h-7"
-          />
-
-          <UButton
-            size="sm"
-            variant="ghost"
-            color="neutral"
-            :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-fullscreen'"
-            @click="toggleFullscreen"
-          />
-
-          <USeparator
-            orientation="vertical"
-            class="h-7"
-          />
-
-          <UDropdownMenu
-            :items="pagesItems"
-            size="sm"
-            :content="{
-              align: 'start',
-              side: 'bottom',
-              sideOffset: 8
-            }"
-            :ui="{
-              content: 'w-48'
-            }"
-          >
-            <UButton
-              size="sm"
-              variant="ghost"
-              color="neutral"
-              icon="i-lucide-ellipsis-vertical"
-              aria-label="Page actions"
-            />
-          </UDropdownMenu>
+        <template #left>
+          <WorkspacesBreadcrumbs :items="breadcrumbItems" />
         </template>
       </AppHeader>
-      <div class="max-w-4xl mx-auto px-4 sm:px-14 pt-12 pb-2">
-        <span
-          class="text-5xl"
-          aria-hidden="true"
-        >{{ page.icon || '📄' }}</span>
-        <h1 class="text-3xl sm:text-4xl font-semibold tracking-tight mt-5 break-words">
-          {{ page.title }}
-        </h1>
-        <p
-          v-if="page.description"
-          class="text-muted mt-3"
+      <WorkspacesContent>
+        <WorkspacesHeading
+          :title="page.title"
         >
-          {{ page.description }}
-        </p>
-      </div>
+          <template #icon>
+            <UPopover
+              v-model:open="iconOpen"
+              :content="{ align: 'start' }"
+            >
+              <UButton
+                :label="iconSaving ? undefined : page.icon || '📄'"
+                aria-label="Choose page icon"
+                color="neutral"
+                variant="ghost"
+                :loading="iconSaving"
+                class="size-10 p-0 justify-center text-[2rem] leading-none"
+              />
+              <template #content>
+                <NuxtEmojiPicker
+                  :theme="colorMode.value === 'dark' ? 'dark' : 'light'"
+                  @select="selectIcon"
+                />
+              </template>
+            </UPopover>
+          </template>
+          <template #title>
+            <InlineName
+              ref="titleInput"
+              :value="page.title"
+              label="Page title"
+              fallback="Untitled"
+              :autofocus="page.title === 'Untitled'"
+              :on-save="title => saveMetadata({ title })"
+            />
+          </template>
+          <template #metadata>
+            <UIcon
+              name="i-lucide-users"
+              class="size-3.5"
+            />
+            <span>Shared with {{ workspaceName }}</span>
+            <span class="text-dimmed">·</span>
+            <span>{{ members.length }} {{ members.length === 1 ? 'member' : 'members' }}</span>
+          </template>
+        </WorkspacesHeading>
+        <WorkspacesContentToolbar>
+          <template #left>
+            <UEditorToolbar
+              :editor="editor"
+              :items="toolbarItems"
+              :ui="{ base: 'gap-1.5', group: 'gap-1', separator: 'h-4 self-center mx-1 bg-(--ui-border-muted)' }"
+            />
+          </template>
 
+          <template #right>
+            <UButton
+              :label="comments.openCount.value ? `Comments ${comments.openCount.value}` : 'Comments'"
+              aria-label="Open comments"
+              icon="i-lucide-message-square"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="commentOpen = !commentOpen"
+            />
+            <UTooltip text="Export as Markdown">
+              <UButton
+                aria-label="Export Markdown"
+                icon="i-lucide-download"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                class="text-muted hover:text-highlighted"
+                :loading="isExporting"
+                @click="exportMarkdown"
+              />
+            </UTooltip>
+            <UTooltip :text="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'">
+              <UButton
+                size="sm"
+                variant="ghost"
+                color="neutral"
+                class="text-muted hover:text-highlighted"
+                :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
+                :aria-label="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'"
+                @click="toggleFullscreen"
+              />
+            </UTooltip>
+            <UDropdownMenu
+              :items="pagesItems"
+              size="sm"
+              :content="{
+                align: 'end',
+                side: 'bottom',
+                sideOffset: 8
+              }"
+              :ui="{
+                content: 'w-48'
+              }"
+            >
+              <UButton
+                size="sm"
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-ellipsis"
+                aria-label="Page actions"
+                class="text-muted hover:text-highlighted"
+              />
+            </UDropdownMenu>
+          </template>
+        </WorkspacesContentToolbar>
+      </WorkspacesContent>
       <UEditorToolbar
         :editor="editor"
-        :items="bubbleToolbarItems"
+        :items="textToolbarItems"
+        :options="{ shift: { padding: 8, boundary: editor.view.dom } }"
+        :ui="{ root: 'z-40', base: 'flex-wrap max-w-[calc(100vw-2rem)] lg:max-w-[calc(100vw-20rem)] rounded-[6px]', group: 'flex-wrap' }"
         layout="bubble"
         :should-show="showTextToolbar"
       >
@@ -342,5 +383,10 @@ async function onConfirmDelete(): Promise<void> {
         :items="suggestionItems"
       />
     </UEditor>
+    <CommentsPanel
+      :comments="comments"
+      :user-id="auth.user?.id || ''"
+      :manager="members.some(member => member.userId === auth.user?.id && member.role !== 'member')"
+    />
   </div>
 </template>

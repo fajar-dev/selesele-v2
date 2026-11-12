@@ -4,7 +4,6 @@ export interface Page {
   folderId: string | null
   title: string
   icon: string | null
-  description: string | null
   createdBy: string
   createdAt: Date
   updatedAt: Date

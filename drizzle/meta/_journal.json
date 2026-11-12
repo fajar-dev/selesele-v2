@@ -8,6 +8,20 @@
       "when": 1794378184685,
       "tag": "0000_workspace_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1794387343506,
+      "tag": "0001_remove_page_description",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1794446802329,
+      "tag": "0002_page_comments",
+      "breakpoints": true
     }
   ]
 }

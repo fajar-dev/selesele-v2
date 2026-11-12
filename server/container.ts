@@ -1,3 +1,5 @@
+import { CommentService } from './application/CommentService'
+import { MySqlCommentRepository } from './infrastructure/database/repositories/MySqlCommentRepository'
 import { AuthService } from './application/AuthService'
 import { CompletionService } from './application/CompletionService'
 import { WorkspaceService } from './application/WorkspaceService'
@@ -46,6 +48,7 @@ function createContainer() {
     pages,
     collaboration,
     completions,
+    comments: new CommentService(new MySqlCommentRepository(database.db), pages, workspaces, collaboration),
     images: new ImageStorage(),
     async close(): Promise<void> {
       try {

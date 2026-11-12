@@ -1,86 +1,46 @@
 <script setup lang="ts">
-import type { WorkspaceOverview, FolderItem } from '#shared/types/workspace'
 import type { PageItem } from '#shared/types/page'
+import { pageService } from '~/services/pageService'
+import type { WorkspaceOverview, FolderItem } from '#shared/types/workspace'
 import { workspaceService } from '~/services/workspaceService'
 
 const props = defineProps<{ overview: WorkspaceOverview }>()
 const route = useRoute()
 const { state: auth, service: authService } = useAuth()
 const toast = useToast()
-const pageOpen = ref(false)
-const folderOpen = ref(false)
-const membersOpen = ref(false)
-const renameOpen = ref(false)
 const deleteOpen = ref(false)
-const editingFolder = ref<FolderItem | null>(null)
+const deletingPage = ref<PageItem | null>(null)
+const deletePageOpen = ref(false)
 const deletingFolder = ref<FolderItem | null>(null)
-const deletingWorkspace = ref(false)
-const defaultFolder = ref<string | null>(null)
 const search = ref('')
 const workspace = computed(() => props.overview.workspace)
 const manager = computed(() => workspace.value.role !== 'member')
-const filteredPages = computed(() => props.overview.pages.filter(page => page.title.toLowerCase().includes(search.value.toLowerCase())))
 const home = computed(() => `/workspaces/${workspace.value.id}`)
-const folderItems = (folder: FolderItem) => [
-  { label: 'New page', icon: 'i-lucide-file-plus', onSelect: () => newPage(folder.id) },
-  { label: 'Rename folder', icon: 'i-lucide-pencil', onSelect: () => {
-    editingFolder.value = folder
-    folderOpen.value = true
-  } },
-  { label: 'Delete folder', icon: 'i-lucide-trash', onSelect: () => {
-    deletingFolder.value = folder
-    deletingWorkspace.value = false
-    deleteOpen.value = true
-  } }
-]
-const workspaceItems = computed(() => [
-  { label: 'All workspaces', to: '/' },
-  ...(manager.value
-    ? [{ label: 'Rename workspace', onSelect: () => {
-        renameOpen.value = true
-      } }]
-    : []),
-  ...(workspace.value.role === 'owner'
-    ? [{ label: 'Delete workspace', onSelect: () => {
-        deletingWorkspace.value = true
-        deleteOpen.value = true
-      } }]
-    : [])
-])
-function newFolder() {
-  editingFolder.value = null
-  folderOpen.value = true
-}
-
-function newPage(folderId: string | null = null) {
-  defaultFolder.value = folderId
-  pageOpen.value = true
-}
-async function created(page: PageItem) {
-  await refreshWorkspace(workspace.value.id)
-  await navigateTo(`${home.value}/pages/${page.id}`)
-}
-async function saveFolder(name: string) {
-  if (editingFolder.value) {
-    await workspaceService.renameFolder(workspace.value.id, editingFolder.value.id, name)
-  } else {
-    await workspaceService.createFolder(workspace.value.id, name)
-  }
-  await refreshWorkspace(workspace.value.id)
-}
-async function rename(name: string) {
-  await workspaceService.rename(workspace.value.id, name)
-  await refreshWorkspace(workspace.value.id)
+const { createPage } = usePageCreation(props.overview.workspace.id)
+function deleteFolder(folder: FolderItem) {
+  deletingFolder.value = folder
+  deleteOpen.value = true
 }
 async function confirmDelete() {
-  if (deletingWorkspace.value) {
-    await workspaceService.delete(workspace.value.id)
-    await refreshNuxtData('workspace-home')
-    await navigateTo('/')
-  } else if (deletingFolder.value) {
+  if (deletingFolder.value) {
     await workspaceService.deleteFolder(workspace.value.id, deletingFolder.value.id)
     await refreshWorkspace(workspace.value.id)
   }
+}
+function deletePage(page: PageItem) {
+  deletingPage.value = page
+  deletePageOpen.value = true
+}
+async function confirmDeletePage() {
+  const page = deletingPage.value
+  if (!page) {
+    return
+  }
+  await pageService.delete(page.id)
+  if (route.params.id === page.id) {
+    await navigateTo(home.value)
+  }
+  await refreshWorkspace(workspace.value.id)
 }
 async function logout() {
   try {
@@ -92,35 +52,21 @@ async function logout() {
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <div class="p-3 border-b border-default">
-      <UDropdownMenu
-        :items="workspaceItems"
-        :content="{ align: 'start' }"
-      >
-        <UButton
-          :label="workspace.name"
-          trailing-icon="i-lucide-chevrons-up-down"
-          color="neutral"
-          variant="ghost"
-          class="w-full justify-between font-semibold"
-        >
-          <template #leading>
-            <span class="text-xl">{{ workspace.icon }}</span>
-          </template>
-        </UButton>
-      </UDropdownMenu>
+  <div class="flex flex-col h-full app-sidebar">
+    <div class="px-3 pt-4 pb-4 space-y-4">
+      <WorkspacesSwitcher :workspace="workspace" />
       <UInput
         v-model="search"
         icon="i-lucide-search"
         placeholder="Find a page…"
         aria-label="Find a page"
         size="sm"
-        class="w-full mt-3"
+        class="w-full"
+        :ui="{ base: 'bg-default ring-muted placeholder:text-dimmed py-2' }"
       />
     </div>
     <nav
-      class="flex-1 min-h-0 overflow-y-auto p-3 space-y-4"
+      class="flex-1 min-h-0 overflow-y-auto px-3 pb-5 space-y-6"
       aria-label="Workspace navigation"
     >
       <div class="space-y-1">
@@ -129,149 +75,101 @@ async function logout() {
           icon="i-lucide-house"
           :to="home"
           color="neutral"
-          :variant="route.path === home ? 'soft' : 'ghost'"
-          class="w-full justify-start"
+          variant="ghost"
+          class="sidebar-link"
+          :class="{ 'is-active': route.path === home && !route.query.folder }"
+          :ui="{ leadingIcon: 'size-4.5' }"
         />
         <UButton
           label="Members"
+          aria-label="Members"
           icon="i-lucide-users"
           color="neutral"
           variant="ghost"
-          class="w-full justify-start"
-          @click="membersOpen = true"
-        />
-      </div>
-      <div>
-        <div class="flex items-center justify-between px-2 mb-2 text-xs text-muted uppercase tracking-wide">
-          <span>Pages</span>
-          <UButton
-            icon="i-lucide-plus"
-            aria-label="Create page"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="newPage()"
-          />
-        </div>
-        <NuxtLink
-          v-for="page in filteredPages.filter(item => !item.folderId)"
-          :key="page.id"
-          :to="`${home}/pages/${page.id}`"
-          class="flex gap-2 items-center rounded-md px-2 py-1.5 text-sm hover:bg-elevated"
-          :class="{ 'bg-elevated font-medium': route.params.id === page.id }"
+          class="sidebar-link"
+          :ui="{ leadingIcon: 'size-4.5' }"
+          :to="`${home}/members`"
+          :class="{ 'is-active': route.path === `${home}/members` }"
         >
-          <span>{{ page.icon || '📄' }}</span><span class="truncate">{{ page.title }}</span>
-        </NuxtLink>
-        <p
-          v-if="!overview.pages.length"
-          class="px-2 py-2 text-sm text-dimmed"
-        >
-          No pages yet
-        </p>
-      </div>
-      <div>
-        <div class="flex items-center justify-between px-2 mb-2 text-xs text-muted uppercase tracking-wide">
-          <span>Folders</span>
-          <UButton
-            icon="i-lucide-folder-plus"
-            aria-label="Create folder"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="newFolder"
-          />
-        </div>
-        <details
-          v-for="folder in overview.folders"
-          :key="folder.id"
-          open
-          class="group mb-1"
-        >
-          <summary class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-elevated list-none">
-            <UIcon
-              name="i-lucide-folder"
-              class="size-4 shrink-0 text-muted"
-            />
-            <NuxtLink
-              :to="`${home}?folder=${folder.id}`"
-              class="truncate flex-1"
-              @click.stop
-            >{{ folder.name }}</NuxtLink>
-            <UDropdownMenu :items="folderItems(folder)">
-              <UButton
-                icon="i-lucide-ellipsis"
-                :aria-label="`Actions for ${folder.name}`"
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                @click.stop
-              />
-            </UDropdownMenu>
-          </summary>
-          <div class="ml-4 border-l border-default pl-1">
-            <NuxtLink
-              v-for="page in filteredPages.filter(item => item.folderId === folder.id)"
-              :key="page.id"
-              :to="`${home}/pages/${page.id}`"
-              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-elevated"
-              :class="{ 'bg-elevated font-medium': route.params.id === page.id }"
-            >
-              <span>{{ page.icon || '📄' }}</span><span class="truncate">{{ page.title }}</span>
-            </NuxtLink>
-            <p
-              v-if="!overview.pages.some(page => page.folderId === folder.id)"
-              class="p-2 text-xs text-dimmed"
-            >
-              Empty folder
-            </p>
-          </div>
-        </details>
-      </div>
-    </nav>
-    <div class="border-t border-default p-3 space-y-3">
-      <div class="flex items-center gap-2">
-        <UAvatar
-          :alt="auth.user?.name || auth.user?.email"
-          size="xs"
-        /><span class="text-xs truncate flex-1">{{ auth.user?.name || auth.user?.email }}</span><UColorModeButton size="xs" /><UButton
-          icon="i-lucide-log-out"
-          aria-label="Sign out"
+          <template #trailing>
+            <span class="ml-auto text-xs text-muted">{{ overview.members.length }}</span>
+          </template>
+        </UButton>
+        <UButton
+          label="Settings"
+          icon="i-lucide-settings-2"
+          :to="`${home}/settings`"
           color="neutral"
           variant="ghost"
-          size="xs"
-          @click="logout"
+          class="sidebar-link"
+          :class="{ 'is-active': route.path === `${home}/settings` }"
+          :ui="{ leadingIcon: 'size-4.5' }"
         />
       </div>
+      <WorkspacesContentTree
+        :overview="overview"
+        :search="search"
+        @create-page="createPage"
+        @clear-search="search = ''"
+        @delete-folder="deleteFolder"
+        @delete-page="deletePage"
+      />
+    </nav>
+    <div class="p-3 space-y-3">
+      <UButton
+        v-if="manager"
+        label="Invite teammates"
+        icon="i-lucide-user-plus"
+        color="primary"
+        variant="soft"
+        size="sm"
+        class="w-full justify-start py-2 text-muted hover:text-highlighted"
+        :to="`${home}/members#invite`"
+      />
+      <USeparator class="opacity-75" />
+      <div class="flex items-center gap-2 px-1 pb-1">
+        <UAvatar
+          :alt="auth.user?.name || auth.user?.email"
+          :src="auth.user?.avatar || undefined"
+          size="sm"
+          class="bg-primary/10 text-primary"
+        />
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold text-highlighted truncate">
+            {{ auth.user?.name || auth.user?.email }}
+          </p><p class="text-[11px] text-muted capitalize mt-0.5">
+            {{ workspace.role }} workspace
+          </p>
+        </div>
+        <UColorModeButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+        />
+        <UTooltip text="Sign out">
+          <UButton
+            icon="i-lucide-log-out"
+            aria-label="Sign out"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            @click="logout"
+          />
+        </UTooltip>
+      </div>
     </div>
-    <PagesFormModal
-      v-model:open="pageOpen"
-      :workspace-id="workspace.id"
-      :folders="overview.folders"
-      :default-folder-id="defaultFolder"
-      @success="created"
-    />
-    <WorkspacesNameModal
-      v-model:open="folderOpen"
-      :title="editingFolder ? 'Rename folder' : 'Create folder'"
-      description="Keep related pages together."
-      :initial-name="editingFolder?.name || ''"
-      :on-save="saveFolder"
-    />
-    <WorkspacesNameModal
-      v-model:open="renameOpen"
-      title="Rename workspace"
-      description="Choose a name for your shared space."
-      :initial-name="workspace.name"
-      :on-save="rename"
-    />
-    <WorkspacesMemberModal
-      v-model:open="membersOpen"
-      :overview="overview"
+    <DeleteConfirmModal
+      v-model:open="deletePageOpen"
+      title="Delete page"
+      description="Are you sure you want to delete this page? This action cannot be undone."
+      confirm-label="Delete"
+      :on-confirm="confirmDeletePage"
     />
     <DeleteConfirmModal
       v-model:open="deleteOpen"
-      :title="deletingWorkspace ? 'Delete workspace' : 'Delete folder'"
-      :description="deletingWorkspace ? 'All pages and folders in this workspace will become inaccessible.' : 'Pages in this folder will be moved to the workspace root.'"
+      title="Delete folder"
+      description="Pages in this folder will be moved to the workspace root."
+      confirm-label="Delete"
       :on-confirm="confirmDelete"
     />
   </div>
