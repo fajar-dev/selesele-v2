@@ -1,15 +1,17 @@
+import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
+import { SystemClock } from '../../server/platform/runtime/SystemClock'
+import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
 import { COMMENTS_CHANGED } from '../../shared/collaboration/protocol'
 import { describe, expect, test } from 'bun:test'
 import * as Y from 'yjs'
 import * as sync from 'y-protocols/sync'
 import * as encoding from 'lib0/encoding'
 import * as decoding from 'lib0/decoding'
-import { AuthService } from '../../server/application/AuthService'
-import { WorkspaceService } from '../../server/application/WorkspaceService'
-import { FolderService } from '../../server/application/FolderService'
-import { PageService } from '../../server/application/PageService'
-import { CollaborationHub } from '../../server/infrastructure/collaboration/CollaborationHub'
-import { createDocument, documentMarkdown } from '../../server/infrastructure/collaboration/document'
+import { AuthService } from '../../server/features/identity/application/AuthService'
+import { FolderService } from '../../server/features/workspaces/application/FolderService'
+import { PageService } from '../../server/features/pages/application/PageService'
+import { CollaborationHub } from '../../server/platform/collaboration/CollaborationHub'
+import { createDocument, documentMarkdown } from '../../server/platform/collaboration/document'
 import { MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, WORKSPACE_ID } from '../support/fakes'
 
 class TestPeer {
@@ -49,13 +51,13 @@ function applyMessages(peer: TestPeer, document: Y.Doc) {
 
 async function fixture() {
   const accounts = new MemoryAccounts()
-  const auth = new AuthService(accounts, accounts)
+  const auth = new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock())
   const { token } = await auth.login(await accounts.verify(), null)
   const pages = new MemoryPages()
   const memberships = new MemoryWorkspaces()
-  const workspaces = new WorkspaceService(memberships)
-  const folders = new FolderService(new MemoryFolders(), workspaces)
-  const hub = new CollaborationHub(new PageService(pages, pages, workspaces, folders), auth, pages)
+  const access = new WorkspaceAccessPolicy(memberships)
+  const folders = new FolderService(new MemoryFolders(), access)
+  const hub = new CollaborationHub(new PageService(pages, pages, access, folders), auth, pages)
   return { accounts, auth, token, pages, hub, memberships, id: pages.page.id }
 }
 
@@ -115,7 +117,7 @@ describe('persistent collaboration', () => {
     try {
       await hub.connect(peer.asPeer(), id, token)
       await auth.logout(token)
-      await expect(hub.message(peer.asPeer(), syncRequest(new Y.Doc()))).rejects.toMatchObject({ statusCode: 401 })
+      await expect(hub.message(peer.asPeer(), syncRequest(new Y.Doc()))).rejects.toMatchObject({ code: 'unauthenticated' })
       await hub.evict(id)
       expect(peer.closed).toBe(1008)
     } finally {
@@ -131,7 +133,7 @@ describe('persistent collaboration', () => {
       memberships.membership.delete(accounts.account.id)
       await hub.evictWorkspace(WORKSPACE_ID, accounts.account.id)
       expect(peer.closed).toBe(1008)
-      await expect(hub.connect(new TestPeer('replay'), id, token)).rejects.toMatchObject({ statusCode: 404 })
+      await expect(hub.connect(new TestPeer('replay'), id, token)).rejects.toMatchObject({ code: 'not_found' })
     } finally {
       await hub.close()
     }

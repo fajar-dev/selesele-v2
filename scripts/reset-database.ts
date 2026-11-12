@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert'
 import { createConnection } from 'mysql2/promise'
 import { migrate } from 'drizzle-orm/mysql2/migrator'
-import { databaseConfig } from '../server/infrastructure/database/config'
-import { createDatabase } from '../server/infrastructure/database/client'
+import { databaseConfig } from '../server/platform/database/config'
+import { createDatabase } from '../server/platform/database/client'
 
 const config = databaseConfig()
 assert.notEqual(process.env.NODE_ENV, 'production', 'Database reset is disabled in production')

@@ -1,8 +1,8 @@
 import { readBody, setResponseStatus } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../container'
-import { apiHandler, success } from '../../http/response'
-import { currentUser } from '../../http/session'
-import { workspaceInputSchema } from '../../http/schemas'
+import { getContainer } from '../../bootstrap/container'
+import { apiHandler, success } from '../../platform/http/response'
+import { currentUser } from '../../platform/http/session'
+import { workspaceInputSchema } from '../../../shared/validation/workspace'
 
 export default apiHandler(async (event) => {
   const input = workspaceInputSchema.parse(await readBody(event))

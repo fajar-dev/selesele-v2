@@ -1,12 +1,13 @@
+import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
+import { MembershipService } from '../../server/features/workspaces/application/MembershipService'
 import { describe, expect, test } from 'bun:test'
 import { uuidv7 } from 'uuidv7'
-import { CommentService } from '../../server/application/CommentService'
-import { PageService } from '../../server/application/PageService'
-import { WorkspaceService } from '../../server/application/WorkspaceService'
-import { FolderService } from '../../server/application/FolderService'
-import type { CommentRepository } from '../../server/domain/ports/CommentRepository'
-import type { CommentThread } from '../../server/domain/entities/CommentThread'
-import type { CommentThreadInput } from '../../shared/types/comment'
+import { CommentService } from '../../server/features/comments/application/CommentService'
+import { PageService } from '../../server/features/pages/application/PageService'
+import { FolderService } from '../../server/features/workspaces/application/FolderService'
+import type { CommentRepository } from '../../server/features/comments/domain/CommentRepository'
+import type { CommentThread } from '../../server/features/comments/domain/CommentThread'
+import type { CommentThreadInput } from '../../shared/contracts/comment'
 import { commentThreadSchema, commentBodySchema, commentResolutionSchema } from '../../shared/validation/comment'
 import { MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 
@@ -45,14 +46,16 @@ class MemoryComments implements CommentRepository {
 }
 function fixture() {
   const pages = new MemoryPages()
-  const workspaces = new WorkspaceService(new MemoryWorkspaces())
-  const pageService = new PageService(pages, pages, workspaces, new FolderService(new MemoryFolders(), workspaces))
+  const repositoryAccess = new MemoryWorkspaces()
+  const access = new WorkspaceAccessPolicy(repositoryAccess)
+  const members = new MembershipService(repositoryAccess, access)
+  const pageService = new PageService(pages, pages, access, new FolderService(new MemoryFolders(), access))
   const repository = new MemoryComments()
   const published: string[] = []
   const events = { async commentsChanged(id: string) {
     published.push(id)
   } }
-  return { published, service: new CommentService(repository, pageService, workspaces, events), repository, pages, workspaces, pageId: pages.page.id }
+  return { published, service: new CommentService(repository, pageService, access, events), repository, pages, members, pageId: pages.page.id }
 }
 
 describe('text comment discussions', () => {
@@ -66,7 +69,7 @@ describe('text comment discussions', () => {
     expect(reply.messages).toHaveLength(2)
     expect(reply.messages[1]?.author.id).toBe(EDITOR_ID)
     expect((await service.resolve(pageId, thread.id, true, EDITOR_ID)).resolvedBy).toBe(EDITOR_ID)
-    await expect(service.reply(pageId, thread.id, 'Blocked', OWNER_ID)).rejects.toMatchObject({ statusCode: 409 })
+    await expect(service.reply(pageId, thread.id, 'Blocked', OWNER_ID)).rejects.toMatchObject({ code: 'conflict' })
     expect((await service.resolve(pageId, thread.id, false, OWNER_ID)).resolvedAt).toBeNull()
     expect((await service.reply(pageId, thread.id, 'Reopened', EDITOR_ID)).messages).toHaveLength(3)
   })
@@ -78,8 +81,8 @@ describe('text comment discussions', () => {
     expect(published).toEqual([pageId])
     await service.reply(pageId, thread.id, 'A reply', EDITOR_ID)
     await service.resolve(pageId, thread.id, true, OWNER_ID)
-    await expect(service.reply(pageId, thread.id, 'Rejected', EDITOR_ID)).rejects.toMatchObject({ statusCode: 409 })
-    await expect(service.delete(pageId, thread.id, EDITOR_ID)).rejects.toMatchObject({ statusCode: 403 })
+    await expect(service.reply(pageId, thread.id, 'Rejected', EDITOR_ID)).rejects.toMatchObject({ code: 'conflict' })
+    await expect(service.delete(pageId, thread.id, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
     expect(published).toHaveLength(3)
     await service.delete(pageId, thread.id, OWNER_ID)
     expect(repository.rows.has(thread.id)).toBe(false)
@@ -92,17 +95,17 @@ describe('text comment discussions', () => {
     for (const action of [() => service.list(pageId, 'outsider'), () => service.create(pageId, input, 'outsider'),
       () => service.reply(pageId, thread.id, 'Injected', 'outsider'), () => service.resolve(pageId, thread.id, true, 'outsider'),
       () => service.delete(pageId, thread.id, 'outsider')]) {
-      await expect(action()).rejects.toMatchObject({ statusCode: 404 })
+      await expect(action()).rejects.toMatchObject({ code: 'not_found' })
     }
   })
 
   test('a thread cannot be accessed through a different page or deleted by another regular member', async () => {
     const { service, pageId, pages } = fixture()
     const thread = await service.create(pageId, input, OWNER_ID)
-    await expect(service.delete(pageId, thread.id, EDITOR_ID)).rejects.toMatchObject({ statusCode: 403 })
+    await expect(service.delete(pageId, thread.id, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
     const originalId = pages.page.id
     pages.page.id = uuidv7()
-    await expect(service.reply(pages.page.id, thread.id, 'Injected', OWNER_ID)).rejects.toMatchObject({ statusCode: 404 })
+    await expect(service.reply(pages.page.id, thread.id, 'Injected', OWNER_ID)).rejects.toMatchObject({ code: 'not_found' })
     pages.page.id = originalId
     await service.delete(pageId, thread.id, OWNER_ID)
     expect(await service.list(pageId, OWNER_ID)).toEqual([])
@@ -118,13 +121,13 @@ describe('text comment discussions', () => {
   })
 
   test('membership revocation and page deletion protect previously accessible discussions', async () => {
-    const { service, pageId, workspaces, pages } = fixture()
+    const { service, pageId, members, pages } = fixture()
     const thread = await service.create(pageId, input, EDITOR_ID)
-    await workspaces.removeMember(WORKSPACE_ID, EDITOR_ID, OWNER_ID)
-    await expect(service.list(pageId, EDITOR_ID)).rejects.toMatchObject({ statusCode: 404 })
-    await expect(service.reply(pageId, thread.id, 'Revoked', EDITOR_ID)).rejects.toMatchObject({ statusCode: 404 })
+    await members.remove(WORKSPACE_ID, EDITOR_ID, OWNER_ID)
+    await expect(service.list(pageId, EDITOR_ID)).rejects.toMatchObject({ code: 'not_found' })
+    await expect(service.reply(pageId, thread.id, 'Revoked', EDITOR_ID)).rejects.toMatchObject({ code: 'not_found' })
     await pages.delete(pageId)
-    await expect(service.list(pageId, OWNER_ID)).rejects.toMatchObject({ statusCode: 404 })
+    await expect(service.list(pageId, OWNER_ID)).rejects.toMatchObject({ code: 'not_found' })
   })
 })
 

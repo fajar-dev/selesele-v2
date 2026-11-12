@@ -1,14 +1,10 @@
 import { getRouterParam } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../../container'
-import { apiHandler, success } from '../../../http/response'
-import { currentUser } from '../../../http/session'
-import { idSchema } from '../../../http/schemas'
+import { getContainer } from '../../../bootstrap/container'
+import { apiHandler, success } from '../../../platform/http/response'
+import { currentUser } from '../../../platform/http/session'
+import { idSchema } from '../../../../shared/validation/workspace'
 
 export default apiHandler(async (event) => {
-  const id = idSchema.parse(getRouterParam(event, 'workspaceId'))
-  const { workspaces, folders, pages } = getContainer()
-  const userId = currentUser(event).id
-  const workspace = await workspaces.requireMember(id, userId)
-  const [folderList, pageList, members] = await Promise.all([folders.list(id, userId), pages.list(id, userId), workspaces.members(id, userId)])
-  return success({ workspace, folders: folderList, pages: pageList, members })
+  const workspaceId = idSchema.parse(getRouterParam(event, 'workspaceId'))
+  return success(await getContainer().workspaceOverview.get(workspaceId, currentUser(event).id))
 })

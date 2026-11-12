@@ -1,6 +1,6 @@
-import { getContainer } from '../../container'
-import { apiHandler, success } from '../../http/response'
-import { setSession, sessionToken } from '../../http/session'
+import { getContainer } from '../../bootstrap/container'
+import { apiHandler, success } from '../../platform/http/response'
+import { setSession, sessionToken } from '../../platform/http/session'
 
 export default apiHandler(async (event) => {
   const result = await getContainer().auth.refresh(sessionToken(event))

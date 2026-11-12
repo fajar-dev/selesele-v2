@@ -2,8 +2,10 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { idSchema, invitationInputSchema, memberRoleSchema, pageLocationSchema, contentSchema, pageInputSchema, pageUpdateSchema } from '../../server/http/schemas'
-import { ImageStorage } from '../../server/infrastructure/storage/ImageStorage'
+import { idSchema, invitationInputSchema, memberRoleSchema } from '../../shared/validation/workspace'
+import { pageLocationSchema, contentSchema, pageInputSchema, pageUpdateSchema } from '../../shared/validation/page'
+import { ImageService } from '../../server/features/media/application/ImageService'
+import { LocalImageStore } from '../../server/features/media/infrastructure/LocalImageStore'
 
 const directory = await mkdtemp(join(tmpdir(), 'sele-images-'))
 afterAll(() => rm(directory, { recursive: true, force: true }))
@@ -35,7 +37,7 @@ describe('HTTP validation', () => {
 })
 
 describe('image storage', () => {
-  const images = new ImageStorage(directory)
+  const images = new ImageService(new LocalImageStore(directory))
   test('detects file signatures and retrieves a generated image', async () => {
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWoYAAAAASUVORK5CYII=', 'base64')
     const uploaded = await images.put(png)
@@ -44,8 +46,8 @@ describe('image storage', () => {
   })
 
   test('rejects scripts, SVG, oversized uploads and path traversal', async () => {
-    await expect(images.put(Buffer.from('<svg onload="alert(1)"></svg>'))).rejects.toMatchObject({ statusCode: 400 })
-    await expect(images.put(Buffer.alloc(2 * 1024 * 1024 + 1))).rejects.toMatchObject({ statusCode: 400 })
-    await expect(images.get('../.env')).rejects.toMatchObject({ statusCode: 404 })
+    await expect(images.put(Buffer.from('<svg onload="alert(1)"></svg>'))).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(images.put(Buffer.alloc(2 * 1024 * 1024 + 1))).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(images.get('../.env')).rejects.toMatchObject({ code: 'not_found' })
   })
 })

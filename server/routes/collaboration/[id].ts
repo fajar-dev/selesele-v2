@@ -1,7 +1,7 @@
 import { defineWebSocketHandler } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../container'
-import { idSchema } from '../../http/schemas'
-import { SESSION_COOKIE } from '../../http/session'
+import { getContainer } from '../../bootstrap/container'
+import { idSchema } from '../../../shared/validation/workspace'
+import { SESSION_COOKIE } from '../../platform/http/session'
 
 const connections = new Map<string, Promise<void>>()
 

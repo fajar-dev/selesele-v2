@@ -1,23 +1,25 @@
-import type { Account } from '../../server/domain/entities/Account'
-import type { MicrosoftIdentity } from '../../server/domain/entities/MicrosoftIdentity'
-import type { IdentityProvider } from '../../server/domain/ports/IdentityProvider'
-import type { SessionRepository } from '../../server/domain/ports/SessionRepository'
-import type { UserRepository } from '../../server/domain/ports/UserRepository'
-import type { DocumentRepository } from '../../server/domain/ports/DocumentRepository'
-import type { Page } from '../../server/domain/entities/Page'
-import type { PageRepository } from '../../server/domain/ports/PageRepository'
-import type { WorkspaceRepository } from '../../server/domain/ports/WorkspaceRepository'
-import type { FolderRepository } from '../../server/domain/ports/FolderRepository'
-import type { Folder } from '../../server/domain/entities/Folder'
-import type { Workspace } from '../../server/domain/entities/Workspace'
-import type { PageInput, PageUpdate } from '../../shared/types/page'
-import type { InviteRole, WorkspaceRole } from '../../shared/types/workspace'
+import type { MembershipRepository } from '../../server/features/workspaces/domain/MembershipRepository'
+import type { InvitationRepository } from '../../server/features/workspaces/domain/InvitationRepository'
+import type { Account } from '../../server/features/identity/domain/Account'
+import type { MicrosoftIdentity } from '../../server/features/identity/domain/MicrosoftIdentity'
+import type { IdentityProvider } from '../../server/features/identity/domain/IdentityProvider'
+import type { SessionRepository } from '../../server/features/identity/domain/SessionRepository'
+import type { UserRepository } from '../../server/features/identity/domain/UserRepository'
+import type { DocumentRepository } from '../../server/features/pages/domain/DocumentRepository'
+import type { Page } from '../../server/features/pages/domain/Page'
+import type { PageRepository } from '../../server/features/pages/domain/PageRepository'
+import type { WorkspaceRepository } from '../../server/features/workspaces/domain/WorkspaceRepository'
+import type { FolderRepository } from '../../server/features/workspaces/domain/FolderRepository'
+import type { Folder } from '../../server/features/workspaces/domain/Folder'
+import type { Workspace } from '../../server/features/workspaces/domain/Workspace'
+import type { PageInput, PageUpdate } from '../../shared/contracts/page'
+import type { InviteRole, WorkspaceRole } from '../../shared/contracts/workspace'
 
 export const OWNER_ID = '019a71f3-32c1-7000-8000-000000000002'
 export const EDITOR_ID = '019a71f3-32c1-7000-8000-000000000003'
 export const WORKSPACE_ID = '019a71f3-32c1-7000-8000-000000000004'
 
-export class MemoryWorkspaces implements WorkspaceRepository {
+export class MemoryWorkspaces implements WorkspaceRepository, MembershipRepository, InvitationRepository {
   readonly workspace: Workspace = { id: WORKSPACE_ID, name: 'Team', icon: '🏡', createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
   readonly membership = new Map<string, WorkspaceRole>([[OWNER_ID, 'owner'], [EDITOR_ID, 'member']])
   async list(userId: string) {
@@ -44,6 +46,14 @@ export class MemoryWorkspaces implements WorkspaceRepository {
 
   async members() {
     return [...this.membership].map(([userId, role]) => ({ userId, email: userId === OWNER_ID ? 'owner@example.com' : 'editor@example.com', role, name: null, avatar: null }))
+  }
+
+  async member(workspaceId: string, userId: string) {
+    return (await this.members()).find(member => member.userId === userId) || null
+  }
+
+  async memberByEmail(workspaceId: string, email: string) {
+    return (await this.members()).find(member => member.email === email) || null
   }
 
   async changeRole(_id: string, userId: string, role: InviteRole) {

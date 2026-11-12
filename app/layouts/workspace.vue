@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import WorkspaceSidebar from '~/features/workspaces/components/WorkspaceSidebar.vue'
+import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
+
 const route = useRoute()
 const workspaceId = computed(() => String(route.params.workspaceId || ''))
 const { data, error, refresh } = await useWorkspace(workspaceId.value)
@@ -24,7 +27,7 @@ watch(() => route.fullPath, () => {
         />
       </UTooltip>
       <aside class="hidden lg:block fixed inset-y-0 left-0 z-30 w-[268px] border-r border-muted app-sidebar">
-        <WorkspacesSidebar :overview="data" />
+        <WorkspaceSidebar :overview="data" />
       </aside>
       <USlideover
         v-model:open="mobileOpen"
@@ -34,7 +37,7 @@ watch(() => route.fullPath, () => {
         :ui="{ content: 'max-w-[290px] app-sidebar', body: 'p-0 sm:p-0 min-h-0 flex flex-col', header: 'min-h-0 py-4 px-5' }"
       >
         <template #body>
-          <WorkspacesSidebar :overview="data" />
+          <WorkspaceSidebar :overview="data" />
         </template>
       </USlideover>
       <main class="min-w-0 flex-1 lg:ml-[268px]">

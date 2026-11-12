@@ -4,8 +4,8 @@ import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorState, Plugin, TextSelection } from '@tiptap/pm/state'
 import { initProseMirrorDoc, ySyncPluginKey } from '@tiptap/y-tiptap'
-import { createDocument } from '../../server/infrastructure/collaboration/document'
-import { captureCommentSelection } from '../../app/editor/extensions/CommentHighlights'
+import { createDocument } from '../../server/platform/collaboration/document'
+import { captureCommentSelection } from '../../app/features/comments/editor/CommentHighlights'
 
 function fixture() {
   const document = createDocument('Important decisions need feedback.', null)

@@ -1,7 +1,7 @@
 import { readBody } from '@nuxt/nitro-server/h3'
 import { completionSchema } from '../../shared/validation/completion'
-import { getContainer } from '../container'
-import { apiHandler } from '../http/response'
+import { getContainer } from '../bootstrap/container'
+import { apiHandler } from '../platform/http/response'
 
 export default apiHandler(async (event) => {
   const request = completionSchema.parse(await readBody(event))

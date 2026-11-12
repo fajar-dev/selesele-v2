@@ -1,8 +1,8 @@
 import { getRouterParam, readBody, setResponseStatus } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../../../container'
-import { apiHandler, success } from '../../../../http/response'
-import { currentUser } from '../../../../http/session'
-import { idSchema } from '../../../../http/schemas'
+import { getContainer } from '../../../../bootstrap/container'
+import { apiHandler, success } from '../../../../platform/http/response'
+import { currentUser } from '../../../../platform/http/session'
+import { idSchema } from '../../../../../shared/validation/workspace'
 import { commentThreadSchema } from '../../../../../shared/validation/comment'
 
 export default apiHandler(async (event) => {

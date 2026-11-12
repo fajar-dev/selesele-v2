@@ -1,6 +1,6 @@
-import { getContainer } from '../../container'
-import { apiHandler, success } from '../../http/response'
-import { clearSession, sessionToken } from '../../http/session'
+import { getContainer } from '../../bootstrap/container'
+import { apiHandler, success } from '../../platform/http/response'
+import { clearSession, sessionToken } from '../../platform/http/session'
 
 export default apiHandler(async (event) => {
   await getContainer().auth.logout(sessionToken(event))

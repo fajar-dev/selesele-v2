@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { CommentSynchronization } from '../../app/utils/CommentSynchronization'
-import type { CommentThreadItem } from '../../shared/types/comment'
+import { CommentSynchronization } from '../../app/features/comments/synchronization/CommentSynchronization'
+import type { CommentThreadItem } from '../../shared/contracts/comment'
 
 function deferred<T>() {
   let resolve!: (value: T) => void

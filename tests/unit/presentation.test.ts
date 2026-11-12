@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { formatRelativeTime } from '../../app/utils/formatRelativeTime'
 import { sanitizeFilename } from '../../app/utils/downloadBlob'
-import { collaborationColor } from '../../app/utils/collaborationIdentity'
+import { collaborationColor } from '../../app/features/editor/utils/collaborationIdentity'
 
 const now = Date.parse('2026-11-11T03:00:00Z')
 

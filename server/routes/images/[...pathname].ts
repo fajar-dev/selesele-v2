@@ -1,6 +1,6 @@
-import { getContainer } from '../../container'
+import { getContainer } from '../../bootstrap/container'
 import { getRouterParam, setHeader } from '@nuxt/nitro-server/h3'
-import { apiHandler } from '../../http/response'
+import { apiHandler } from '../../platform/http/response'
 
 export default apiHandler(async (event) => {
   const image = await getContainer().images.get(getRouterParam(event, 'pathname') || '')

@@ -19,11 +19,12 @@
     "typecheck": "bun --bun nuxt typecheck",
     "typecheck:server": "bun --bun tsc --noEmit --project .nuxt/tsconfig.server.json",
     "db:reset": "bun scripts/reset-database.ts",
-    "test:integration": "bun scripts/workspace-smoke.ts"
+    "test:integration": "bun scripts/integration.ts",
+    "verify": "bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.117",
-    "@ai-sdk/vue": "^4.0.169",
+    "@ai-sdk/google": "^4.0.118",
+    "@ai-sdk/vue": "^4.0.170",
     "@iconify-json/lucide": "^1.2.153",
     "@iconify-json/simple-icons": "^1.2.102",
     "@nuxt/nitro-server": "^4.6.4",
@@ -43,7 +44,7 @@
     "@tiptap/y-tiptap": "^3.3.0",
     "@vite-pwa/nuxt": "1.1.1",
     "@vueuse/core": "^15.0.0",
-    "ai": "^7.0.169",
+    "ai": "^7.0.170",
     "drizzle-orm": "^0.45.4",
     "lib0": "^0.2.120",
     "mysql2": "^3.24.6",

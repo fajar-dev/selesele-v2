@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { CompletionService } from '../../server/application/CompletionService'
-import type { CompletionProvider } from '../../server/domain/ports/CompletionProvider'
+import { CompletionService } from '../../server/features/writing/application/CompletionService'
+import type { CompletionProvider } from '../../server/features/writing/domain/CompletionProvider'
 import { completionSchema } from '../../shared/validation/completion'
 
 class RecordingCompletionProvider implements CompletionProvider {

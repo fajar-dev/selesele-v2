@@ -1,9 +1,9 @@
 import { getRequestIP, getRequestURL, sendRedirect, setHeader } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../../container'
-import { apiHandler } from '../../../http/response'
-import { oauthSession } from '../../../http/oauth'
-import { setSession, sessionToken } from '../../../http/session'
-import { ApplicationError } from '../../../domain/errors/ApplicationError'
+import { getContainer } from '../../../bootstrap/container'
+import { apiHandler } from '../../../platform/http/response'
+import { oauthSession } from '../../../platform/http/oauth'
+import { setSession, sessionToken } from '../../../platform/http/session'
+import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export default apiHandler(async (event) => {
   setHeader(event, 'Referrer-Policy', 'no-referrer')
@@ -19,7 +19,7 @@ export default apiHandler(async (event) => {
     setSession(event, result.token)
     return sendRedirect(event, '/', 302)
   } catch (error) {
-    if (error instanceof ApplicationError && [400, 401, 403].includes(error.statusCode)) {
+    if (error instanceof ApplicationError && ['invalid_input', 'unauthenticated', 'forbidden'].includes(error.code)) {
       return sendRedirect(event, '/sign-in?error=microsoft', 302)
     }
     throw error

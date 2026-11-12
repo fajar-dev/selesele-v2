@@ -1,10 +1,13 @@
+import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
+import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { describe, expect, test } from 'bun:test'
 import { createHash, generateKeyPairSync, sign } from 'node:crypto'
 import type { CustomFetch } from 'openid-client'
-import type { OAuthTransaction } from '../../server/domain/entities/OAuthTransaction'
-import { OAuthService, OAUTH_TTL_SECONDS } from '../../server/application/OAuthService'
-import { AuthService } from '../../server/application/AuthService'
-import { MicrosoftIdentityProvider } from '../../server/infrastructure/auth/MicrosoftIdentityProvider'
+import type { OAuthTransaction } from '../../server/features/identity/domain/OAuthTransaction'
+import { OAUTH_TTL_SECONDS } from '../../server/features/identity/domain/OAuthPolicy'
+import { OAuthService } from '../../server/features/identity/application/OAuthService'
+import { AuthService } from '../../server/features/identity/application/AuthService'
+import { MicrosoftIdentityProvider } from '../../server/features/identity/infrastructure/MicrosoftIdentityProvider'
 import { MemoryAccounts } from '../support/fakes'
 
 const tenantId = '11111111-1111-4111-8111-111111111111'
@@ -78,10 +81,10 @@ describe('Microsoft OpenID Connect', () => {
       { tid: clientId }, { oid: undefined }, { email: undefined }, { email: 'invalid' }
     ]) {
       const { provider } = providerFixture(overrides)
-      await expect(provider.verify(callback(), transaction())).rejects.toMatchObject({ statusCode: 401 })
+      await expect(provider.verify(callback(), transaction())).rejects.toMatchObject({ code: 'unauthenticated' })
     }
     const { provider } = providerFixture({}, true)
-    await expect(provider.verify(callback(), transaction())).rejects.toMatchObject({ statusCode: 401 })
+    await expect(provider.verify(callback(), transaction())).rejects.toMatchObject({ code: 'unauthenticated' })
   })
 
   test('uses a valid email username when the optional email claim is absent', async () => {
@@ -95,7 +98,7 @@ describe('Microsoft OpenID Connect', () => {
     for (const config of [{ ...configuration, tenantId: 'common' }, { ...configuration, clientSecret: '' },
       { ...configuration, origin: 'http://public.example' }, { ...configuration, origin: 'https://sele.example/path' }]) {
       const provider = new MicrosoftIdentityProvider(config)
-      await expect(provider.authorizationUrl(transaction())).rejects.toMatchObject({ statusCode: 503 })
+      await expect(provider.authorizationUrl(transaction())).rejects.toMatchObject({ code: 'unavailable' })
     }
   })
 })
@@ -103,7 +106,7 @@ describe('Microsoft OpenID Connect', () => {
 describe('OAuth transaction boundaries', () => {
   test('generates fresh independent secrets for every login attempt', async () => {
     const accounts = new MemoryAccounts()
-    const oauth = new OAuthService(accounts, new AuthService(accounts, accounts))
+    const oauth = new OAuthService(accounts, new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock()), new CryptographicTokens(), new SystemClock())
     const first = await oauth.begin()
     const second = await oauth.begin()
     expect(first.transaction.state).toHaveLength(43)
@@ -114,28 +117,28 @@ describe('OAuth transaction boundaries', () => {
 
   test('rejects unbound, expired, future, duplicate and cancelled callbacks before creating a session', async () => {
     const accounts = new MemoryAccounts()
-    const oauth = new OAuthService(accounts, new AuthService(accounts, accounts))
+    const oauth = new OAuthService(accounts, new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock()), new CryptographicTokens(), new SystemClock())
     const expired = { ...transaction(), createdAt: Date.now() - OAUTH_TTL_SECONDS * 1000 }
     const future = { ...transaction(), createdAt: Date.now() + 60_000 }
     for (const pending of [undefined, expired, future, { ...transaction(), state: 'other-browser' }]) {
-      await expect(oauth.complete(callback(), pending, null)).rejects.toMatchObject({ statusCode: 400 })
+      await expect(oauth.complete(callback(), pending, null)).rejects.toMatchObject({ code: 'invalid_input' })
     }
     for (const parameter of ['code', 'state']) {
       const url = callback()
       url.searchParams.append(parameter, 'duplicate')
-      await expect(oauth.complete(url, transaction(), null)).rejects.toMatchObject({ statusCode: 400 })
+      await expect(oauth.complete(url, transaction(), null)).rejects.toMatchObject({ code: 'invalid_input' })
     }
     const denied = callback()
     denied.searchParams.set('error', 'access_denied')
-    await expect(oauth.complete(denied, transaction(), null)).rejects.toMatchObject({ statusCode: 401 })
+    await expect(oauth.complete(denied, transaction(), null)).rejects.toMatchObject({ code: 'unauthenticated' })
     expect(accounts.sessions.size).toBe(0)
   })
 
   test('creates an application session after a valid Microsoft callback', async () => {
     const accounts = new MemoryAccounts()
     const { provider } = providerFixture()
-    const auth = new AuthService(accounts, accounts)
-    const result = await new OAuthService(provider, auth).complete(callback(), transaction(), null)
+    const auth = new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock())
+    const result = await new OAuthService(provider, auth, new CryptographicTokens(), new SystemClock()).complete(callback(), transaction(), null)
     expect(await auth.authenticate(result.token)).toEqual(result.user)
   })
 })

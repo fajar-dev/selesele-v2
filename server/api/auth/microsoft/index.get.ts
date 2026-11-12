@@ -1,7 +1,7 @@
 import { sendRedirect } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../../container'
-import { apiHandler } from '../../../http/response'
-import { oauthSession } from '../../../http/oauth'
+import { getContainer } from '../../../bootstrap/container'
+import { apiHandler } from '../../../platform/http/response'
+import { oauthSession } from '../../../platform/http/oauth'
 
 export default apiHandler(async (event) => {
   const session = await oauthSession(event)

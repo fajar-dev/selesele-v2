@@ -1,17 +1,19 @@
+import { CryptographicTokens } from '../server/features/identity/infrastructure/CryptographicTokens'
+import { SystemClock } from '../server/platform/runtime/SystemClock'
 import { randomUUID } from 'node:crypto'
 import { strict as assert } from 'node:assert'
 import { eq, inArray } from 'drizzle-orm'
-import { createDatabase } from '../server/infrastructure/database/client'
-import { documents, folders, pages, sessions, users, workspaceInvitations, workspaceMembers, workspaces } from '../server/infrastructure/database/schema'
-import { MySqlUserRepository } from '../server/infrastructure/database/repositories/MySqlUserRepository'
-import { MySqlSessionRepository } from '../server/infrastructure/database/repositories/MySqlSessionRepository'
-import type { CommentThreadItem } from '../shared/types/comment'
-import { AuthService } from '../server/application/AuthService'
+import { createDatabase } from '../server/platform/database/client'
+import { documents, folders, pages, sessions, users, workspaceInvitations, workspaceMembers, workspaces } from '../server/platform/database/schema'
+import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
+import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
+import type { CommentThreadItem } from '../shared/contracts/comment'
+import { AuthService } from '../server/features/identity/application/AuthService'
 
 const origin = new URL(process.env.SMOKE_ORIGIN || 'http://localhost:3000')
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname), 'Integration smoke requires a local server')
 const database = createDatabase()
-const auth = new AuthService(new MySqlUserRepository(database.db), new MySqlSessionRepository(database.db))
+const auth = new AuthService(new MySqlUserRepository(database.db), new MySqlSessionRepository(database.db), new CryptographicTokens(), new SystemClock())
 const accounts: { userId: string, token: string, email: string }[] = []
 const workspaceIds: string[] = []
 let socket: WebSocket | undefined

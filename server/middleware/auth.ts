@@ -1,7 +1,7 @@
-import { getContainer } from '../container'
-import { apiHandler } from '../http/response'
-import { assertSameOrigin } from '../http/origin'
-import { sessionToken } from '../http/session'
+import { getContainer } from '../bootstrap/container'
+import { apiHandler } from '../platform/http/response'
+import { assertSameOrigin } from '../platform/http/origin'
+import { sessionToken } from '../platform/http/session'
 import { getRequestURL, setHeader } from '@nuxt/nitro-server/h3'
 
 export default apiHandler(async (event) => {

@@ -17,13 +17,7 @@ bun run dev
 
 Open http://localhost:3000, sign in with Microsoft, and create a workspace. New accounts start with an empty workspace home. Workspaces are created explicitly; the application does not generate demonstration content.
 
-The schema is a fresh workspace foundation. A development database from the previous model must be reset:
-
-```sh
-bun run db:reset  # Destructive: removes every table in the configured local database.
-```
-
-`db:reset` refuses production mode and non-local MySQL hosts. Use it only on a disposable development database. Startup never resets or migrates the database automatically. For later schema changes, run `bun run db:generate` and commit the generated SQL, snapshots and journal, then apply with `bun run db:migrate`.
+Startup does not reset or migrate the database. For schema changes, run `bun run db:generate`, review and commit the SQL and migration metadata, then run `bun run db:migrate`. The optional `bun run db:reset` command removes every table in a disposable local development database; it refuses production and remote hosts.
 
 ## Workspaces, folders and pages
 
@@ -70,50 +64,23 @@ Gemini writing assistance is separate from authentication. Set `GOOGLE_GENERATIV
 
 ## Interface and theming
 
-The interface uses Nuxt UI components for navigation controls, tables, cards, empty states, dialogs, mobile slideovers, forms and the editor. `app/app.config.ts` defines shared component styling; `app/assets/css/main.css` owns the monochrome light/dark palette, typography, subtle separators and motion preferences. Cards use a subtle 6 px radius, controls use 2–5 px, and dialogs use 8 px. Empty states use a single divider instead of a full frame. Folder links and page lists use open rows with subtle separators; sidebar selection uses a light background instead of a heavy accent stripe. Navigation uses Lucide SVG icons with no decorative covers or canvas artwork. `app/utils/workspacePresentation.ts` keeps page-count formatting separate from business logic.
+The interface uses Nuxt UI components for navigation controls, tables, cards, empty states, dialogs, mobile slideovers, forms and the editor. `app/app.config.ts` defines shared component styling; `app/assets/css/main.css` owns the monochrome light/dark palette, typography, subtle separators and motion preferences. Cards use a subtle 6 px radius, controls use 2–5 px, and dialogs use 8 px. Empty states use a single divider instead of a full frame. Folder links and page lists use open rows with subtle separators; sidebar selection uses a light background instead of a heavy accent stripe. Navigation uses Lucide SVG icons with no decorative covers or canvas artwork. `app/features/workspaces/utils/workspacePresentation.ts` keeps page-count formatting separate from business logic.
 
 The home header aligns its logo and account controls to the same content gutters as the page. The navbar provides a light/dark toggle beside the account button. The account dropdown contains only the user identity and sign-out action.
 
 Home presents workspaces as a searchable list of full-width links with role and creation date, keeping the create action next to the page heading.
 
-Workspace, folder, document and settings screens share `WorkspacesContent`, `WorkspacesHeading` and `WorkspacesBreadcrumbs`. The shared container fixes content width and responsive gutters; headings use the same typography and inline icon placement. Editor actions live below the document heading rather than adding a second global header row. The editor body and its heading use the same container with no extra text inset.
+Workspace, folder, document and settings screens share `PageContent`, `PageHeading` and `PageBreadcrumbs`. The shared container fixes content width and responsive gutters; headings use the same typography and inline icon placement. Editor actions live below the document heading rather than adding a second global header row. The editor body and its heading use the same container with no extra text inset.
 
 The sidebar's workspace switcher lists the current user's workspaces and refreshes on opening. Members and Settings are dedicated pages in the sidebar. Members includes invitations, role changes and member removal; Invite teammates links directly to its invitation form. Settings appears below Members. Owners and admins can rename a workspace; members see read-only details, and only owners can delete it. Mutations refresh the workspace directory and home list, while the server remains responsible for enforcing role permissions.
 
-The workspace sidebar has one combined page/folder list. Its add menu creates either a page or a folder; each folder also offers a contextual New page action. Drag a page onto a folder row to move it, or onto the Pages heading to return it to the workspace root. Collapsed destinations open while dragging. Moves persist through the existing workspace-scoped location endpoint, and failed saves preserve the original location. Page action menus expose the same move dialog for keyboard and touch users. Search matches page titles and folder names while retaining their hierarchy.
+The workspace sidebar has one combined page/folder list. Its add menu creates either a page or a folder; page and folder context menus contain only Delete. Drag a page onto a folder row to move it, or onto the Pages heading to return it to the workspace root. Collapsed destinations open while dragging. Moves persist through the existing workspace-scoped location endpoint, and failed saves preserve the original location. Search matches page titles and folder names while retaining their hierarchy.
 
 ## Architecture
 
-```text
-app/
-  pages/                     Workspace home, workspace and page routes, Microsoft sign-in
-  layouts/workspace.vue      Persistent workspace navigation and mobile shell
-  components/workspaces/     Sidebar, membership and workspace/folder forms
-  components/pages/          Page metadata, move dialog and editor shell
-  components/editor/         Rich-text UI and node views
-  editor/extensions/         TipTap extensions
-  composables/               Request-scoped state and editor lifecycle
-  services/                  Stateless internal API clients
-  utils/                     Presentation and editor helpers
-shared/
-  types/                     Auth, workspace and page API contracts
-  validation/                Shared Zod request schemas
-server/
-  domain/entities/           Account, workspace, folder, invitation, page and session
-  domain/ports/              Repository, provider and transport interfaces
-  application/               Workspace, folder, page, authentication and AI use cases
-  infrastructure/database/   MySQL schema, pool and separate entity/document repositories
-  infrastructure/            Microsoft OIDC, AI, image storage and Yjs adapters
-  http/                      Transport schemas, cookies, origin checks and response handling
-  api/                       Thin authenticated HTTP handlers
-  routes/                    WebSocket and image routes
-  container.ts               Dependency composition and resource lifecycle
-drizzle/                     Workspace foundation migration and metadata
-scripts/                     Local reset, integration smoke, production smoke and dependency audit
-tests/                       Authorization, OAuth, session, validation and collaboration tests
-```
+The monolith is organized by business capability. Browser features own their API clients, composables and components. Server features separate domain ports, application services and infrastructure adapters. Shared contracts and validation remain framework-free. Request-scoped composition preserves SSR isolation, and ESLint enforces dependency boundaries.
 
-Application services depend on domain ports. Repositories implement persistence and atomic operations; HTTP handlers validate requests and translate responses. ESLint enforces layer boundaries, type-only imports, two-space indentation, single quotes and braces. Shared validation has no framework dependencies. Vue state is isolated per SSR request. Plain TypeScript editor extensions remain outside Vue component directories.
+See [architecture and engineering guide](docs/architecture.md) for the directory map, state ownership, persistence rules, collaboration lifecycle and scaling constraints.
 
 ## API
 
@@ -168,19 +135,19 @@ bun run deps:check
 
 The unit tests cover workspace isolation, owner protection, cross-workspace folder rejection, membership revocation, document synchronization, Microsoft token validation, session rotation, shared schemas and image storage.
 
-With MySQL migrated and a local app server running:
+With MySQL migrated and a production build available, integration starts and stops its own local server:
 
 ```sh
 bun run test:integration
-# Different local port:
-SMOKE_ORIGIN=http://127.0.0.1:8030 bun run test:integration
+# Complete local/CI verification:
+bun run verify
 ```
 
 Integration smoke uses temporary accounts created directly through the application service, verifies real HTTP/SSR, workspace/folder/page creation, moves, invitation acceptance and replay rejection, authorization, Markdown persistence, live WebSocket revocation and logout. It cleans up its records and is restricted to local servers. It does not perform a real Microsoft sign-in; OAuth verification is separately exercised using signed test tokens. The production smoke starts its own production listener and checks unauthenticated routes, SSR, callback protection, request origins and WebSocket upgrades.
 
 ## Dependencies and deployment
 
-Bun 1.4.4 is pinned in `.bun-version` and `packageManager`. All direct dependencies follow npm's latest release tags, checked with `bun run deps:check`. Nuxt 4.6.4 uses its compatible stable Nitro server adapter. TypeScript 7 provides the native server checker; the `@typescript/typescript6` compiler API compatibility alias supports Vue and ESLint, following [Microsoft's side-by-side guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
+Bun 1.4.4 is pinned in `.bun-version` and `packageManager`. The lockfile fixes the installed dependency graph; `bun run deps:check` compares direct dependencies with npm release tags. Nuxt 4.6.4 uses its compatible stable Nitro server adapter. TypeScript 7 provides the native server checker; the `@typescript/typescript6` compiler API compatibility alias supports Vue and ESLint, following [Microsoft's side-by-side guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
 
 ```sh
 bun install --frozen-lockfile
