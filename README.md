@@ -62,7 +62,7 @@ The editor supports rich text, slash commands, task lists, tables, images, menti
 
 Native Nitro WebSockets synchronize TipTap/Yjs documents. The server initializes each document once, saves updates before broadcasting, and flushes the final state before disposing a room. Browser clients wait for synchronization. Membership revocation applies to every page in the workspace, including currently connected editors.
 
-Gemini writing assistance is separate from authentication. Set `GOOGLE_GENERATIVE_AI_API_KEY` and optionally `AI_MODEL` to enable it. Image uploads accept PNG, JPEG, GIF and WebP up to 2 MB and use generated filenames. Their URLs are public asset URLs. Persist `UPLOAD_DIR` outside `.output` and limit reverse-proxy request bodies to 3 MB.
+AI writing assistance uses an OpenAI-compatible gateway through the server. Set `AI_BASE_URL` (including the `/v1` prefix), `AI_API_KEY` and the gateway’s exact model ID in `AI_MODEL` to enable it. Requests stream through `/chat/completions`; the API key stays on the server. There is no default model or fallback provider. Without all three settings, writing assistance is unavailable while the rest of the application remains usable. Image uploads accept PNG, JPEG, GIF and WebP up to 2 MB and use generated filenames. Their URLs are public asset URLs. Persist `UPLOAD_DIR` outside `.output` and limit reverse-proxy request bodies to 3 MB.
 
 ## Interface and theming
 

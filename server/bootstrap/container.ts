@@ -16,7 +16,7 @@ import { MySqlFolderRepository } from '../features/workspaces/infrastructure/MyS
 import { MySqlDocumentRepository } from '../features/pages/infrastructure/MySqlDocumentRepository'
 import { PageService } from '../features/pages/application/PageService'
 import { PageDocumentService } from '../features/pages/application/PageDocumentService'
-import { GoogleCompletionProvider } from '../features/writing/infrastructure/GoogleCompletionProvider'
+import { GatewayCompletionProvider } from '../features/writing/infrastructure/GatewayCompletionProvider'
 import { MicrosoftIdentityProvider } from '../features/identity/infrastructure/MicrosoftIdentityProvider'
 import { OAuthService } from '../features/identity/application/OAuthService'
 import { CollaborationHub } from '../platform/collaboration/CollaborationHub'
@@ -49,9 +49,10 @@ function createContainer() {
   const folders = new FolderService(folderRepository, workspaceAccess)
   const pages = new PageService(pageRepository, workspaceAccess, folders)
   const collaboration = new CollaborationHub(pages, auth, documents)
-  const completions = new CompletionService(new GoogleCompletionProvider({
-    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || '',
-    model: process.env.AI_MODEL || 'gemini-3-flash-preview'
+  const completions = new CompletionService(new GatewayCompletionProvider({
+    baseURL: process.env.AI_BASE_URL || '',
+    apiKey: process.env.AI_API_KEY || '',
+    model: process.env.AI_MODEL || ''
   }))
 
   return {

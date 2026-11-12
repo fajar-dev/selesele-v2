@@ -24,7 +24,7 @@
     "audit:code": "bun --bun knip"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.118",
+    "@ai-sdk/openai-compatible": "^3.0.90",
     "@ai-sdk/vue": "^4.0.170",
     "@iconify-json/lucide": "^1.2.153",
     "@iconify-json/simple-icons": "^1.2.102",
