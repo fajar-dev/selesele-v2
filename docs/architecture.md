@@ -34,6 +34,7 @@ server/
     library/              Authorized discovery and templates
     recovery/             Trash access and shared snapshot policy
     notifications/        Recipient-scoped activity delivery
+    mail/                 Durable email outbox, retry policy and SMTP adapter
   platform/               Database, HTTP, filesystem, clock and collaboration adapters
   api/                    HTTP input/output adapters
   routes/                 WebSocket and public image transports
@@ -93,3 +94,13 @@ Directory screens share their shell and heading, while editor screens retain the
 The current development baseline includes all 15 tables in `0000_initial_schema.sql`. After replacing earlier development migration history, run `bun run db:reset` against local development MySQL. This removes existing development data. Future changes use additive generated migrations; never rewrite deployed production history.
 
 See [design-system.md](design-system.md) for semantic sizing and the style audit rules.
+
+## Email delivery
+
+Notification persistence and its email outbox insert share a transaction. `mail` owns delivery policy, a persistence port and a sender port; the notification adapter uses the transaction-scoped enqueue helper. SMTP is never awaited by an HTTP request. The application lifecycle starts a timer-owned worker and waits for its active job only during shutdown, before closing the SMTP transport and database.
+
+The MySQL outbox leases work with `FOR UPDATE SKIP LOCKED`, bounded attempts and lease tokens. Expired leases recover after a restart; conditional acknowledgements prevent stale workers from completing a newer lease. SMTP failures retry with exponential backoff (30 seconds initially, six attempts maximum), and only error codes are persisted. Current membership, active page/folder/workspace and the invitation's exact expiry version are rechecked before delivery. The SMTP adapter emits both text and escaped HTML with a stable Message-ID. Delivery is at least once; an SMTP acceptance followed by a crash before acknowledgement may duplicate a message.
+
+Email is optional. Disabling it skips enqueueing and worker startup without disabling the in-app SSE inbox. Invitations enqueue for addresses without user accounts and link to Microsoft sign-in rather than exposing acceptance tokens. Automated HTTP suites disable mail; the email integration suite creates and drops its own temporary MySQL database and uses a local SMTP double, never the configured external relay. It requires CREATE/DROP DATABASE privileges in the test environment.
+
+Email activity snapshots include the author, workspace/page names, invitation role and description, and bounded plain-text discussion/document excerpts. The outbox persists these alongside the notification so delivery retries render the triggering content. Templates escape all user text and preserve line breaks; they never render user HTML. Membership and visibility checks still run before SMTP delivery.

@@ -18,7 +18,7 @@ const gateway = Bun.serve({
   }
 })
 const server = Bun.spawn(['bun', '.output/server/index.mjs'], {
-  env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', APP_ORIGIN: origin, NODE_ENV: 'production', AI_BASE_URL: `http://127.0.0.1:${gateway.port}/v1`, AI_API_KEY: 'integration-test', AI_MODEL: 'knowledge-test' },
+  env: { ...process.env, MAIL_ENABLED: 'false', PORT: String(port), HOST: '127.0.0.1', APP_ORIGIN: origin, NODE_ENV: 'production', AI_BASE_URL: `http://127.0.0.1:${gateway.port}/v1`, AI_API_KEY: 'integration-test', AI_MODEL: 'knowledge-test' },
   stdout: 'inherit', stderr: 'inherit'
 })
 try {
@@ -37,7 +37,7 @@ try {
   }
   assert.ok(ready, 'Production server did not become ready')
   const checks = Bun.spawn(['bun', 'scripts/knowledge-smoke.ts'], {
-    env: { ...process.env, SMOKE_ORIGIN: origin }, stdout: 'inherit', stderr: 'inherit'
+    env: { ...process.env, MAIL_ENABLED: 'false', SMOKE_ORIGIN: origin }, stdout: 'inherit', stderr: 'inherit'
   })
   assert.equal(await checks.exited, 0, 'Workspace integration checks failed')
 } finally {

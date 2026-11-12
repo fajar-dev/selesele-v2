@@ -1,0 +1,29 @@
+import { index, int, json, mysqlTable, timestamp, uniqueIndex, varchar } from 'drizzle-orm/mysql-core'
+import type { EmailActivity } from '../../../features/mail/domain/EmailActivity'
+import { uuidv7 } from 'uuidv7'
+import { workspaces, workspaceInvitations } from './workspaces'
+import { pages } from './pages'
+import { users } from './identity'
+import type { NotificationItem } from '../../../../shared/kernel/notification'
+
+export const emailDeliveries = mysqlTable('email_deliveries', {
+  id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
+  deduplicationKey: varchar('deduplication_key', { length: 180 }).notNull(),
+  recipient: varchar('recipient', { length: 255 }).notNull(),
+  recipientUserId: varchar('recipient_user_id', { length: 36 }).references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  pageId: varchar('page_id', { length: 36 }).references(() => pages.id, { onDelete: 'cascade' }),
+  invitationId: varchar('invitation_id', { length: 36 }).references(() => workspaceInvitations.id, { onDelete: 'cascade' }),
+  invitationExpiresAt: timestamp('invitation_expires_at'),
+  kind: varchar('kind', { length: 20 }).notNull().$type<NotificationItem['kind']>(),
+  title: varchar('title', { length: 320 }).notNull(),
+  activity: json('activity').$type<EmailActivity>(),
+  state: varchar('state', { length: 16 }).notNull().default('pending').$type<'pending' | 'processing' | 'sent' | 'failed' | 'skipped'>(),
+  attempts: int('attempts').notNull().default(0),
+  availableAt: timestamp('available_at', { fsp: 3 }).notNull().defaultNow(),
+  leaseUntil: timestamp('lease_until', { fsp: 3 }),
+  leaseToken: varchar('lease_token', { length: 36 }),
+  completedAt: timestamp('completed_at', { fsp: 3 }),
+  lastError: varchar('last_error', { length: 80 }),
+  createdAt: timestamp('created_at', { fsp: 3 }).notNull().defaultNow()
+}, table => [uniqueIndex('email_deliveries_dedup').on(table.deduplicationKey), index('email_deliveries_pending').on(table.state, table.availableAt), index('email_deliveries_lease').on(table.state, table.leaseUntil)])

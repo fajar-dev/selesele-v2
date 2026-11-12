@@ -1,3 +1,8 @@
+import { EmailDeliveryService } from '../features/mail/application/EmailDeliveryService'
+import { MySqlEmailOutbox } from '../features/mail/infrastructure/MySqlEmailOutbox'
+import { SmtpEmailSender } from '../features/mail/infrastructure/SmtpEmailSender'
+import { EmailWorker } from '../features/mail/infrastructure/EmailWorker'
+import { mailConfig } from '../features/mail/infrastructure/mailConfig'
 import { ConsoleErrorReporter } from '../platform/runtime/ConsoleErrorReporter'
 import { LibraryService } from '../features/library/application/LibraryService'
 import { TemplateService } from '../features/library/application/TemplateService'
@@ -47,8 +52,11 @@ function createContainer() {
     new MySqlUserRepository(database.db),
     new MySqlSessionRepository(database.db), tokens, clock
   )
+  const emailConfig = mailConfig()
+  const emailSender = emailConfig ? new SmtpEmailSender(emailConfig) : null
+  const emailWorker = emailSender && emailConfig ? new EmailWorker(new EmailDeliveryService(new MySqlEmailOutbox(database.db), emailSender, clock, emailConfig.origin), new ConsoleErrorReporter()) : null
   const notificationEvents = new NotificationHub()
-  const notifications = new NotificationService(new MySqlNotificationRepository(database.db), userId => notificationEvents.changed(userId), new ConsoleErrorReporter())
+  const notifications = new NotificationService(new MySqlNotificationRepository(database.db, !!emailConfig), userId => notificationEvents.changed(userId), new ConsoleErrorReporter())
   const documents = new MySqlDocumentRepository(database.db, notifications, clock)
   const workspaceRepository = new MySqlWorkspaceRepository(database.db)
   const memberRepository = new MySqlMembershipRepository(database.db)
@@ -71,6 +79,7 @@ function createContainer() {
   const pageDocuments = new PageDocumentService(pages, documents, collaboration)
 
   return {
+    startMail: () => emailWorker?.start(),
     auth,
     library,
     recovery: new RecoveryService(new MySqlRecoveryRepository(database.db), pages, collaboration),
@@ -96,6 +105,8 @@ function createContainer() {
     images: new ImageService(new LocalImageStore(resolve(process.env.UPLOAD_DIR || '.data/uploads'))),
     async close(): Promise<void> {
       notificationEvents.close()
+      await emailWorker?.close()
+      emailSender?.close()
       try {
         await collaboration.close()
       } finally {

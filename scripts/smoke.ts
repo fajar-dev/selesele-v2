@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 const port = Number(process.env.SMOKE_PORT || 13803)
 const origin = `http://127.0.0.1:${port}`
 const server = Bun.spawn(['bun', '.output/server/index.mjs'], {
-  env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', APP_ORIGIN: origin, NODE_ENV: 'production', AUTH_SECRET: 'smoke-test-secret-32-characters-minimum', MICROSOFT_CLIENT_ID: '', MICROSOFT_CLIENT_SECRET: '', MICROSOFT_TENANT_ID: '' },
+  env: { ...process.env, MAIL_ENABLED: 'false', PORT: String(port), HOST: '127.0.0.1', APP_ORIGIN: origin, NODE_ENV: 'production', AUTH_SECRET: 'smoke-test-secret-32-characters-minimum', MICROSOFT_CLIENT_ID: '', MICROSOFT_CLIENT_SECRET: '', MICROSOFT_TENANT_ID: '' },
   stdout: 'pipe', stderr: 'pipe'
 })
 

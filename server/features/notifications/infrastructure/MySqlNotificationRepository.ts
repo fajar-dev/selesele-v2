@@ -1,11 +1,28 @@
+import { enqueueEmail } from '../../mail/infrastructure/enqueueEmail'
+import { emailExcerpt } from '../../mail/domain/EmailActivity'
 import { and, desc, eq, gt, inArray, isNotNull, isNull, or } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
-import type { Database } from '../../../platform/database/client'
-import { comments, commentThreads, folders, notifications, pages, users, workspaceInvitations, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import type { Database, DatabaseTransaction } from '../../../platform/database/client'
+import { comments, commentThreads, documents, folders, notifications, pages, users, workspaceInvitations, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import type { NotificationRepository } from '../domain/NotificationRepository'
 
 export class MySqlNotificationRepository implements NotificationRepository {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db: Database, private readonly emailEnabled: boolean) {}
+
+  private async actorName(userId?: string): Promise<string> {
+    if (!userId) {
+      return 'A workspace member'
+    }
+    const [actor] = await this.db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).limit(1)
+    return actor?.name || actor?.email || 'A workspace member'
+  }
+
+  private async email(transaction: DatabaseTransaction, message: Parameters<typeof enqueueEmail>[1]): Promise<void> {
+    if (this.emailEnabled) {
+      await enqueueEmail(transaction, message)
+    }
+  }
+
   async list(userId: string) {
     const pending = await this.db.select({ workspaceId: workspaces.id, title: workspaces.name }).from(workspaceInvitations)
       .innerJoin(workspaces, eq(workspaces.id, workspaceInvitations.workspaceId)).innerJoin(users, eq(users.email, workspaceInvitations.email))
@@ -32,38 +49,58 @@ export class MySqlNotificationRepository implements NotificationRepository {
   }
 
   async invitation(workspaceId: string, email: string, actorId: string) {
-    const [recipient] = await this.db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
-    const [workspace] = await this.db.select({ name: workspaces.name }).from(workspaces).where(eq(workspaces.id, workspaceId))
-    if (!recipient || recipient.id === actorId || !workspace) {
-      return []
-    }
-    await this.db.insert(notifications).values({ userId: recipient.id, workspaceId, kind: 'invitation', title: `You’re invited to ${workspace.name}`, deduplicationKey: `invite:${workspaceId}` })
-      .onDuplicateKeyUpdate({ set: { readAt: null, createdAt: new Date(), title: `You’re invited to ${workspace.name}` } })
-    return [recipient.id]
+    const actorName = await this.actorName(actorId)
+    return this.db.transaction(async (transaction) => {
+      const [invitation] = await transaction.select({ id: workspaceInvitations.id, expiresAt: workspaceInvitations.expiresAt, role: workspaceInvitations.role, name: workspaces.name, description: workspaces.description }).from(workspaceInvitations)
+        .innerJoin(workspaces, eq(workspaces.id, workspaceInvitations.workspaceId))
+        .where(and(eq(workspaceInvitations.workspaceId, workspaceId), eq(workspaceInvitations.email, email), gt(workspaceInvitations.expiresAt, new Date()), isNull(workspaces.deletedAt))).limit(1)
+      const [recipient] = await transaction.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
+      if (!invitation || recipient?.id === actorId) {
+        return []
+      }
+      const title = `You’re invited to ${invitation.name}`
+      await this.email(transaction, { recipient: email, recipientUserId: recipient?.id ?? null, workspaceId, invitationId: invitation.id, invitationExpiresAt: invitation.expiresAt,
+        kind: 'invitation', title, deduplicationKey: `invite:${invitation.id}:${invitation.expiresAt.toISOString()}`,
+        activity: { actorName, workspaceName: invitation.name, workspaceDescription: emailExcerpt(invitation.description, 600), role: invitation.role } })
+      if (!recipient) {
+        return []
+      }
+      await transaction.insert(notifications).values({ userId: recipient.id, workspaceId, kind: 'invitation', title, deduplicationKey: `invite:${workspaceId}` })
+        .onDuplicateKeyUpdate({ set: { readAt: null, createdAt: new Date(), title } })
+      return [recipient.id]
+    })
   }
 
-  async comment(pageId: string, threadId: string, body: string, actorId: string) {
-    const [page] = await this.db.select().from(pages).where(eq(pages.id, pageId)).limit(1)
+  async comment(pageId: string, threadId: string, body: string, actorId: string, event: 'comment' | 'reply' = 'reply') {
+    const [page] = await this.db.select({ workspaceId: pages.workspaceId, title: pages.title, createdBy: pages.createdBy, workspaceName: workspaces.name }).from(pages)
+      .innerJoin(workspaces, eq(workspaces.id, pages.workspaceId)).where(eq(pages.id, pageId)).limit(1)
     if (!page) {
       return []
     }
     const participants = await this.db.select({ id: comments.authorId }).from(comments).where(eq(comments.threadId, threadId))
-    const [thread] = await this.db.select({ id: commentThreads.createdBy }).from(commentThreads).where(eq(commentThreads.id, threadId))
+    const [thread] = await this.db.select({ id: commentThreads.createdBy, quote: commentThreads.quote }).from(commentThreads).where(eq(commentThreads.id, threadId))
+    const actorName = await this.actorName(actorId)
     const emails = [...body.matchAll(/@([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi)].map(match => match[1]!.toLowerCase())
     const members = await this.db.select({ id: users.id, email: users.email }).from(users)
       .innerJoin(workspaceMembers, eq(workspaceMembers.userId, users.id)).where(eq(workspaceMembers.workspaceId, page.workspaceId))
-    const ids = new Set([...participants.map(row => row.id), ...(thread ? [thread.id] : [])])
+    const ids = new Set([page.createdBy, ...participants.map(row => row.id), ...(thread ? [thread.id] : [])])
     const recipients: string[] = []
-    const event = uuidv7()
-    for (const member of members) {
-      const mention = emails.includes(member.email.toLowerCase())
-      if (member.id === actorId || (!mention && !ids.has(member.id))) {
-        continue
+    const eventId = uuidv7()
+    await this.db.transaction(async (transaction) => {
+      for (const member of members) {
+        const mention = emails.includes(member.email.toLowerCase())
+        if (member.id === actorId || (!mention && !ids.has(member.id))) {
+          continue
+        }
+        const kind = mention ? 'mention' : event
+        const title = `${mention ? 'You were mentioned' : event === 'comment' ? 'New comment' : 'New reply'} in ${page.title}`
+        const deduplicationKey = `${eventId}:${member.id}`
+        await transaction.insert(notifications).values({ userId: member.id, workspaceId: page.workspaceId, pageId, kind, title, deduplicationKey })
+        await this.email(transaction, { recipient: member.email, recipientUserId: member.id, workspaceId: page.workspaceId, pageId, kind, title, deduplicationKey,
+          activity: { actorName, workspaceName: page.workspaceName, pageTitle: page.title, body: emailExcerpt(body), quote: emailExcerpt(thread?.quote ?? '', 400) } })
+        recipients.push(member.id)
       }
-      recipients.push(member.id)
-      await this.db.insert(notifications).values({ userId: member.id, workspaceId: page.workspaceId, pageId,
-        kind: mention ? 'mention' : 'reply', title: `${mention ? 'You were mentioned' : 'New reply'} in ${page.title}`, deduplicationKey: `${event}:${member.id}` })
-    }
+    })
     return recipients
   }
 
@@ -71,21 +108,32 @@ export class MySqlNotificationRepository implements NotificationRepository {
     if (!userIds.length) {
       return []
     }
-    const [page] = await this.db.select().from(pages).where(eq(pages.id, pageId)).limit(1)
+    const [page] = await this.db.select({ workspaceId: pages.workspaceId, title: pages.title, description: pages.description, workspaceName: workspaces.name }).from(pages)
+      .innerJoin(workspaces, eq(workspaces.id, pages.workspaceId)).where(eq(pages.id, pageId)).limit(1)
     if (!page) {
       return []
     }
-    const members = await this.db.select({ userId: workspaceMembers.userId }).from(workspaceMembers)
-      .where(and(eq(workspaceMembers.workspaceId, page.workspaceId), inArray(workspaceMembers.userId, userIds)))
+    const actorName = await this.actorName(actorId)
+    const [document] = await this.db.select({ markdown: documents.markdown }).from(documents).where(eq(documents.pageId, pageId)).limit(1)
+    const members = await this.db.select({ userId: workspaceMembers.userId, email: users.email, name: users.name }).from(workspaceMembers)
+      .innerJoin(users, eq(users.id, workspaceMembers.userId)).where(and(eq(workspaceMembers.workspaceId, page.workspaceId), inArray(workspaceMembers.userId, userIds)))
     const recipients: string[] = []
     const event = uuidv7()
-    for (const member of members) {
-      if (member.userId === actorId) {
-        continue
+    await this.db.transaction(async (transaction) => {
+      for (const member of members) {
+        if (member.userId === actorId) {
+          continue
+        }
+        const title = `You were mentioned in ${page.title}`
+        const deduplicationKey = `mention:${event}:${member.userId}`
+        const blocks = (document?.markdown || page.description).split(/\n\s*\n/)
+        const mentioned = blocks.find(block => [member.name, member.email, member.userId].some(label => label && block.toLowerCase().includes(`@${label.toLowerCase()}`)))
+        await transaction.insert(notifications).values({ userId: member.userId, workspaceId: page.workspaceId, pageId, kind: 'mention', title, deduplicationKey })
+        await this.email(transaction, { recipient: member.email, recipientUserId: member.userId, workspaceId: page.workspaceId, pageId, kind: 'mention', title, deduplicationKey,
+          activity: { actorName, workspaceName: page.workspaceName, pageTitle: page.title, body: emailExcerpt(mentioned || document?.markdown || page.description) } })
+        recipients.push(member.userId)
       }
-      recipients.push(member.userId)
-      await this.db.insert(notifications).values({ userId: member.userId, workspaceId: page.workspaceId, pageId, kind: 'mention', title: `You were mentioned in ${page.title}`, deduplicationKey: `mention:${event}:${member.userId}` })
-    }
+    })
     return recipients
   }
 }

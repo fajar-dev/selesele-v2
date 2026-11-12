@@ -1,6 +1,6 @@
 export interface NotificationItem {
   id: string
-  kind: 'invitation' | 'reply' | 'mention'
+  kind: 'invitation' | 'comment' | 'reply' | 'mention'
   title: string
   workspaceId: string
   pageId: string | null

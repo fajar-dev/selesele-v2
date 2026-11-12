@@ -119,7 +119,7 @@ try {
     type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'mention', attrs: { id: accounts[1]!.userId, label: 'Knowledge member' } }] }]
   }, 'default')
   try {
-    const publisher = new NotificationService(new MySqlNotificationRepository(database.db), () => {}, new ConsoleErrorReporter())
+    const publisher = new NotificationService(new MySqlNotificationRepository(database.db, false), () => {}, new ConsoleErrorReporter())
     const repository = new MySqlDocumentRepository(database.db, publisher, new SystemClock())
     const state = Y.encodeStateAsUpdate(mentionDocument)
     await repository.saveState(mentionPage.id, state, '@Knowledge member', accounts[0]!.userId)

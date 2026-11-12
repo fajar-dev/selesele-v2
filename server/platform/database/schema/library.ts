@@ -30,7 +30,7 @@ export const notifications = mysqlTable('notifications', {
   userId: varchar('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   pageId: varchar('page_id', { length: 36 }).references(() => pages.id, { onDelete: 'cascade' }),
-  kind: varchar('kind', { length: 20 }).notNull().$type<'invitation' | 'reply' | 'mention'>(),
+  kind: varchar('kind', { length: 20 }).notNull().$type<'invitation' | 'comment' | 'reply' | 'mention'>(),
   title: varchar('title', { length: 320 }).notNull(),
   deduplicationKey: varchar('deduplication_key', { length: 120 }).notNull(),
   readAt: timestamp('read_at'),

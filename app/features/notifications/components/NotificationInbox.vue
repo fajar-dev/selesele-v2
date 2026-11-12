@@ -9,8 +9,8 @@ const toast = useToast()
 const { data, error, status, refresh } = useLazyAsyncData('notifications', async () => (await notifications.list()).data, { server: false, default: () => [] })
 const unread = computed(() => data.value.filter(item => !item.readAt).length)
 const visible = computed(() => data.value.filter(item => !onlyUnread.value || !item.readAt))
-const icons = { invitation: 'i-lucide-user-plus', mention: 'i-lucide-at-sign', reply: 'i-lucide-message-square' }
-const labels = { invitation: 'Workspace invitation', mention: 'Mention', reply: 'Comment reply' }
+const icons = { comment: 'i-lucide-message-square-plus', invitation: 'i-lucide-user-plus', mention: 'i-lucide-at-sign', reply: 'i-lucide-message-square' }
+const labels = { comment: 'New comment', invitation: 'Workspace invitation', mention: 'Mention', reply: 'Comment reply' }
 let events: EventSource | undefined
 let fetching = false
 let again = false

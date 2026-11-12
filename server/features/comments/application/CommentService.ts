@@ -20,7 +20,7 @@ export class CommentService {
     const id = await this.comments.create(pageId, input, userId)
     const thread = this.present(await this.requireThread(pageId, id))
     await this.events.commentsChanged(pageId)
-    await this.activity.comment(pageId, id, input.body, userId)
+    await this.activity.comment(pageId, id, input.body, userId, 'comment')
     return thread
   }
 
@@ -33,7 +33,7 @@ export class CommentService {
     await this.comments.reply(threadId, body, userId)
     const updated = this.present(await this.requireThread(pageId, threadId))
     await this.events.commentsChanged(pageId)
-    await this.activity.comment(pageId, threadId, body, userId)
+    await this.activity.comment(pageId, threadId, body, userId, 'reply')
     return updated
   }
 

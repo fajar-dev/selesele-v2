@@ -28,8 +28,8 @@ export class NotificationService implements ActivityPublisher {
     return this.publish(() => this.repository.invitation(workspaceId, email, actorId))
   }
 
-  comment(pageId: string, threadId: string, body: string, actorId: string) {
-    return this.publish(() => this.repository.comment(pageId, threadId, body, actorId))
+  comment(pageId: string, threadId: string, body: string, actorId: string, event: 'comment' | 'reply' = 'reply') {
+    return this.publish(() => this.repository.comment(pageId, threadId, body, actorId, event))
   }
 
   mentions(pageId: string, userIds: string[], actorId?: string) {
