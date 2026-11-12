@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
 import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
+import LayoutToggle from '~/components/ui/LayoutToggle.vue'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import EntityIconPicker from '~/components/ui/EntityIconPicker.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
@@ -240,23 +241,10 @@ const breadcrumbs = computed(() => [
               size="sm"
               class="w-40 sm:w-48"
             />
-            <div class="flex items-center gap-0.5 rounded-[5px] border border-muted bg-muted/70 p-0.5">
-              <UTooltip
-                v-for="mode in (['list', 'grid'] as const)"
-                :key="mode"
-                :text="`${mode} view`"
-              >
-                <UButton
-                  :icon="mode === 'list' ? 'i-lucide-list' : 'i-lucide-layout-grid'"
-                  :aria-label="`${mode} view`"
-                  :aria-pressed="view === mode"
-                  :variant="view === mode ? 'outline' : 'ghost'"
-                  color="neutral"
-                  size="xs"
-                  @click="view = mode"
-                />
-              </UTooltip>
-            </div>
+            <LayoutToggle
+              v-model="view"
+              label="Page layout"
+            />
           </div>
         </div>
         <DataSkeleton

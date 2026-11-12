@@ -68,7 +68,7 @@ The interface uses Nuxt UI components for navigation controls, tables, cards, em
 
 The home header aligns its logo and account controls to the same content gutters as the page. The navbar provides a light/dark toggle beside the account button. The account dropdown contains only the user identity and sign-out action.
 
-Home presents workspaces as a searchable list of full-width links with role and creation date, keeping the create action next to the page heading.
+Home offers searchable list and grid workspace layouts, with a persistent layout preference. Grid cards include the workspace icon, role, description and creation date. The create action stays next to the page heading. Workspace and page layout controls share the same component.
 
 Workspace, folder, document and settings screens share `PageContent`, `PageHeading` and `PageBreadcrumbs`. The shared container fixes content width and responsive gutters; headings use the same typography and inline icon placement. Editor actions live below the document heading rather than adding a second global header row. The editor body and its heading use the same container with no extra text inset.
 

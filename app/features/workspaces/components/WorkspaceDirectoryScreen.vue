@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LayoutToggle from '~/components/ui/LayoutToggle.vue'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspaceDirectory } from '~/features/workspaces/composables/useWorkspaceDirectory'
@@ -15,6 +16,13 @@ const toast = useToast()
 const { createWorkspace, creatingWorkspace } = useWorkspaceCreation()
 const busy = ref<string | null>(null)
 const search = ref('')
+const savedLayout = useCookie<string>('workspace-directory-layout', { default: () => 'list', sameSite: 'lax', maxAge: 31536000 })
+const view = computed<'list' | 'grid'>({
+  get: () => savedLayout.value === 'grid' ? 'grid' : 'list',
+  set: (value) => {
+    savedLayout.value = value
+  }
+})
 const { data, error, status, refresh: refreshDirectory } = useWorkspaceDirectory()
 const { data: invitations, error: inboxError, status: inboxStatus, refresh: refreshInbox } = useLazyAsyncData(
   workspaceKeys.inbox, async () => (await invitationApi.inbox()).data, { server: false, default: () => [] }
@@ -178,6 +186,10 @@ async function respond(id: string, accept: boolean) {
               size="sm"
               class="w-36 sm:w-52"
             />
+            <LayoutToggle
+              v-model="view"
+              label="Workspace layout"
+            />
           </template>
         </PageToolbar>
         <DataSkeleton
@@ -186,38 +198,73 @@ async function respond(id: string, accept: boolean) {
         />
         <ul
           v-else-if="workspaces.length"
-          class="divide-y divide-muted"
+          :class="view === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-3 py-3' : 'divide-y divide-muted'"
+          :data-layout="view"
         >
           <li
             v-for="workspace in workspaces"
             :key="workspace.id"
+            class="min-w-0"
           >
             <NuxtLink
               :to="`/workspaces/${workspace.id}`"
               :aria-label="`Open ${workspace.name}`"
-              class="group flex min-w-0 items-center gap-3 px-3 sm:px-4 py-5 -mx-3 sm:-mx-4 rounded-[5px] hover:bg-(--app-hover) focus-visible:outline-2 focus-visible:outline-primary transition-colors"
+              class="group flex min-w-0 gap-3 rounded-[5px] hover:bg-(--app-hover) focus-visible:outline-2 focus-visible:outline-primary transition-colors"
+              :class="view === 'grid' ? 'h-full min-h-48 flex-col items-start border border-muted p-5 hover:border-accented' : 'items-center px-3 sm:px-4 py-5 -mx-3 sm:-mx-4'"
             >
-              <div class="size-10 flex shrink-0 items-center justify-center rounded-[5px] border border-muted bg-muted">
-                <EntityIcon
-                  :value="workspace.icon"
-                  fallback="i-lucide-panels-top-left"
-                  class="size-5 text-xl text-toned"
+              <div
+                class="flex shrink-0 items-center gap-3"
+                :class="{ 'w-full justify-between': view === 'grid' }"
+              >
+                <div class="size-10 flex shrink-0 items-center justify-center rounded-[5px] border border-muted bg-muted">
+                  <EntityIcon
+                    :value="workspace.icon"
+                    fallback="i-lucide-panels-top-left"
+                    class="size-5 text-xl text-toned"
+                  />
+                </div>
+                <UBadge
+                  v-if="view === 'grid'"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                  class="capitalize"
+                >{{ workspace.role }}</UBadge>
+              </div>
+              <div
+                class="min-w-0 flex-1"
+                :class="{ 'w-full': view === 'grid' }"
+              >
+                <h3 class="font-medium text-sm sm:text-base text-highlighted truncate">{{ workspace.name }}</h3>
+                <p
+                  v-if="view === 'grid' && workspace.description"
+                  class="text-xs text-muted leading-5 mt-1 line-clamp-2"
+                >{{ workspace.description }}</p>
+                <p
+                  v-if="view === 'list'"
+                  class="text-xs text-muted mt-1"
+                >Created {{ createdDate(workspace.createdAt) }}</p>
+              </div>
+              <div
+                class="flex shrink-0 items-center gap-3"
+                :class="{ 'w-full justify-between': view === 'grid' }"
+              >
+                <UBadge
+                  v-if="view === 'list'"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                  class="capitalize"
+                >{{ workspace.role }}</UBadge>
+                <p
+                  v-else
+                  class="text-xs text-muted"
+                >Created {{ createdDate(workspace.createdAt) }}</p>
+                <UIcon
+                  name="i-lucide-arrow-right"
+                  class="size-4 text-dimmed shrink-0 group-hover:text-highlighted transition-colors"
                 />
               </div>
-              <div class="min-w-0 flex-1">
-                <h3 class="font-medium text-sm sm:text-base text-highlighted truncate">{{ workspace.name }}</h3>
-                <p class="text-xs text-muted mt-1">Created {{ createdDate(workspace.createdAt) }}</p>
-              </div>
-              <UBadge
-                color="neutral"
-                variant="soft"
-                size="sm"
-                class="capitalize shrink-0"
-              >{{ workspace.role }}</UBadge>
-              <UIcon
-                name="i-lucide-arrow-right"
-                class="size-4 text-dimmed shrink-0 group-hover:text-highlighted transition-colors"
-              />
             </NuxtLink>
           </li>
         </ul>
