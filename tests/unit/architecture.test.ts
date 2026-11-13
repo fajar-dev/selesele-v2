@@ -1,3 +1,4 @@
+import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryFolders, MemoryPages, MemoryWorkspaces, OWNER_ID, WORKSPACE_ID } from '../support/fakes'
 import { describe, expect, test } from 'bun:test'
 import { AuthService } from '../../server/features/identity/application/AuthService'
 import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
@@ -5,7 +6,6 @@ import { SESSION_TTL_SECONDS } from '../../server/features/identity/domain/Sessi
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
 import { PageService } from '../../server/features/pages/application/PageService'
-import { MemoryAccounts, MemoryFolders, MemoryPages, MemoryWorkspaces, OWNER_ID, WORKSPACE_ID } from '../support/fakes'
 
 describe('application boundaries', () => {
   test('session lifetime uses the injected clock, including the exact expiry boundary', async () => {
@@ -26,8 +26,8 @@ describe('application boundaries', () => {
     const folders = new MemoryFolders()
     const pages = new MemoryPages()
     const access = new WorkspaceAccessPolicy(workspaces)
-    const folderService = new FolderService(folders, access)
-    const pageService = new PageService(pages, access, folderService)
+    const folderService = new FolderService(folders, access, new MemoryJournal(), new MemoryResourceAccess(pages, folders))
+    const pageService = new PageService(pages, access, folderService, new MemoryJournal(), new MemoryResourceAccess(pages, folders))
     await expect(folderService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(pageService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     expect(await folderService.list(WORKSPACE_ID, OWNER_ID)).toEqual([])

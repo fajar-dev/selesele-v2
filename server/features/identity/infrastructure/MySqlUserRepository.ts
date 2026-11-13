@@ -1,10 +1,10 @@
-import { eq, or, sql } from 'drizzle-orm'
+import { and, eq, or, sql, isNull, inArray } from 'drizzle-orm'
 import type { Account } from '../domain/Account'
 import type { MicrosoftIdentity } from '../domain/MicrosoftIdentity'
 import type { UserRepository } from '../domain/UserRepository'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 import type { Database } from '../../../platform/database/client'
-import { users } from '../../../platform/database/schema'
+import { users, workspaceMembers, notifications, workspaces } from '../../../platform/database/schema'
 
 export class MySqlUserRepository implements UserRepository {
   constructor(private readonly db: Database) {}
@@ -27,7 +27,6 @@ export class MySqlUserRepository implements UserRepository {
       const matches = await transaction.select().from(users)
         .where(or(eq(users.microsoftSubject, identity.subject), eq(users.email, identity.email)))
         .limit(2)
-        .for('update')
       const account = matches[0]
 
       if (matches.length !== 1 || !account || account.microsoftSubject !== identity.subject) {
@@ -41,7 +40,16 @@ export class MySqlUserRepository implements UserRepository {
       if (!updated) {
         throw new Error('Unable to persist user')
       }
+      const memberships = await transaction.select({ id: workspaceMembers.id, workspaceId: workspaceMembers.workspaceId, suspendedAt: workspaceMembers.suspendedAt, name: workspaces.name }).from(workspaceMembers).innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
+        .where(and(eq(workspaceMembers.email, identity.email), isNull(workspaceMembers.userId), isNull(workspaces.deletedAt))).for('update')
+      if (memberships.length) {
+        await transaction.update(workspaceMembers).set({ userId: updated.id }).where(inArray(workspaceMembers.id, memberships.map(member => member.id)))
+        const active = memberships.filter(member => !member.suspendedAt)
+        if (active.length) {
+          await transaction.insert(notifications).values(active.map(member => ({ userId: updated.id, workspaceId: member.workspaceId, kind: 'invitation' as const, title: `You have access to ${member.name}`, deduplicationKey: `member:${member.id}` }))).onDuplicateKeyUpdate({ set: { userId: updated.id } })
+        }
+      }
       return updated
-    })
+    }, { isolationLevel: 'read committed' })
   }
 }

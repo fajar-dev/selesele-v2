@@ -1,9 +1,10 @@
+import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { enqueueEmail } from '../../mail/infrastructure/enqueueEmail'
 import { emailExcerpt } from '../../mail/domain/EmailActivity'
-import { and, desc, eq, gt, inArray, isNotNull, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { Database, DatabaseTransaction } from '../../../platform/database/client'
-import { comments, commentThreads, documents, folders, notifications, pages, users, workspaceInvitations, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { comments, commentThreads, documents, folders, notifications, pages, users, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import type { NotificationRepository } from '../domain/NotificationRepository'
 
 export class MySqlNotificationRepository implements NotificationRepository {
@@ -24,51 +25,20 @@ export class MySqlNotificationRepository implements NotificationRepository {
   }
 
   async list(userId: string) {
-    const pending = await this.db.select({ workspaceId: workspaces.id, title: workspaces.name }).from(workspaceInvitations)
-      .innerJoin(workspaces, eq(workspaces.id, workspaceInvitations.workspaceId)).innerJoin(users, eq(users.email, workspaceInvitations.email))
-      .where(and(eq(users.id, userId), isNull(workspaces.deletedAt), gt(workspaceInvitations.expiresAt, new Date())))
-    if (pending.length) {
-      await this.db.insert(notifications).values(pending.map(item => ({ userId, workspaceId: item.workspaceId, kind: 'invitation' as const, title: `You’re invited to ${item.title}`, deduplicationKey: `invite:${item.workspaceId}` })))
-        .onDuplicateKeyUpdate({ set: { userId } })
-    }
+    const scope = await loadResourceScope(this.db, userId)
+    const visible = scope.allowed('page')
     const rows = await this.db.select({ id: notifications.id, kind: notifications.kind, title: notifications.title, workspaceId: notifications.workspaceId,
       pageId: notifications.pageId, readAt: notifications.readAt, createdAt: notifications.createdAt }).from(notifications)
       .innerJoin(workspaces, eq(workspaces.id, notifications.workspaceId)).innerJoin(users, eq(users.id, notifications.userId))
       .leftJoin(workspaceMembers, and(eq(workspaceMembers.workspaceId, workspaces.id), eq(workspaceMembers.userId, userId)))
       .leftJoin(pages, eq(pages.id, notifications.pageId)).leftJoin(folders, eq(folders.id, pages.folderId))
-      .leftJoin(workspaceInvitations, and(eq(workspaceInvitations.workspaceId, workspaces.id), eq(workspaceInvitations.email, users.email), gt(workspaceInvitations.expiresAt, new Date())))
-      .where(and(eq(notifications.userId, userId), isNull(workspaces.deletedAt), or(
-        and(eq(notifications.kind, 'invitation'), isNotNull(workspaceInvitations.id)),
-        and(isNotNull(workspaceMembers.id), isNull(pages.deletedAt), isNull(folders.deletedAt))
-      ))).orderBy(desc(notifications.createdAt), desc(notifications.id)).limit(100)
+      .where(and(eq(notifications.userId, userId), isNull(workspaces.deletedAt), isNotNull(workspaceMembers.id), isNull(workspaceMembers.suspendedAt),
+        or(and(eq(notifications.kind, 'invitation'), isNull(notifications.pageId)), visible.length ? inArray(notifications.pageId, visible) : undefined))).orderBy(desc(notifications.createdAt), desc(notifications.id)).limit(100)
     return rows.map(row => ({ ...row, readAt: row.readAt?.toISOString() || null, createdAt: row.createdAt.toISOString() }))
   }
 
   async read(userId: string, id?: string) {
     await this.db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.userId, userId), id ? eq(notifications.id, id) : undefined))
-  }
-
-  async invitation(workspaceId: string, email: string, actorId: string) {
-    const actorName = await this.actorName(actorId)
-    return this.db.transaction(async (transaction) => {
-      const [invitation] = await transaction.select({ id: workspaceInvitations.id, expiresAt: workspaceInvitations.expiresAt, role: workspaceInvitations.role, name: workspaces.name, description: workspaces.description }).from(workspaceInvitations)
-        .innerJoin(workspaces, eq(workspaces.id, workspaceInvitations.workspaceId))
-        .where(and(eq(workspaceInvitations.workspaceId, workspaceId), eq(workspaceInvitations.email, email), gt(workspaceInvitations.expiresAt, new Date()), isNull(workspaces.deletedAt))).limit(1)
-      const [recipient] = await transaction.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
-      if (!invitation || recipient?.id === actorId) {
-        return []
-      }
-      const title = `You’re invited to ${invitation.name}`
-      await this.email(transaction, { recipient: email, recipientUserId: recipient?.id ?? null, workspaceId, invitationId: invitation.id, invitationExpiresAt: invitation.expiresAt,
-        kind: 'invitation', title, deduplicationKey: `invite:${invitation.id}:${invitation.expiresAt.toISOString()}`,
-        activity: { actorName, workspaceName: invitation.name, workspaceDescription: emailExcerpt(invitation.description, 600), role: invitation.role } })
-      if (!recipient) {
-        return []
-      }
-      await transaction.insert(notifications).values({ userId: recipient.id, workspaceId, kind: 'invitation', title, deduplicationKey: `invite:${workspaceId}` })
-        .onDuplicateKeyUpdate({ set: { readAt: null, createdAt: new Date(), title } })
-      return [recipient.id]
-    })
   }
 
   async comment(pageId: string, threadId: string, body: string, actorId: string, event: 'comment' | 'reply' = 'reply') {
@@ -82,7 +52,7 @@ export class MySqlNotificationRepository implements NotificationRepository {
     const actorName = await this.actorName(actorId)
     const emails = [...body.matchAll(/@([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi)].map(match => match[1]!.toLowerCase())
     const members = await this.db.select({ id: users.id, email: users.email }).from(users)
-      .innerJoin(workspaceMembers, eq(workspaceMembers.userId, users.id)).where(eq(workspaceMembers.workspaceId, page.workspaceId))
+      .innerJoin(workspaceMembers, eq(workspaceMembers.userId, users.id)).where(and(eq(workspaceMembers.workspaceId, page.workspaceId), isNull(workspaceMembers.suspendedAt)))
     const ids = new Set([page.createdBy, ...participants.map(row => row.id), ...(thread ? [thread.id] : [])])
     const recipients: string[] = []
     const eventId = uuidv7()
@@ -90,6 +60,9 @@ export class MySqlNotificationRepository implements NotificationRepository {
       for (const member of members) {
         const mention = emails.includes(member.email.toLowerCase())
         if (member.id === actorId || (!mention && !ids.has(member.id))) {
+          continue
+        }
+        if (!(await loadResourceScope(transaction, member.id, page.workspaceId)).allowed('page').includes(pageId)) {
           continue
         }
         const kind = mention ? 'mention' : event
@@ -115,13 +88,16 @@ export class MySqlNotificationRepository implements NotificationRepository {
     }
     const actorName = await this.actorName(actorId)
     const [document] = await this.db.select({ markdown: documents.markdown }).from(documents).where(eq(documents.pageId, pageId)).limit(1)
-    const members = await this.db.select({ userId: workspaceMembers.userId, email: users.email, name: users.name }).from(workspaceMembers)
-      .innerJoin(users, eq(users.id, workspaceMembers.userId)).where(and(eq(workspaceMembers.workspaceId, page.workspaceId), inArray(workspaceMembers.userId, userIds)))
+    const members = await this.db.select({ userId: users.id, email: users.email, name: users.name }).from(workspaceMembers)
+      .innerJoin(users, eq(users.id, workspaceMembers.userId)).where(and(eq(workspaceMembers.workspaceId, page.workspaceId), inArray(workspaceMembers.userId, userIds), isNull(workspaceMembers.suspendedAt)))
     const recipients: string[] = []
     const event = uuidv7()
     await this.db.transaction(async (transaction) => {
       for (const member of members) {
         if (member.userId === actorId) {
+          continue
+        }
+        if (!(await loadResourceScope(transaction, member.userId, page.workspaceId)).allowed('page').includes(pageId)) {
           continue
         }
         const title = `You were mentioned in ${page.title}`

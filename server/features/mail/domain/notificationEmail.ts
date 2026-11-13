@@ -3,9 +3,9 @@ import { emailLayout } from './emailLayout'
 
 const content = {
   invitation: {
-    category: 'Workspace invitation', headline: 'You’re invited to join.',
-    introduction: 'You have a place on the team. Join your workspace to share ideas, bring projects together, and keep everyone on the same page.',
-    actorAction: 'invited you to this workspace', actionLabel: 'View invitation'
+    category: 'Workspace access', headline: 'You’re part of the team.',
+    introduction: 'Your workspace access is ready. Open the workspace to start working with your team.',
+    actorAction: 'added you to this workspace', actionLabel: 'Open workspace'
   },
   comment: {
     category: 'New comment', headline: 'Your page has a new comment.',
@@ -38,7 +38,7 @@ export function notificationEmail(delivery: EmailDelivery, origin: string): Emai
     activity ? `${activity.actorName} ${copy.actorAction}` : undefined,
     activity?.quote ? `Selected text: ${activity.quote}` : undefined,
     activity?.body || activity?.workspaceDescription,
-    activity?.role ? `Your access: ${activity.role === 'admin' ? 'Admin' : 'Member'}` : undefined
+    activity?.role ? `Your access: ${activity.role === 'admin' ? 'Admin' : activity.role === 'viewer' ? 'Viewer' : 'Member'}` : undefined
   ].filter(Boolean).join('\n\n')
   return {
     id: delivery.id,

@@ -1,3 +1,5 @@
+import type { WorkspaceJournal } from '../../settings/domain/WorkspaceJournal'
+import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
 import type { RecoveryRepository } from '../domain/RecoveryRepository'
 import type { PageAccess } from '../../pages/domain/PageAccess'
 import type { DocumentEditor } from '../../pages/domain/DocumentEditor'
@@ -5,7 +7,7 @@ import type { TrashKind } from '../../../../shared/contracts/recovery'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class RecoveryService {
-  constructor(private readonly repository: RecoveryRepository, private readonly pages: PageAccess, private readonly editor: DocumentEditor) {}
+  constructor(private readonly repository: RecoveryRepository, private readonly pages: PageAccess, private readonly editor: DocumentEditor, private readonly access: WorkspaceAuthorization, private readonly journal: WorkspaceJournal) {}
   trash(userId: string) {
     return this.repository.trash(userId)
   }
@@ -19,8 +21,15 @@ export class RecoveryService {
   }
 
   async restore(userId: string, kind: TrashKind, id: string) {
-    await this.item(userId, kind, id)
+    const item = await this.item(userId, kind, id)
+    if (kind !== 'workspace') {
+      await this.access.requireWritable(item.workspaceId, userId)
+    }
+    if (!item.canRestore) {
+      throw new ApplicationError('forbidden', 'Edit access is required to restore this document')
+    }
     await this.repository.restore(kind, id)
+    await this.journal.record(item.workspaceId, userId, 'content.restored', item.title, { pageId: kind === 'page' ? id : undefined, folderId: kind === 'folder' ? id : undefined })
   }
 
   async purge(userId: string, kind: TrashKind, id: string) {
@@ -28,7 +37,15 @@ export class RecoveryService {
     if (!item.canPurge) {
       throw new ApplicationError('forbidden', 'Only workspace managers can permanently delete items')
     }
-    await this.repository.purge(kind, id)
+    if (kind !== 'workspace') {
+      await this.access.requireWritable(item.workspaceId, userId)
+    }
+    if (!await this.repository.purge(kind, id)) {
+      throw new ApplicationError('conflict', 'This item was already restored or removed')
+    }
+    if (kind !== 'workspace') {
+      await this.journal.record(item.workspaceId, userId, 'content.purged', item.title, { pageId: kind === 'page' ? id : undefined, folderId: kind === 'folder' ? id : undefined })
+    }
   }
 
   async versions(userId: string, pageId: string) {
@@ -46,12 +63,14 @@ export class RecoveryService {
   }
 
   async checkpoint(userId: string, pageId: string) {
-    await this.pages.get(pageId, userId)
+    await this.pages.writable(pageId, userId)
     await this.repository.checkpoint(pageId, userId)
   }
 
   async restoreVersion(userId: string, pageId: string, id: string) {
+    const page = await this.pages.writable(pageId, userId)
     const { content } = await this.version(userId, pageId, id)
     await this.editor.replaceMarkdown(pageId, content, userId)
+    await this.journal.record(page.workspaceId, userId, 'content.restored', `${page.title} (version)`, { pageId })
   }
 }

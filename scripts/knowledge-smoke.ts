@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto'
 import { strict as assert } from 'node:assert'
 import { eq, inArray } from 'drizzle-orm'
 import { createDatabase } from '../server/platform/database/client'
-import { documents, folders, pages, sessions, users, workspaceInvitations, workspaceMembers, workspaces } from '../server/platform/database/schema'
+import { documents, folders, pages, sessions, users, workspaceMembers, workspaces } from '../server/platform/database/schema'
 import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
 import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
 import { AuthService } from '../server/features/identity/application/AuthService'
@@ -47,11 +47,9 @@ try {
   const privateWorkspace = await request<{ id: string }>(2, '/workspaces', 'POST', { name: 'Outsider workspace' }, 201)
   workspaceIds.push(privateWorkspace.id)
   const base = `/workspaces/${workspace.id}`
-  await request(0, `${base}/invitations`, 'POST', { email: accounts[1]!.email, role: 'member' }, 201)
+  await request(0, `${base}/members`, 'POST', { emails: [accounts[1]!.email], role: 'member' }, 201)
   const notices = await request<{ kind: string }[]>(1, '/notifications')
   assert.ok(notices.some(item => item.kind === 'invitation'), 'Invitation notification')
-  const invites = await request<{ id: string }[]>(1, '/invitations')
-  await request(1, `/invitations/${invites[0]!.id}/accept`, 'POST')
   const folder = await request<{ id: string }>(0, `${base}/folders`, 'POST', { name: 'Plans' }, 201)
   const page = await request<{ id: string }>(0, `${base}/pages`, 'POST', { title: 'Launch plan', folderId: folder.id }, 201)
   const linked = await request<{ id: string }>(0, `${base}/pages`, 'POST', { title: 'Meeting decisions' }, 201)
@@ -120,7 +118,7 @@ try {
   }, 'default')
   try {
     const publisher = new NotificationService(new MySqlNotificationRepository(database.db, false), () => {}, new ConsoleErrorReporter())
-    const repository = new MySqlDocumentRepository(database.db, publisher, new SystemClock())
+    const repository = new MySqlDocumentRepository(database.db, publisher, new SystemClock(), () => {})
     const state = Y.encodeStateAsUpdate(mentionDocument)
     await repository.saveState(mentionPage.id, state, '@Knowledge member', accounts[0]!.userId)
     await repository.saveState(mentionPage.id, state, '@Knowledge member', accounts[0]!.userId)
@@ -145,7 +143,8 @@ try {
   await request(2, `/trash/page/${page.id}/restore`, 'POST', undefined, 404)
   await request(1, `/trash/page/${page.id}`, 'DELETE', undefined, 403)
   await request(1, `/trash/page/${page.id}/restore`, 'POST')
-  await request(0, `${base}/members/${accounts[1]!.userId}`, 'DELETE')
+  const member = (await request<{ id: string, userId: string }[]>(0, `${base}/members`)).find(item => item.userId === accounts[1]!.userId)!
+  await request(0, `${base}/members/${member.id}`, 'DELETE')
   personal = await request(1, '/library/personal')
   assert.equal(personal.favorites.length, 0, 'Revoked documents disappear from favorites')
   assert.equal(personal.recent.length, 0)
@@ -169,7 +168,6 @@ try {
     }
     await database.db.delete(pages).where(inArray(pages.workspaceId, workspaceIds))
     await database.db.delete(folders).where(inArray(folders.workspaceId, workspaceIds))
-    await database.db.delete(workspaceInvitations).where(inArray(workspaceInvitations.workspaceId, workspaceIds))
     await database.db.delete(workspaceMembers).where(inArray(workspaceMembers.workspaceId, workspaceIds))
     await database.db.delete(workspaces).where(inArray(workspaces.id, workspaceIds))
   }

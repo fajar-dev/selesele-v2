@@ -5,6 +5,8 @@ import { currentUser } from '../../../../platform/http/session'
 import { idSchema } from '../../../../../shared/validation/workspace'
 
 export default apiHandler(async (event) => {
+  const app = getContainer()
   const id = idSchema.parse(getRouterParam(event, 'workspaceId'))
-  return success(await getContainer().memberships.list(id, currentUser(event).id))
+  const actor = currentUser(event).id
+  return success(await app.members.roster(id, actor))
 })

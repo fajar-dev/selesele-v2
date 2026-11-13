@@ -1,3 +1,4 @@
+import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, WORKSPACE_ID } from '../support/fakes'
 import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
 import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
@@ -12,7 +13,6 @@ import { FolderService } from '../../server/features/workspaces/application/Fold
 import { PageService } from '../../server/features/pages/application/PageService'
 import { CollaborationHub } from '../../server/platform/collaboration/CollaborationHub'
 import { createDocument, documentMarkdown } from '../../server/platform/collaboration/document'
-import { MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, WORKSPACE_ID } from '../support/fakes'
 
 class TestPeer {
   messages: Uint8Array[] = []
@@ -56,8 +56,8 @@ async function fixture() {
   const pages = new MemoryPages()
   const memberships = new MemoryWorkspaces()
   const access = new WorkspaceAccessPolicy(memberships)
-  const folders = new FolderService(new MemoryFolders(), access)
-  const hub = new CollaborationHub(new PageService(pages, access, folders), auth, pages)
+  const folders = new FolderService(new MemoryFolders(), access, new MemoryJournal(), new MemoryResourceAccess())
+  const hub = new CollaborationHub(new PageService(pages, access, folders, new MemoryJournal(), new MemoryResourceAccess(pages)), auth, pages)
   return { accounts, auth, token, pages, hub, memberships, id: pages.page.id }
 }
 
@@ -125,13 +125,15 @@ describe('persistent collaboration', () => {
     }
   })
 
-  test('workspace revocation disconnects all page rooms for that workspace member', async () => {
+  test('workspace revalidation keeps authorized editors connected and closes revoked members', async () => {
     const { hub, token, id, accounts, memberships } = await fixture()
     const peer = new TestPeer('revoked-member')
     try {
       await hub.connect(peer, id, token)
+      await hub.revalidateWorkspace(WORKSPACE_ID)
+      expect(peer.closed).toBeUndefined()
       memberships.membership.delete(accounts.account.id)
-      await hub.evictWorkspace(WORKSPACE_ID, accounts.account.id)
+      await hub.revalidateWorkspace(WORKSPACE_ID)
       expect(peer.closed).toBe(1008)
       await expect(hub.connect(new TestPeer('replay'), id, token)).rejects.toMatchObject({ code: 'not_found' })
     } finally {

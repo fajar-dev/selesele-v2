@@ -11,8 +11,13 @@ export class PageDocumentService {
     return this.documents.readContent(id)
   }
 
-  async replace(id: string, content: string, userId: string): Promise<void> {
+  async state(id: string, userId: string) {
     await this.pages.get(id, userId)
+    return this.documents.readState(id)
+  }
+
+  async replace(id: string, content: string, userId: string): Promise<void> {
+    await this.pages.writable(id, userId)
     await this.editor.replaceMarkdown(id, content, userId)
   }
 }

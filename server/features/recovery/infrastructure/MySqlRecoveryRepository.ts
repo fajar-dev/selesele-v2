@@ -1,8 +1,9 @@
+import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { savePageSnapshot } from '../../../platform/database/pageSnapshots'
 import { snapshotPolicy } from '../domain/snapshotPolicy'
 import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
-import { documents, folders, pages, pageVersions, users, workspaceInvitations, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { documents, folders, pages, pageVersions, users, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import type { RecoveryRepository } from '../domain/RecoveryRepository'
 import type { TrashKind, TrashItem } from '../../../../shared/contracts/recovery'
 
@@ -22,21 +23,23 @@ export class MySqlRecoveryRepository implements RecoveryRepository {
     const [spaces, directories, notes] = await Promise.all([
       includes('workspace')
         ? this.db.select({ id: workspaces.id, title: workspaces.name, icon: workspaces.icon, workspaceName: workspaces.name, deletedAt: workspaces.deletedAt, workspaceId: workspaces.id, role: workspaceMembers.role }).from(workspaces)
-            .innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).where(and(eq(workspaceMembers.userId, userId), eq(workspaceMembers.role, 'owner'), isNotNull(workspaces.deletedAt), selection ? eq(workspaces.id, selection.id) : undefined))
+            .innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).where(and(eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), eq(workspaceMembers.role, 'owner'), isNotNull(workspaces.deletedAt), selection ? eq(workspaces.id, selection.id) : undefined))
         : Promise.resolve([]),
       includes('folder')
         ? this.db.select({ id: folders.id, title: folders.name, icon: folders.icon, workspaceName: workspaces.name, deletedAt: folders.deletedAt, workspaceId: folders.workspaceId, role: workspaceMembers.role }).from(folders)
             .innerJoin(workspaces, eq(workspaces.id, folders.workspaceId)).innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id))
-            .where(and(eq(workspaceMembers.userId, userId), isNull(workspaces.deletedAt), isNotNull(folders.deletedAt), selection ? eq(folders.id, selection.id) : undefined))
+            .where(and(eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt), isNotNull(folders.deletedAt), selection ? eq(folders.id, selection.id) : undefined))
         : Promise.resolve([]),
       includes('page')
         ? this.db.select({ id: pages.id, title: pages.title, icon: pages.icon, workspaceName: workspaces.name, deletedAt: pages.deletedAt, workspaceId: pages.workspaceId, role: workspaceMembers.role }).from(pages)
             .innerJoin(workspaces, eq(workspaces.id, pages.workspaceId)).innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).leftJoin(folders, eq(folders.id, pages.folderId))
-            .where(and(eq(workspaceMembers.userId, userId), isNull(workspaces.deletedAt), isNull(folders.deletedAt), isNotNull(pages.deletedAt), selection ? eq(pages.id, selection.id) : undefined))
+            .where(and(eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt), isNull(folders.deletedAt), isNotNull(pages.deletedAt), selection ? eq(pages.id, selection.id) : undefined))
         : Promise.resolve([])
     ])
-    const present = (rows: Array<Omit<(typeof spaces)[number], 'icon'> & { icon: string | null }>, kind: TrashKind) => rows.map(row => ({ id: row.id, title: row.title, icon: row.icon, workspaceName: row.workspaceName, workspaceId: row.workspaceId, deletedAt: row.deletedAt!.toISOString(), kind, canPurge: row.role !== 'member' }))
-    return [...present(spaces, 'workspace'), ...present(directories, 'folder'), ...present(notes, 'page')].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt))
+    const present = (rows: Array<Omit<(typeof spaces)[number], 'icon'> & { icon: string | null }>, kind: TrashKind) => rows.map(row => ({ id: row.id, title: row.title, icon: row.icon, workspaceName: row.workspaceName, workspaceId: row.workspaceId, deletedAt: row.deletedAt!.toISOString(), kind, canRestore: kind === 'workspace' ? row.role === 'owner' : scope.resolved.get(row.id)?.level === 'edit', canPurge: (row.role === 'owner' || row.role === 'admin') && (kind === 'workspace' || scope.resolved.get(row.id)?.level === 'edit') }))
+    const scope = await loadResourceScope(this.db, userId, undefined, undefined, true)
+    const allowed = new Set([...scope.allowed('page'), ...scope.allowed('folder')])
+    return [...present(spaces, 'workspace'), ...present(directories, 'folder'), ...present(notes, 'page')].filter(item => item.kind === 'workspace' || allowed.has(item.id)).sort((a, b) => b.deletedAt.localeCompare(a.deletedAt))
   }
 
   async restore(kind: TrashKind, id: string) {
@@ -49,8 +52,16 @@ export class MySqlRecoveryRepository implements RecoveryRepository {
     }
   }
 
-  async purge(kind: TrashKind, id: string) {
-    await this.db.transaction(async (tx) => {
+  async purge(kind: TrashKind, id: string, expiredBefore?: Date) {
+    return this.db.transaction(async (tx) => {
+      const [current] = kind === 'page'
+        ? await tx.select({ deletedAt: pages.deletedAt }).from(pages).where(eq(pages.id, id)).for('update')
+        : kind === 'folder'
+          ? await tx.select({ deletedAt: folders.deletedAt }).from(folders).where(eq(folders.id, id)).for('update')
+          : await tx.select({ deletedAt: workspaces.deletedAt }).from(workspaces).where(eq(workspaces.id, id)).for('update')
+      if (!current?.deletedAt || (expiredBefore && current.deletedAt > expiredBefore)) {
+        return false
+      }
       const rows = kind === 'page' ? [{ id }] : await tx.select({ id: pages.id }).from(pages).where(kind === 'folder' ? eq(pages.folderId, id) : eq(pages.workspaceId, id))
       const ids = rows.map(row => row.id)
       if (ids.length) {
@@ -62,10 +73,10 @@ export class MySqlRecoveryRepository implements RecoveryRepository {
       }
       if (kind === 'workspace') {
         await tx.delete(folders).where(eq(folders.workspaceId, id))
-        await tx.delete(workspaceInvitations).where(eq(workspaceInvitations.workspaceId, id))
         await tx.delete(workspaceMembers).where(eq(workspaceMembers.workspaceId, id))
         await tx.delete(workspaces).where(eq(workspaces.id, id))
       }
+      return true
     })
   }
 

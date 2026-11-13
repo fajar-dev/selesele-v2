@@ -7,7 +7,7 @@ import { migrate } from 'drizzle-orm/mysql2/migrator'
 import { createConnection } from 'mysql2/promise'
 import { createDatabase } from '../server/platform/database/client'
 import { databaseConfig } from '../server/platform/database/config'
-import { documents, emailDeliveries, folders, pages, sessions, users, workspaceInvitations, workspaceMembers, workspaces } from '../server/platform/database/schema'
+import { documents, emailDeliveries, folders, pages, sessions, users, workspaceMembers, workspaces } from '../server/platform/database/schema'
 import { MySqlNotificationRepository } from '../server/features/notifications/infrastructure/MySqlNotificationRepository'
 import { MySqlEmailOutbox } from '../server/features/mail/infrastructure/MySqlEmailOutbox'
 import { SmtpEmailSender } from '../server/features/mail/infrastructure/SmtpEmailSender'
@@ -115,7 +115,7 @@ try {
     { id: member, email: 'member@example.invalid', name: 'Jamie Lee', microsoftSubject: randomUUID() }
   ])
   await db.insert(workspaces).values({ id: workspaceId, name: 'Email workspace', description: 'Shared plans and team documentation.' })
-  await db.insert(workspaceMembers).values([{ workspaceId, userId: owner, role: 'owner' }, { workspaceId, userId: member }])
+  await db.insert(workspaceMembers).values([{ workspaceId, userId: owner, email: 'owner@example.invalid', role: 'owner' }, { workspaceId, userId: member, email: 'member@example.invalid' }])
   await db.insert(folders).values({ id: folderId, workspaceId, name: 'Plans' })
   await db.insert(pages).values({ id: pageId, workspaceId, folderId, title: 'Launch', createdBy: owner })
   const tokens = new CryptographicTokens()
@@ -143,13 +143,11 @@ try {
     assert.equal(response.status, 201, path)
     return await response.json() as { data: { id: string } }
   }
-  await request(ownerToken, `/workspaces/${workspaceId}/invitations`, { email: 'guest@example.invalid', role: 'member' })
-  const [invitationRow] = await db.select().from(workspaceInvitations)
-  const invitationId = invitationRow!.id
-  const expiresAt = invitationRow!.expiresAt
+  await request(ownerToken, `/workspaces/${workspaceId}/members`, { emails: ['guest@example.invalid'], role: 'member' })
+  const [guest] = await db.select().from(workspaceMembers).where(eq(workspaceMembers.email, 'guest@example.invalid'))
   const notifications = new MySqlNotificationRepository(db, true)
-  await notifications.invitation(workspaceId, 'guest@example.invalid', owner)
-  assert.equal((await db.select().from(emailDeliveries)).length, 1, 'Repeated invitation publication deduplicates even for a recipient without an account')
+  await request(ownerToken, `/workspaces/${workspaceId}/members`, { emails: ['guest@example.invalid'], role: 'member' })
+  assert.equal((await db.select().from(emailDeliveries)).length, 1, 'Adding an existing member does not duplicate access emails')
   const outbox = new MySqlEmailOutbox(db)
   await until(async () => !!acknowledge, 'SMTP receives invitation while acknowledgement is held')
   const start = Date.now()
@@ -227,18 +225,18 @@ try {
   await db.delete(workspaceMembers).where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, member)))
   await processor.deliverNext()
   assert.equal((await db.select().from(emailDeliveries).where(eq(emailDeliveries.id, revokedId)))[0]!.state, 'skipped')
-  await db.insert(workspaceMembers).values({ workspaceId, userId: member })
+  await db.insert(workspaceMembers).values({ workspaceId, userId: member, email: 'member@example.invalid' })
   const hiddenId = await add('deleted-folder')
   await db.update(folders).set({ deletedAt: new Date() }).where(eq(folders.id, folderId))
   await processor.deliverNext()
   assert.equal((await db.select().from(emailDeliveries).where(eq(emailDeliveries.id, hiddenId)))[0]!.state, 'skipped')
-  await db.update(workspaceInvitations).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(workspaceInvitations.id, invitationId))
+  await db.update(workspaceMembers).set({ suspendedAt: new Date() }).where(eq(workspaceMembers.id, guest!.id))
   const expiredId = randomUUID()
-  await db.insert(emailDeliveries).values({ id: expiredId, deduplicationKey: 'expired-invite', recipient: 'guest@example.invalid', workspaceId, invitationId, invitationExpiresAt: expiresAt, kind: 'invitation', title: 'Invitation', availableAt: future })
+  await db.insert(emailDeliveries).values({ id: expiredId, deduplicationKey: 'suspended-access', recipient: 'guest@example.invalid', workspaceId, memberId: guest!.id, kind: 'invitation', title: 'Workspace access', availableAt: future })
   await processor.deliverNext()
   assert.equal((await db.select().from(emailDeliveries).where(eq(emailDeliveries.id, expiredId)))[0]!.state, 'skipped')
-  assert.equal(received.length, beforeSkip, 'Revoked, hidden and expired resources never reach SMTP')
-  console.log('Email integration passed: isolated SMTP delivery, nonblocking enqueue, guest invites, comment/reply/mention recipients, deduplication, concurrent leases, restart recovery, stale acknowledgements, SMTP retries and access/expiry checks')
+  assert.equal(received.length, beforeSkip, 'Revoked, hidden and suspended resources never reach SMTP')
+  console.log('Email integration passed: isolated SMTP delivery, nonblocking enqueue, guest invites, comment/reply/mention recipients, deduplication, concurrent leases, restart recovery, stale acknowledgements, SMTP retries and access/suspension checks')
 } finally {
   holdDelivery = false
   acknowledge?.()

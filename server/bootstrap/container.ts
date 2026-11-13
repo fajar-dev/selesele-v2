@@ -1,3 +1,13 @@
+import { eq } from 'drizzle-orm'
+import { workspaceMembers } from '../platform/database/schema'
+import { MySqlResourceAccess } from '../features/access/infrastructure/MySqlResourceAccess'
+import { MemberService } from '../features/members/application/MemberService'
+import { MySqlMemberRepository } from '../features/members/infrastructure/MySqlMemberRepository'
+import { WorkspaceMaintenance } from '../features/settings/infrastructure/WorkspaceMaintenance'
+import { WorkspaceSettingsService } from '../features/settings/application/WorkspaceSettingsService'
+import { MySqlSettingsRepository } from '../features/settings/infrastructure/MySqlSettingsRepository'
+import { MySqlWorkspaceJournal } from '../features/settings/infrastructure/MySqlWorkspaceJournal'
+import { BunWorkspaceArchive } from '../features/settings/infrastructure/BunWorkspaceArchive'
 import { EmailDeliveryService } from '../features/mail/application/EmailDeliveryService'
 import { MySqlEmailOutbox } from '../features/mail/infrastructure/MySqlEmailOutbox'
 import { SmtpEmailSender } from '../features/mail/infrastructure/SmtpEmailSender'
@@ -11,15 +21,11 @@ import { RecoveryService } from '../features/recovery/application/RecoveryServic
 import { MySqlRecoveryRepository } from '../features/recovery/infrastructure/MySqlRecoveryRepository'
 import { NotificationService } from '../features/notifications/application/NotificationService'
 import { MySqlNotificationRepository } from '../features/notifications/infrastructure/MySqlNotificationRepository'
-import { NotificationHub } from '../features/notifications/infrastructure/NotificationHub'
+import { InvalidationHub } from '../platform/events/InvalidationHub'
 import { WorkspaceQuestionService } from '../features/writing/application/WorkspaceQuestionService'
 import { CryptographicTokens } from '../features/identity/infrastructure/CryptographicTokens'
 import { SystemClock } from '../platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../features/workspaces/application/WorkspaceAccessPolicy'
-import { MembershipService } from '../features/workspaces/application/MembershipService'
-import { InvitationService } from '../features/workspaces/application/InvitationService'
-import { MySqlMembershipRepository } from '../features/workspaces/infrastructure/MySqlMembershipRepository'
-import { MySqlInvitationRepository } from '../features/workspaces/infrastructure/MySqlInvitationRepository'
 import { CommentService } from '../features/comments/application/CommentService'
 import { MySqlCommentRepository } from '../features/comments/infrastructure/MySqlCommentRepository'
 import { AuthService } from '../features/identity/application/AuthService'
@@ -40,11 +46,15 @@ import { MySqlPageRepository } from '../features/pages/infrastructure/MySqlPageR
 import { MySqlSessionRepository } from '../features/identity/infrastructure/MySqlSessionRepository'
 import { MySqlUserRepository } from '../features/identity/infrastructure/MySqlUserRepository'
 import { resolve } from 'node:path'
+import { MySqlImageAuthorization } from '../features/media/infrastructure/MySqlImageAuthorization'
 import { ImageService } from '../features/media/application/ImageService'
 import { LocalImageStore } from '../features/media/infrastructure/LocalImageStore'
 
 function createContainer() {
   const database = createDatabase()
+  const journal = new MySqlWorkspaceJournal(database.db)
+  const imageDirectory = resolve(process.env.UPLOAD_DIR || '.data/uploads')
+  const imageStore = new LocalImageStore(imageDirectory)
   const clock = new SystemClock()
   const tokens = new CryptographicTokens()
   const pageRepository = new MySqlPageRepository(database.db)
@@ -55,19 +65,19 @@ function createContainer() {
   const emailConfig = mailConfig()
   const emailSender = emailConfig ? new SmtpEmailSender(emailConfig) : null
   const emailWorker = emailSender && emailConfig ? new EmailWorker(new EmailDeliveryService(new MySqlEmailOutbox(database.db), emailSender, clock, emailConfig.origin), new ConsoleErrorReporter()) : null
-  const notificationEvents = new NotificationHub()
+  const notificationEvents = new InvalidationHub()
+  const commentEvents = new InvalidationHub()
   const notifications = new NotificationService(new MySqlNotificationRepository(database.db, !!emailConfig), userId => notificationEvents.changed(userId), new ConsoleErrorReporter())
-  const documents = new MySqlDocumentRepository(database.db, notifications, clock)
+  const recoveryRepository = new MySqlRecoveryRepository(database.db)
+  const maintenance = new WorkspaceMaintenance(database.db, recoveryRepository, journal, new ConsoleErrorReporter())
+  const documents = new MySqlDocumentRepository(database.db, notifications, clock, id => commentEvents.changed(id))
   const workspaceRepository = new MySqlWorkspaceRepository(database.db)
-  const memberRepository = new MySqlMembershipRepository(database.db)
-  const invitationRepository = new MySqlInvitationRepository(database.db)
+  const resources = new MySqlResourceAccess(database.db)
   const folderRepository = new MySqlFolderRepository(database.db)
   const workspaceAccess = new WorkspaceAccessPolicy(workspaceRepository)
-  const workspaces = new WorkspaceService(workspaceRepository, workspaceAccess)
-  const memberships = new MembershipService(memberRepository, workspaceAccess)
-  const invitations = new InvitationService(invitationRepository, memberRepository, workspaceAccess, notifications)
-  const folders = new FolderService(folderRepository, workspaceAccess)
-  const pages = new PageService(pageRepository, workspaceAccess, folders)
+  const workspaces = new WorkspaceService(workspaceRepository, workspaceAccess, journal)
+  const folders = new FolderService(folderRepository, workspaceAccess, journal, resources)
+  const pages = new PageService(pageRepository, workspaceAccess, folders, journal, resources)
   const collaboration = new CollaborationHub(pages, auth, documents)
   const provider = new GatewayCompletionProvider({
     baseURL: process.env.AI_BASE_URL || '',
@@ -79,13 +89,18 @@ function createContainer() {
   const pageDocuments = new PageDocumentService(pages, documents, collaboration)
 
   return {
-    startMail: () => emailWorker?.start(),
+    startWorkers: () => {
+      emailWorker?.start()
+      maintenance.start()
+    },
     auth,
+    settings: new WorkspaceSettingsService(new MySqlSettingsRepository(database.db), workspaceAccess, pages, new BunWorkspaceArchive(imageStore, imageDirectory)),
     library,
-    recovery: new RecoveryService(new MySqlRecoveryRepository(database.db), pages, collaboration),
+    recovery: new RecoveryService(recoveryRepository, pages, collaboration, workspaceAccess, journal),
     templates: new TemplateService(pages, pageDocuments),
     notifications,
     notificationEvents,
+    commentEvents,
     questions: new WorkspaceQuestionService(library, provider),
     oauth: new OAuthService(new MicrosoftIdentityProvider({
       clientId: process.env.MICROSOFT_CLIENT_ID || '',
@@ -94,17 +109,31 @@ function createContainer() {
       origin: process.env.APP_ORIGIN || ''
     }), auth, tokens, clock),
     workspaces,
-    memberships,
-    invitations,
+    resources,
+    async invalidateWorkspace(id: string) {
+      await collaboration.revalidateWorkspace(id)
+      const members = await database.db.select({ userId: workspaceMembers.userId }).from(workspaceMembers).where(eq(workspaceMembers.workspaceId, id))
+      for (const member of members) {
+        if (member.userId) {
+          notificationEvents.changed(member.userId)
+        }
+      }
+    },
+    members: new MemberService(new MySqlMemberRepository(database.db, !!emailConfig), workspaceAccess, resources),
     folders,
     pages,
     documents: pageDocuments,
     collaboration,
     completions,
-    comments: new CommentService(new MySqlCommentRepository(database.db), pages, workspaceAccess, collaboration, notifications),
-    images: new ImageService(new LocalImageStore(resolve(process.env.UPLOAD_DIR || '.data/uploads'))),
+    comments: new CommentService(new MySqlCommentRepository(database.db), pages, workspaceAccess, { async commentsChanged(id) {
+      commentEvents.changed(id)
+      await collaboration.commentsChanged(id)
+    } }, notifications),
+    images: new ImageService(imageStore, new MySqlImageAuthorization(database.db)),
     async close(): Promise<void> {
       notificationEvents.close()
+      commentEvents.close()
+      await maintenance.close()
       await emailWorker?.close()
       emailSender?.close()
       try {

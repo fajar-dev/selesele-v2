@@ -1,6 +1,7 @@
+import type { ResourceAccess } from '../../server/features/access/domain/ResourceAccess'
+import type { ResourceKind, AccessLevel, MemberResourceAccess, ResourcePolicy } from '../../shared/kernel/access'
+import { defaultWorkspaceSettings } from '../../shared/kernel/workspaceSettings'
 import { DEFAULT_FOLDER_ICON } from '../../shared/kernel/icons'
-import type { MembershipRepository } from '../../server/features/workspaces/domain/MembershipRepository'
-import type { InvitationRepository } from '../../server/features/workspaces/domain/InvitationRepository'
 import type { Account } from '../../server/features/identity/domain/Account'
 import type { MicrosoftIdentity } from '../../server/features/identity/domain/MicrosoftIdentity'
 import type { IdentityProvider } from '../../server/features/identity/domain/IdentityProvider'
@@ -14,14 +15,14 @@ import type { FolderRepository } from '../../server/features/workspaces/domain/F
 import type { Folder } from '../../server/features/workspaces/domain/Folder'
 import type { Workspace } from '../../server/features/workspaces/domain/Workspace'
 import type { PageInput, PageUpdate } from '../../shared/contracts/page'
-import type { InviteRole, WorkspaceRole } from '../../shared/contracts/workspace'
+import type { WorkspaceRole } from '../../shared/contracts/workspace'
 
 export const OWNER_ID = '019a71f3-32c1-7000-8000-000000000002'
 export const EDITOR_ID = '019a71f3-32c1-7000-8000-000000000003'
 export const WORKSPACE_ID = '019a71f3-32c1-7000-8000-000000000004'
 
-export class MemoryWorkspaces implements WorkspaceRepository, MembershipRepository, InvitationRepository {
-  readonly workspace: Workspace = { id: WORKSPACE_ID, name: 'Team', description: '', icon: '🏡', createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
+export class MemoryWorkspaces implements WorkspaceRepository {
+  readonly workspace: Workspace = { id: WORKSPACE_ID, name: 'Team', description: '', icon: '🏡', createdAt: new Date(), updatedAt: new Date(), deletedAt: null, archivedAt: null, settings: defaultWorkspaceSettings() }
   readonly membership = new Map<string, WorkspaceRole>([[OWNER_ID, 'owner'], [EDITOR_ID, 'member']])
   async list(userId: string) {
     const access = await this.access(this.workspace.id, userId)
@@ -44,46 +45,6 @@ export class MemoryWorkspaces implements WorkspaceRepository, MembershipReposito
   async delete() {
     this.workspace.deletedAt = new Date()
   }
-
-  async members() {
-    return [...this.membership].map(([userId, role]) => ({ userId, email: userId === OWNER_ID ? 'owner@example.com' : 'editor@example.com', role, name: null, avatar: null }))
-  }
-
-  async member(workspaceId: string, userId: string) {
-    return (await this.members()).find(member => member.userId === userId) || null
-  }
-
-  async memberByEmail(workspaceId: string, email: string) {
-    return (await this.members()).find(member => member.email === email) || null
-  }
-
-  async changeRole(_id: string, userId: string, role: InviteRole) {
-    if (this.membership.get(userId) === 'owner' || !this.membership.has(userId)) {
-      return false
-    }
-    this.membership.set(userId, role)
-    return true
-  }
-
-  async removeMember(_id: string, userId: string) {
-    return this.membership.get(userId) !== 'owner' && this.membership.delete(userId)
-  }
-
-  async invite() {}
-  async invitations() {
-    return []
-  }
-
-  async inbox() {
-    return []
-  }
-
-  async accept() {
-    return null
-  }
-
-  async decline() {}
-  async cancelInvitation() {}
 }
 
 export class MemoryFolders implements FolderRepository {
@@ -207,7 +168,36 @@ export class MemoryAccounts implements UserRepository, SessionRepository, Identi
 }
 
 export const silentActivity = {
-  async invitation() {},
   async comment() {},
   async mentions() {}
+}
+
+export class MemoryJournal {
+  readonly entries: { workspaceId: string, actorId: string, action: string, target: string }[] = []
+  async record(workspaceId: string, actorId: string, action: string, target: string) {
+    this.entries.push({ workspaceId, actorId, action, target })
+  }
+}
+
+export class MemoryResourceAccess implements ResourceAccess {
+  constructor(private readonly pages = new MemoryPages(), private readonly folders = new MemoryFolders()) {}
+  async require(_kind: ResourceKind, _id: string, _userId: string, _level: AccessLevel) {
+    return 'edit' as const
+  }
+
+  async visible(kind: ResourceKind, workspaceId: string): Promise<MemberResourceAccess[]> {
+    const rows = kind === 'page' ? await this.pages.list(workspaceId) : await this.folders.list(workspaceId)
+    return rows.map(item => ({ kind, id: item.id, title: 'name' in item ? item.name : item.title, folderId: null, mode: 'inherit', level: 'edit', source: 'owner', direct: null, parentLevel: 'edit', canManage: true }))
+  }
+
+  async policy(): Promise<ResourcePolicy> {
+    throw new Error('Not used')
+  }
+
+  async save() {}
+  async memberResources() {
+    return []
+  }
+
+  async grant() {}
 }

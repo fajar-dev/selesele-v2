@@ -28,6 +28,8 @@ try {
     env: { ...process.env, MAIL_ENABLED: 'false', SMOKE_ORIGIN: origin }, stdout: 'inherit', stderr: 'inherit'
   })
   assert.equal(await checks.exited, 0, 'Workspace integration checks failed')
+  const accessChecks = Bun.spawn(['bun', 'scripts/member-access-smoke.ts'], { env: { ...process.env, MAIL_ENABLED: 'false', SMOKE_ORIGIN: origin }, stdout: 'inherit', stderr: 'inherit' })
+  assert.equal(await accessChecks.exited, 0, 'Member and resource permission checks failed')
 } finally {
   server.kill('SIGTERM')
   const timeout = setTimeout(() => server.kill('SIGKILL'), 5000)

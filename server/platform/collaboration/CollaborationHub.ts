@@ -140,6 +140,22 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     }
   }
 
+  async revalidateWorkspace(workspaceId: string): Promise<void> {
+    for (const [id, loading] of this.rooms) {
+      if (this.roomWorkspaces.get(id) !== workspaceId) {
+        continue
+      }
+      const room = await loading
+      for (const connection of room.connections.values()) {
+        try {
+          await this.authorize(connection, id)
+        } catch {
+          connection.peer.close(1008, 'Access expired or revoked')
+        }
+      }
+    }
+  }
+
   async close(): Promise<void> {
     this.closed = true
     const results = await Promise.allSettled([...this.rooms.values()].map(async (loading) => {
@@ -159,7 +175,7 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
 
   private async authorize(connection: Pick<CollaborationConnection, 'token' | 'userId'>, id: string): Promise<void> {
     const user = await this.auth.authenticate(connection.token)
-    await this.pages.get(id, user.id)
+    await this.pages.writable(id, user.id)
   }
 
   private getRoom(id: string): Promise<CollaborationRoom> {

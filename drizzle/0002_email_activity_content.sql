@@ -1,1 +1,0 @@
-ALTER TABLE `email_deliveries` ADD `activity` json;

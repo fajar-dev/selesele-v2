@@ -11,6 +11,7 @@ export const users = mysqlTable('users', {
   lastLoginAt: timestamp('last_login_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  invitationEmail: boolean('invitation_email').notNull().default(true),
   isActive: boolean('is_active').default(true)
 })
 

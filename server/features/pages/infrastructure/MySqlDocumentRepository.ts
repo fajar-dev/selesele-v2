@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { appendWorkspaceActivity } from '../../settings/infrastructure/MySqlWorkspaceJournal'
+import { and, desc, eq, inArray, isNull, isNotNull } from 'drizzle-orm'
 import { needsSnapshot } from '../../recovery/domain/snapshotPolicy'
 import { savePageSnapshot } from '../../../platform/database/pageSnapshots'
 import type { Clock } from '../../../core/ports/Clock'
@@ -29,7 +30,7 @@ function mentionedUsers(state: Uint8Array): string[] {
   }
 }
 export class MySqlDocumentRepository implements DocumentRepository {
-  constructor(private readonly db: Database, private readonly activity: ActivityPublisher, private readonly clock: Clock) {}
+  constructor(private readonly db: Database, private readonly activity: ActivityPublisher, private readonly clock: Clock, private readonly changed: (id: string) => void) {}
   async readContent(id: string): Promise<string> {
     const [document] = await this.db.select({ markdown: documents.markdown }).from(documents).where(eq(documents.pageId, id)).limit(1)
     return document?.markdown || ''
@@ -53,6 +54,9 @@ export class MySqlDocumentRepository implements DocumentRepository {
         const [latest] = await transaction.select({ createdAt: pageVersions.createdAt }).from(pageVersions).where(eq(pageVersions.pageId, id)).orderBy(desc(pageVersions.createdAt)).limit(1)
         if (needsSnapshot(previous.markdown, markdown, latest?.createdAt ?? null, this.clock.now(), checkpoint)) {
           await savePageSnapshot(transaction, id, previous.markdown, userId ?? null)
+          if (userId) {
+            await appendWorkspaceActivity(transaction, page.workspaceId, userId, 'page.updated', `${page.title} (document)`, { pageId: id })
+          }
         }
       }
       await transaction.insert(documents).values({ pageId: id, markdown, state: snapshot }).onDuplicateKeyUpdate({ set: { state: snapshot, markdown } })
@@ -66,16 +70,18 @@ export class MySqlDocumentRepository implements DocumentRepository {
         }
       }
       const old = await transaction.select({ userId: pageMentions.userId }).from(pageMentions).where(eq(pageMentions.pageId, id))
-      const valid = mentions.length
+      const eligible = mentions.length
         ? await transaction.select({ userId: workspaceMembers.userId }).from(workspaceMembers)
-            .where(and(eq(workspaceMembers.workspaceId, page.workspaceId), inArray(workspaceMembers.userId, mentions)))
+            .where(and(eq(workspaceMembers.workspaceId, page.workspaceId), inArray(workspaceMembers.userId, mentions), isNull(workspaceMembers.suspendedAt), isNotNull(workspaceMembers.userId)))
         : []
+      const valid = eligible.filter((row): row is { userId: string } => !!row.userId)
       await transaction.delete(pageMentions).where(eq(pageMentions.pageId, id))
       if (valid.length) {
         await transaction.insert(pageMentions).values(valid.map(row => ({ pageId: id, userId: row.userId })))
       }
       return valid.filter(row => !old.some(previous => previous.userId === row.userId)).map(row => row.userId)
     })
+    this.changed(id)
     await this.activity.mentions(id, newMentions, userId)
   }
 }

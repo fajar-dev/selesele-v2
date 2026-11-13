@@ -8,6 +8,6 @@ export default apiHandler(async (event) => {
   const id = idSchema.parse(getRouterParam(event, 'workspaceId'))
   const folderId = idSchema.parse(getRouterParam(event, 'folderId'))
   await getContainer().folders.delete(id, folderId, currentUser(event).id)
-  await getContainer().collaboration.evictWorkspace(id)
+  await getContainer().invalidateWorkspace(id)
   return success(null)
 })

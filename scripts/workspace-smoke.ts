@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { strict as assert } from 'node:assert'
 import { eq, inArray } from 'drizzle-orm'
 import { createDatabase } from '../server/platform/database/client'
-import { documents, folders, pages, sessions, users, workspaceInvitations, workspaceMembers, workspaces } from '../server/platform/database/schema'
+import { documents, folders, pages, sessions, users, workspaceMembers, workspaces } from '../server/platform/database/schema'
 import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
 import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
 import type { CommentThreadItem } from '../shared/contracts/comment'
@@ -61,34 +61,18 @@ try {
   await request(0, `${pagePath}/location`, 'PATCH', { folderId: null })
   await request(0, `${pagePath}/location`, 'PATCH', { folderId: folder.id })
 
-  await request(0, `${path}/invitations`, 'POST', { email: accounts[1]!.email, role: 'member' }, 201)
-  const inbox = await request<{ id: string }[]>(1, '/invitations')
-  assert.equal(inbox.length, 1)
-  await request(2, `/invitations/${inbox[0]!.id}/accept`, 'POST', undefined, 404)
-  await request(1, path, 'GET', undefined, 404)
-  await request(1, `/invitations/${inbox[0]!.id}/accept`, 'POST')
-  await request(1, `/invitations/${inbox[0]!.id}/accept`, 'POST', undefined, 404)
-  await request(1, `${path}/invitations`, 'POST', { email: accounts[2]!.email }, 403)
-  await request(0, `${path}/invitations`, 'POST', { email: accounts[2]!.email }, 201)
-  let otherInvites = await request<{ id: string }[]>(2, '/invitations')
-  await database.db.update(workspaceInvitations).set({ expiresAt: new Date(Date.now() - 60_000) }).where(eq(workspaceInvitations.id, otherInvites[0]!.id))
-  assert.equal((await request<unknown[]>(2, '/invitations')).length, 0, 'Expired invitations are hidden')
-  await request(2, `/invitations/${otherInvites[0]!.id}/accept`, 'POST', undefined, 404)
-  await request(0, `${path}/invitations`, 'POST', { email: accounts[2]!.email }, 201)
-  otherInvites = await request<{ id: string }[]>(2, '/invitations')
-  await request(0, `${path}/invitations/${otherInvites[0]!.id}`, 'DELETE')
-  await request(2, `/invitations/${otherInvites[0]!.id}/accept`, 'POST', undefined, 404)
-  await request(0, `${path}/invitations`, 'POST', { email: accounts[2]!.email }, 201)
-  otherInvites = await request<{ id: string }[]>(2, '/invitations')
-  await request(2, `/invitations/${otherInvites[0]!.id}`, 'DELETE')
-  assert.equal((await request<unknown[]>(2, '/invitations')).length, 0, 'Declined invitations are removed')
-  await request(0, `${path}/members/${accounts[1]!.userId}`, 'PATCH', { role: 'admin' })
+  await request(0, `${path}/members`, 'POST', { emails: [accounts[1]!.email], role: 'member' }, 201)
+  await request(1, path)
+  await request(1, `${path}/members`, 'POST', { emails: [accounts[2]!.email] }, 403)
+  const roster = await request<{ id: string, userId: string }[]>(0, `${path}/members`)
+  const memberIds = accounts.map(account => roster.find(item => item.userId === account.userId)?.id)
+  await request(0, `${path}/members/${memberIds[1]}`, 'PATCH', { role: 'admin' })
   await request(1, path, 'PATCH', { name: 'Renamed workspace' })
   await request(1, path, 'DELETE', undefined, 403)
-  await request(0, `${path}/members/${accounts[1]!.userId}`, 'PATCH', { role: 'member' })
+  await request(0, `${path}/members/${memberIds[1]}`, 'PATCH', { role: 'member' })
   await request(1, `${path}/folders/${folder.id}`, 'PATCH', { name: 'Renamed folder' })
-  await request(0, `${path}/members/${accounts[0]!.userId}`, 'DELETE', undefined, 409)
-  await request(0, `${path}/members/${accounts[0]!.userId}`, 'PATCH', { role: 'member' }, 409)
+  await request(0, `${path}/members/${memberIds[0]}`, 'DELETE', undefined, 403)
+  await request(0, `${path}/members/${memberIds[0]}`, 'PATCH', { role: 'member' }, 403)
   await request(1, pagePath, 'PUT', { title: 'Shared workspace notes' })
   await request(1, `${pagePath}/content`, 'POST', { content: '# Shared notes\n\nPersisted by a workspace member.' })
   const content = await request<{ content: string }>(0, `${pagePath}/content`)
@@ -167,7 +151,7 @@ try {
       resolve(event.code)
     }, { once: true })
   })
-  await request(0, `${path}/members/${accounts[1]!.userId}`, 'DELETE')
+  await request(0, `${path}/members/${memberIds[1]}`, 'DELETE')
   assert.equal(await closed, 1008)
   await request(1, pagePath, 'GET', undefined, 404)
   await request(1, commentPath, 'GET', undefined, 404)
@@ -182,7 +166,7 @@ try {
   await request(0, pagePath, 'GET', undefined, 404)
   await auth.logout(accounts[0]!.token)
   await request(0, '/auth/me', 'GET', undefined, 401)
-  console.log('Workspace integration passed: MySQL, SSR, workspace isolation, folders, page moves, invitations, roles, anchored comment discussions, content, live WebSocket revocation and logout')
+  console.log('Workspace integration passed: MySQL, SSR, workspace isolation, folders, page moves, automatic membership, roles, anchored comment discussions, content, live WebSocket revocation and logout')
 } finally {
   socket?.close()
   if (workspaceIds.length) {
@@ -192,7 +176,6 @@ try {
     }
     await database.db.delete(pages).where(inArray(pages.workspaceId, workspaceIds))
     await database.db.delete(folders).where(inArray(folders.workspaceId, workspaceIds))
-    await database.db.delete(workspaceInvitations).where(inArray(workspaceInvitations.workspaceId, workspaceIds))
     await database.db.delete(workspaceMembers).where(inArray(workspaceMembers.workspaceId, workspaceIds))
     await database.db.delete(workspaces).where(inArray(workspaces.id, workspaceIds))
   }

@@ -6,7 +6,7 @@ import { getRequestURL, setHeader } from '@nuxt/nitro-server/h3'
 
 export default apiHandler(async (event) => {
   const path = getRequestURL(event).pathname
-  if (!path.startsWith('/api/')) {
+  if (!path.startsWith('/api/') && !path.startsWith('/images/')) {
     return
   }
   setHeader(event, 'Cache-Control', 'no-store')

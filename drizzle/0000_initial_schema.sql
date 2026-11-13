@@ -27,10 +27,35 @@ CREATE TABLE `page_documents` (
 	CONSTRAINT `page_documents_page_id` PRIMARY KEY(`page_id`)
 );
 --> statement-breakpoint
+CREATE TABLE `email_deliveries` (
+	`id` varchar(36) NOT NULL,
+	`deduplication_key` varchar(180) NOT NULL,
+	`recipient` varchar(255) NOT NULL,
+	`recipient_user_id` varchar(36),
+	`workspace_id` varchar(36) NOT NULL,
+	`page_id` varchar(36),
+	`member_id` varchar(36),
+	`kind` varchar(20) NOT NULL,
+	`title` varchar(320) NOT NULL,
+	`activity` json,
+	`delivery_mode` varchar(12) NOT NULL DEFAULT 'immediate',
+	`state` varchar(16) NOT NULL DEFAULT 'pending',
+	`attempts` int NOT NULL DEFAULT 0,
+	`available_at` timestamp(3) NOT NULL DEFAULT (now()),
+	`lease_until` timestamp(3),
+	`lease_token` varchar(36),
+	`completed_at` timestamp(3),
+	`last_error` varchar(80),
+	`created_at` timestamp(3) NOT NULL DEFAULT (now()),
+	CONSTRAINT `email_deliveries_id` PRIMARY KEY(`id`),
+	CONSTRAINT `email_deliveries_dedup` UNIQUE(`deduplication_key`)
+);
+--> statement-breakpoint
 CREATE TABLE `folders` (
 	`id` varchar(36) NOT NULL,
 	`workspace_id` varchar(36) NOT NULL,
 	`name` varchar(120) NOT NULL,
+	`access_mode` enum('inherit','restricted') NOT NULL DEFAULT 'inherit',
 	`icon` varchar(32),
 	`description` varchar(2000) NOT NULL DEFAULT '',
 	`deleted_at` timestamp,
@@ -38,6 +63,29 @@ CREATE TABLE `folders` (
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `folders_id` PRIMARY KEY(`id`),
 	CONSTRAINT `folders_workspace_identity_unique` UNIQUE(`id`,`workspace_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `group_members` (
+	`group_id` varchar(36) NOT NULL,
+	`member_id` varchar(36) NOT NULL,
+	CONSTRAINT `group_members_group_id_member_id_pk` PRIMARY KEY(`group_id`,`member_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `image_uploads` (
+	`filename` varchar(48) NOT NULL,
+	`page_id` varchar(36) NOT NULL,
+	`user_id` varchar(36) NOT NULL,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `image_uploads_filename` PRIMARY KEY(`filename`)
+);
+--> statement-breakpoint
+CREATE TABLE `member_groups` (
+	`id` varchar(36) NOT NULL,
+	`workspace_id` varchar(36) NOT NULL,
+	`name` varchar(120) NOT NULL,
+	`description` varchar(500) NOT NULL DEFAULT '',
+	CONSTRAINT `member_groups_id` PRIMARY KEY(`id`),
+	CONSTRAINT `member_groups_name_unique` UNIQUE(`workspace_id`,`name`)
 );
 --> statement-breakpoint
 CREATE TABLE `notifications` (
@@ -87,6 +135,7 @@ CREATE TABLE `pages` (
 	`id` varchar(36) NOT NULL,
 	`workspace_id` varchar(36) NOT NULL,
 	`folder_id` varchar(36),
+	`access_mode` enum('inherit','restricted') NOT NULL DEFAULT 'inherit',
 	`title` varchar(255) NOT NULL,
 	`description` varchar(2000) NOT NULL DEFAULT '',
 	`icon` varchar(32),
@@ -95,6 +144,24 @@ CREATE TABLE `pages` (
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	`deleted_at` timestamp,
 	CONSTRAINT `pages_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `resource_grants` (
+	`id` varchar(36) NOT NULL,
+	`workspace_id` varchar(36) NOT NULL,
+	`page_id` varchar(36),
+	`folder_id` varchar(36),
+	`member_id` varchar(36),
+	`group_id` varchar(36),
+	`level` enum('none','view','comment','edit') NOT NULL,
+	`expires_at` timestamp(3),
+	CONSTRAINT `resource_grants_id` PRIMARY KEY(`id`),
+	CONSTRAINT `resource_grants_page_member` UNIQUE(`page_id`,`member_id`),
+	CONSTRAINT `resource_grants_page_group` UNIQUE(`page_id`,`group_id`),
+	CONSTRAINT `resource_grants_folder_member` UNIQUE(`folder_id`,`member_id`),
+	CONSTRAINT `resource_grants_folder_group` UNIQUE(`folder_id`,`group_id`),
+	CONSTRAINT `resource_grants_resource_check` CHECK((`resource_grants`.`page_id` is null) <> (`resource_grants`.`folder_id` is null)),
+	CONSTRAINT `resource_grants_subject_check` CHECK((`resource_grants`.`member_id` is null) <> (`resource_grants`.`group_id` is null))
 );
 --> statement-breakpoint
 CREATE TABLE `sessions` (
@@ -114,32 +181,40 @@ CREATE TABLE `users` (
 	`last_login_at` timestamp,
 	`created_at` timestamp DEFAULT (now()),
 	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`invitation_email` boolean NOT NULL DEFAULT true,
 	`is_active` boolean DEFAULT true,
 	CONSTRAINT `users_id` PRIMARY KEY(`id`),
 	CONSTRAINT `users_email_unique` UNIQUE(`email`),
 	CONSTRAINT `users_microsoft_subject_unique` UNIQUE(`microsoft_subject`)
 );
 --> statement-breakpoint
-CREATE TABLE `workspace_invitations` (
+CREATE TABLE `workspace_activity` (
 	`id` varchar(36) NOT NULL,
 	`workspace_id` varchar(36) NOT NULL,
-	`email` varchar(255) NOT NULL,
-	`role` enum('admin','member') NOT NULL DEFAULT 'member',
-	`invited_by` varchar(36) NOT NULL,
-	`expires_at` timestamp NOT NULL,
-	`created_at` timestamp NOT NULL DEFAULT (now()),
-	CONSTRAINT `workspace_invitations_id` PRIMARY KEY(`id`),
-	CONSTRAINT `workspace_invitation_email_unique` UNIQUE(`workspace_id`,`email`)
+	`actor_name` varchar(255) NOT NULL,
+	`subject_member_id` varchar(36),
+	`page_id` varchar(36),
+	`folder_id` varchar(36),
+	`action` varchar(40) NOT NULL,
+	`target` varchar(320) NOT NULL,
+	`created_at` timestamp(3) NOT NULL DEFAULT (now()),
+	CONSTRAINT `workspace_activity_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
 CREATE TABLE `workspace_members` (
 	`id` varchar(36) NOT NULL,
 	`workspace_id` varchar(36) NOT NULL,
-	`user_id` varchar(36) NOT NULL,
-	`role` enum('owner','admin','member') NOT NULL DEFAULT 'member',
+	`user_id` varchar(36),
+	`email` varchar(255) NOT NULL,
+	`invited_by` varchar(36),
+	`suspended_at` timestamp,
+	`last_active_at` timestamp,
+	`role` enum('owner','admin','member','viewer') NOT NULL DEFAULT 'member',
+	`notifications` json,
 	`joined_at` timestamp NOT NULL DEFAULT (now()),
 	CONSTRAINT `workspace_members_id` PRIMARY KEY(`id`),
-	CONSTRAINT `workspace_members_identity_unique` UNIQUE(`workspace_id`,`user_id`)
+	CONSTRAINT `workspace_members_identity_unique` UNIQUE(`workspace_id`,`user_id`),
+	CONSTRAINT `workspace_members_email_unique` UNIQUE(`workspace_id`,`email`)
 );
 --> statement-breakpoint
 CREATE TABLE `workspaces` (
@@ -150,6 +225,8 @@ CREATE TABLE `workspaces` (
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	`deleted_at` timestamp,
+	`archived_at` timestamp,
+	`settings` json,
 	CONSTRAINT `workspaces_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -159,7 +236,16 @@ ALTER TABLE `comment_threads` ADD CONSTRAINT `comment_threads_resolved_by_users_
 ALTER TABLE `comments` ADD CONSTRAINT `comments_thread_id_comment_threads_id_fk` FOREIGN KEY (`thread_id`) REFERENCES `comment_threads`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `comments` ADD CONSTRAINT `comments_author_id_users_id_fk` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `page_documents` ADD CONSTRAINT `page_documents_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `email_deliveries` ADD CONSTRAINT `email_deliveries_recipient_user_id_users_id_fk` FOREIGN KEY (`recipient_user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `email_deliveries` ADD CONSTRAINT `email_deliveries_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `email_deliveries` ADD CONSTRAINT `email_deliveries_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `email_deliveries` ADD CONSTRAINT `email_deliveries_member_id_workspace_members_id_fk` FOREIGN KEY (`member_id`) REFERENCES `workspace_members`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `folders` ADD CONSTRAINT `folders_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `group_members` ADD CONSTRAINT `group_members_group_id_member_groups_id_fk` FOREIGN KEY (`group_id`) REFERENCES `member_groups`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `group_members` ADD CONSTRAINT `group_members_member_id_workspace_members_id_fk` FOREIGN KEY (`member_id`) REFERENCES `workspace_members`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `image_uploads` ADD CONSTRAINT `image_uploads_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `image_uploads` ADD CONSTRAINT `image_uploads_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `member_groups` ADD CONSTRAINT `member_groups_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `notifications` ADD CONSTRAINT `notifications_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `notifications` ADD CONSTRAINT `notifications_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `notifications` ADD CONSTRAINT `notifications_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -174,20 +260,30 @@ ALTER TABLE `page_versions` ADD CONSTRAINT `page_versions_author_id_users_id_fk`
 ALTER TABLE `pages` ADD CONSTRAINT `pages_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `pages` ADD CONSTRAINT `pages_created_by_users_id_fk` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `pages` ADD CONSTRAINT `pages_folder_workspace_fk` FOREIGN KEY (`folder_id`,`workspace_id`) REFERENCES `folders`(`id`,`workspace_id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `resource_grants` ADD CONSTRAINT `resource_grants_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `resource_grants` ADD CONSTRAINT `resource_grants_page_id_pages_id_fk` FOREIGN KEY (`page_id`) REFERENCES `pages`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `resource_grants` ADD CONSTRAINT `resource_grants_folder_id_folders_id_fk` FOREIGN KEY (`folder_id`) REFERENCES `folders`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `resource_grants` ADD CONSTRAINT `resource_grants_member_id_workspace_members_id_fk` FOREIGN KEY (`member_id`) REFERENCES `workspace_members`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `resource_grants` ADD CONSTRAINT `resource_grants_group_id_member_groups_id_fk` FOREIGN KEY (`group_id`) REFERENCES `member_groups`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `sessions` ADD CONSTRAINT `sessions_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `workspace_invitations` ADD CONSTRAINT `workspace_invitations_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `workspace_invitations` ADD CONSTRAINT `workspace_invitations_invited_by_users_id_fk` FOREIGN KEY (`invited_by`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `workspace_activity` ADD CONSTRAINT `workspace_activity_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `workspace_members` ADD CONSTRAINT `workspace_members_workspace_id_workspaces_id_fk` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `workspace_members` ADD CONSTRAINT `workspace_members_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `workspace_members` ADD CONSTRAINT `workspace_members_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `workspace_members` ADD CONSTRAINT `workspace_members_invited_by_users_id_fk` FOREIGN KEY (`invited_by`) REFERENCES `users`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX `comment_threads_page_index` ON `comment_threads` (`page_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `comments_thread_index` ON `comments` (`thread_id`,`created_at`);--> statement-breakpoint
+CREATE INDEX `email_deliveries_pending` ON `email_deliveries` (`state`,`available_at`);--> statement-breakpoint
+CREATE INDEX `email_deliveries_lease` ON `email_deliveries` (`state`,`lease_until`);--> statement-breakpoint
 CREATE INDEX `folders_workspace_index` ON `folders` (`workspace_id`);--> statement-breakpoint
+CREATE INDEX `group_members_member_index` ON `group_members` (`member_id`);--> statement-breakpoint
 CREATE INDEX `notifications_inbox` ON `notifications` (`user_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `page_activity_recent` ON `page_activity` (`user_id`,`visited_at`);--> statement-breakpoint
 CREATE INDEX `page_links_target` ON `page_links` (`target_id`);--> statement-breakpoint
 CREATE INDEX `page_versions_page_time` ON `page_versions` (`page_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `pages_workspace_folder_index` ON `pages` (`workspace_id`,`folder_id`);--> statement-breakpoint
+CREATE INDEX `resource_grants_workspace_index` ON `resource_grants` (`workspace_id`);--> statement-breakpoint
 CREATE INDEX `sessions_user_index` ON `sessions` (`user_id`);--> statement-breakpoint
 CREATE INDEX `sessions_expiry_index` ON `sessions` (`expires_at`);--> statement-breakpoint
-CREATE INDEX `workspace_invitation_email_index` ON `workspace_invitations` (`email`);--> statement-breakpoint
-CREATE INDEX `workspace_members_user_index` ON `workspace_members` (`user_id`);
+CREATE INDEX `workspace_activity_workspace_index` ON `workspace_activity` (`workspace_id`,`id`);--> statement-breakpoint
+CREATE INDEX `workspace_members_user_index` ON `workspace_members` (`user_id`);--> statement-breakpoint
+CREATE INDEX `workspace_members_email_index` ON `workspace_members` (`email`);

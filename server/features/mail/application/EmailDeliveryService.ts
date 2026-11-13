@@ -1,3 +1,5 @@
+import { digestEmail } from '../domain/digestEmail'
+import type { EmailDelivery } from '../domain/EmailDelivery'
 import type { EmailProcessor } from '../domain/EmailProcessor'
 import type { Clock } from '../../../core/ports/Clock'
 import type { EmailOutbox } from '../domain/EmailOutbox'
@@ -13,18 +15,29 @@ export class EmailDeliveryService implements EmailProcessor {
     if (!delivery) {
       return false
     }
-    if (!await this.outbox.deliverable(delivery, this.clock.now())) {
-      await this.outbox.complete(delivery, 'skipped', this.clock.now())
+    const pending: EmailDelivery[] = []
+    for (const item of delivery.digest ?? [delivery]) {
+      if (await this.outbox.deliverable(item, this.clock.now())) {
+        pending.push(item)
+      } else {
+        await this.outbox.complete(item, 'skipped', this.clock.now())
+      }
+    }
+    if (!pending.length) {
       return true
     }
     try {
-      await this.sender.send(notificationEmail(delivery, this.origin))
+      await this.sender.send(delivery.digest ? digestEmail(pending, this.origin) : notificationEmail(pending[0]!, this.origin))
     } catch (cause) {
       const code = cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string' ? cause.code.slice(0, 80) : 'delivery_failed'
-      await this.outbox.retry(delivery, nextDeliveryAttempt(delivery.attempts, this.clock.now()), code)
+      for (const item of pending) {
+        await this.outbox.retry(item, nextDeliveryAttempt(item.attempts, this.clock.now()), code)
+      }
       return true
     }
-    await this.outbox.complete(delivery, 'sent', this.clock.now())
+    for (const item of pending) {
+      await this.outbox.complete(item, 'sent', this.clock.now())
+    }
     return true
   }
 }

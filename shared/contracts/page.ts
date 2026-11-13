@@ -1,3 +1,5 @@
+import type { AccessLevel } from '../kernel/access'
+
 export interface PageInput {
   title: string
   description?: string
@@ -18,4 +20,6 @@ export interface PageItem {
   createdAt: string
   updatedAt: string
   deletedAt: string | null
+  accessLevel: AccessLevel
+  canManageAccess: boolean
 }

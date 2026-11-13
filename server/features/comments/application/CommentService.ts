@@ -16,7 +16,7 @@ export class CommentService {
   }
 
   async create(pageId: string, input: CommentThreadInput, userId: string): Promise<CommentThreadItem> {
-    await this.pages.get(pageId, userId)
+    await this.pages.commentable(pageId, userId)
     const id = await this.comments.create(pageId, input, userId)
     const thread = this.present(await this.requireThread(pageId, id))
     await this.events.commentsChanged(pageId)
@@ -25,7 +25,7 @@ export class CommentService {
   }
 
   async reply(pageId: string, threadId: string, body: string, userId: string): Promise<CommentThreadItem> {
-    await this.pages.get(pageId, userId)
+    await this.pages.commentable(pageId, userId)
     const thread = await this.requireThread(pageId, threadId)
     if (thread.resolvedAt) {
       throw new ApplicationError('conflict', 'Reopen this discussion before replying')
@@ -38,7 +38,7 @@ export class CommentService {
   }
 
   async resolve(pageId: string, threadId: string, resolved: boolean, userId: string): Promise<CommentThreadItem> {
-    await this.pages.get(pageId, userId)
+    await this.pages.commentable(pageId, userId)
     await this.requireThread(pageId, threadId)
     await this.comments.resolve(threadId, resolved, userId)
     const updated = this.present(await this.requireThread(pageId, threadId))
@@ -47,7 +47,8 @@ export class CommentService {
   }
 
   async delete(pageId: string, threadId: string, userId: string): Promise<void> {
-    const page = await this.pages.get(pageId, userId)
+    const page = await this.pages.commentable(pageId, userId)
+    await this.access.requireCapability(page.workspaceId, userId, 'deleteContent')
     const thread = await this.requireThread(pageId, threadId)
     if (thread.createdBy !== userId) {
       await this.access.requireManager(page.workspaceId, userId)

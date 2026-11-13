@@ -10,8 +10,8 @@ import { mailConfig } from '../../server/features/mail/infrastructure/mailConfig
 
 const now = new Date('2026-01-01T00:00:00Z')
 const clock = { now: () => now }
-const delivery: EmailDelivery = { id: 'email-id', recipient: 'member@example.invalid', recipientUserId: 'member', workspaceId: 'workspace', pageId: 'page', invitationId: null,
-  invitationExpiresAt: null, kind: 'mention', title: 'You were mentioned', activity: null, attempts: 1, leaseToken: 'lease' }
+const delivery: EmailDelivery = { id: 'email-id', recipient: 'member@example.invalid', recipientUserId: 'member', workspaceId: 'workspace', pageId: 'page', memberId: null,
+  kind: 'mention', title: 'You were mentioned', activity: null, attempts: 1, leaseToken: 'lease' }
 
 function fixture(readable = true) {
   const completed: string[] = []
@@ -125,7 +125,7 @@ describe('background email delivery', () => {
     const invite = notificationEmail({ ...delivery, kind: 'invitation', activity: { actorName: 'Alex', workspaceName: 'Product team', workspaceDescription: 'Roadmaps and shared project notes.', role: 'admin' } }, 'https://notes.example.com')
     expect(invite.html).toContain('Roadmaps and shared project notes.')
     expect(invite.html).toContain('Admin')
-    expect(invite.text).toContain('Alex invited you')
+    expect(invite.text).toContain('Alex added you')
     expect(invite.html).not.toContain('Sign in with')
   })
 

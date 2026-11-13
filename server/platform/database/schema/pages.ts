@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, longtext, timestamp, index, customType, foreignKey } from 'drizzle-orm/mysql-core'
+import { mysqlTable, varchar, longtext, timestamp, index, customType, foreignKey, mysqlEnum } from 'drizzle-orm/mysql-core'
 import { uuidv7 } from 'uuidv7'
 import { users } from './identity'
 import { workspaces, folders } from './workspaces'
@@ -9,6 +9,7 @@ export const pages = mysqlTable('pages', {
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id),
   folderId: varchar('folder_id', { length: 36 }),
+  accessMode: mysqlEnum('access_mode', ['inherit', 'restricted']).notNull().default('inherit'),
   title: varchar('title', { length: 255 }).notNull(),
   description: varchar('description', { length: 2000 }).notNull().default(''),
   icon: varchar('icon', { length: 32 }),

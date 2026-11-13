@@ -1,6 +1,9 @@
+import type { MemberItem } from '../kernel/member'
+import type { AccessLevel } from '../kernel/access'
+import type { WorkspaceSettings } from '../kernel/workspaceSettings'
 import type { PageItem } from './page'
 
-import type { WorkspaceRole, InviteRole } from '../kernel/workspace'
+import type { WorkspaceRole } from '../kernel/workspace'
 
 export type { WorkspaceRole, InviteRole } from '../kernel/workspace'
 
@@ -10,11 +13,15 @@ export interface WorkspaceItem {
   description: string
   icon: string
   role: WorkspaceRole
+  archivedAt: string | null
+  settings: WorkspaceSettings
   createdAt: string
   updatedAt: string
 }
 
 export interface FolderItem {
+  accessLevel: AccessLevel
+  canManageAccess: boolean
   icon: string | null
   id: string
   workspaceId: string
@@ -24,22 +31,7 @@ export interface FolderItem {
   updatedAt: string
 }
 
-export interface WorkspaceMember {
-  userId: string
-  email: string
-  name: string | null
-  avatar: string | null
-  role: WorkspaceRole
-}
-
-export interface WorkspaceInvitation {
-  id: string
-  workspaceId: string
-  workspaceName: string
-  email: string
-  role: InviteRole
-  expiresAt: string
-}
+export type WorkspaceMember = MemberItem
 
 export interface WorkspaceOverview {
   workspace: WorkspaceItem

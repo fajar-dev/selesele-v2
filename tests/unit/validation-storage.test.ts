@@ -1,8 +1,9 @@
+import { addMembersSchema, memberChangeSchema } from '../../shared/validation/member'
 import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { idSchema, invitationInputSchema, memberRoleSchema, workspaceUpdateSchema, folderUpdateSchema } from '../../shared/validation/workspace'
+import { idSchema, workspaceUpdateSchema, folderUpdateSchema } from '../../shared/validation/workspace'
 import { pageLocationSchema, contentSchema, pageInputSchema, pageUpdateSchema } from '../../shared/validation/page'
 import { ImageService } from '../../server/features/media/application/ImageService'
 import { LocalImageStore } from '../../server/features/media/infrastructure/LocalImageStore'
@@ -13,8 +14,8 @@ afterAll(() => rm(directory, { recursive: true, force: true }))
 describe('HTTP validation', () => {
   test('rejects invalid identities, owner escalation and location injection', () => {
     expect(idSchema.safeParse('../../.env').success).toBe(false)
-    expect(memberRoleSchema.safeParse({ role: 'owner' }).success).toBe(false)
-    expect(invitationInputSchema.safeParse({ email: 'person@example.com', role: 'owner' }).success).toBe(false)
+    expect(memberChangeSchema.safeParse({ role: 'owner' }).success).toBe(false)
+    expect(addMembersSchema.safeParse({ emails: ['person@example.com'], role: 'owner' }).success).toBe(false)
     expect(pageLocationSchema.safeParse({ folderId: null, workspaceId: 'injected' }).success).toBe(false)
     expect(pageLocationSchema.parse({ folderId: null })).toEqual({ folderId: null })
     expect(pageUpdateSchema.safeParse({ title: 'Page', workspaceId: 'injected' }).success).toBe(false)
@@ -41,8 +42,8 @@ describe('HTTP validation', () => {
   })
 
   test('normalizes email and accepts clearing nullable page fields and content', () => {
-    expect(invitationInputSchema.parse({ email: 'Friend@Example.com' }).email).toBe('friend@example.com')
-    expect(invitationInputSchema.safeParse({ email: 'invalid' }).success).toBe(false)
+    expect(addMembersSchema.parse({ emails: ['Friend@Example.com'] }).emails[0]).toBe('friend@example.com')
+    expect(addMembersSchema.safeParse({ emails: ['invalid'] }).success).toBe(false)
     expect(pageInputSchema.parse({ title: ' Test ', icon: null }).title).toBe('Test')
     expect(contentSchema.parse({ content: '' }).content).toBe('')
     expect(contentSchema.safeParse({ content: {} }).success).toBe(false)
@@ -50,17 +51,22 @@ describe('HTTP validation', () => {
 })
 
 describe('image storage', () => {
-  const images = new ImageService(new LocalImageStore(directory))
+  const images = new ImageService(new LocalImageStore(directory), { async register() {}, async canUpload(_pageId, userId) {
+    return userId === 'owner'
+  }, async canRead(_file, userId) {
+    return userId === 'owner'
+  } })
   test('detects file signatures and retrieves a generated image', async () => {
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWoYAAAAASUVORK5CYII=', 'base64')
-    const uploaded = await images.put(png)
+    const uploaded = await images.put(png, 'owner', 'page')
     expect(uploaded.url).toStartWith('/images/')
-    expect((await images.get(uploaded.pathname)).data).toEqual(png)
+    await expect(images.get(uploaded.pathname, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
+    expect((await images.get(uploaded.pathname, 'owner')).data).toEqual(png)
   })
 
   test('rejects scripts, SVG, oversized uploads and path traversal', async () => {
-    await expect(images.put(Buffer.from('<svg onload="alert(1)"></svg>'))).rejects.toMatchObject({ code: 'invalid_input' })
-    await expect(images.put(Buffer.alloc(2 * 1024 * 1024 + 1))).rejects.toMatchObject({ code: 'invalid_input' })
-    await expect(images.get('../.env')).rejects.toMatchObject({ code: 'not_found' })
+    await expect(images.put(Buffer.from('<svg onload="alert(1)"></svg>'), 'owner', 'page')).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(images.put(Buffer.alloc(2 * 1024 * 1024 + 1), 'owner', 'page')).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(images.get('../.env', 'owner')).rejects.toMatchObject({ code: 'not_found' })
   })
 })

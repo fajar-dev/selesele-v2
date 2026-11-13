@@ -48,7 +48,7 @@ export function emailLayout(input: EmailLayoutInput): string {
     : ''
   const body = activity?.body || activity?.workspaceDescription
   const message = body ? `<p style="margin:${space.md} 0 0;font-size:${font.md};font-weight:400;line-height:1.8;white-space:pre-wrap;">${escapeHtml(body)}</p>` : ''
-  const role = activity?.role ? `<p style="margin:${space.md} 0 0;color:${color.muted};font-size:${font.sm};line-height:1.7;">Your access <strong style="color:${color.ink};">${activity.role === 'admin' ? 'Admin' : 'Member'}</strong></p>` : ''
+  const role = activity?.role ? `<p style="margin:${space.md} 0 0;color:${color.muted};font-size:${font.sm};line-height:1.7;">Your access <strong style="color:${color.ink};">${activity.role === 'admin' ? 'Admin' : activity.role === 'viewer' ? 'Viewer' : 'Member'}</strong></p>` : ''
   return `<!doctype html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>

@@ -1,7 +1,7 @@
 import { index, int, json, mysqlTable, timestamp, uniqueIndex, varchar } from 'drizzle-orm/mysql-core'
 import type { EmailActivity } from '../../../features/mail/domain/EmailActivity'
 import { uuidv7 } from 'uuidv7'
-import { workspaces, workspaceInvitations } from './workspaces'
+import { workspaces, workspaceMembers } from './workspaces'
 import { pages } from './pages'
 import { users } from './identity'
 import type { NotificationItem } from '../../../../shared/kernel/notification'
@@ -13,11 +13,11 @@ export const emailDeliveries = mysqlTable('email_deliveries', {
   recipientUserId: varchar('recipient_user_id', { length: 36 }).references(() => users.id, { onDelete: 'cascade' }),
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   pageId: varchar('page_id', { length: 36 }).references(() => pages.id, { onDelete: 'cascade' }),
-  invitationId: varchar('invitation_id', { length: 36 }).references(() => workspaceInvitations.id, { onDelete: 'cascade' }),
-  invitationExpiresAt: timestamp('invitation_expires_at'),
+  memberId: varchar('member_id', { length: 36 }).references(() => workspaceMembers.id, { onDelete: 'cascade' }),
   kind: varchar('kind', { length: 20 }).notNull().$type<NotificationItem['kind']>(),
   title: varchar('title', { length: 320 }).notNull(),
   activity: json('activity').$type<EmailActivity>(),
+  deliveryMode: varchar('delivery_mode', { length: 12 }).notNull().default('immediate').$type<'immediate' | 'daily'>(),
   state: varchar('state', { length: 16 }).notNull().default('pending').$type<'pending' | 'processing' | 'sent' | 'failed' | 'skipped'>(),
   attempts: int('attempts').notNull().default(0),
   availableAt: timestamp('available_at', { fsp: 3 }).notNull().defaultNow(),

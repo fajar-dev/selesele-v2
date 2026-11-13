@@ -1,3 +1,5 @@
+import { MemoryResourceAccess, MemoryWorkspaces, MemoryJournal, OWNER_ID, WORKSPACE_ID, MemoryFolders, MemoryPages } from '../support/fakes'
+import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
 import { needsSnapshot, snapshotPolicy } from '../../server/features/recovery/domain/snapshotPolicy'
 import { NotificationService } from '../../server/features/notifications/application/NotificationService'
 import { describe, expect, test } from 'bun:test'
@@ -9,14 +11,12 @@ import { documentLinks } from '../../server/features/library/domain/documentLink
 import { pageTemplates } from '../../server/features/library/domain/templates'
 import { LibraryService } from '../../server/features/library/application/LibraryService'
 import { questionSchema } from '../../shared/validation/library'
-import { OWNER_ID, WORKSPACE_ID, MemoryFolders, MemoryPages, MemoryWorkspaces } from '../support/fakes'
 import { PageService } from '../../server/features/pages/application/PageService'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
-import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
 
 describe('knowledge tools and recovery boundaries', () => {
   test('only accessible trashed items can be restored, permanent deletion requires manager rights', async () => {
-    const item: TrashItem = { id: 'trashed', kind: 'page', workspaceId: WORKSPACE_ID, title: 'Private', icon: null, workspaceName: 'Team', canPurge: false, deletedAt: new Date().toISOString() }
+    const item: TrashItem = { id: 'trashed', kind: 'page', workspaceId: WORKSPACE_ID, title: 'Private', icon: null, workspaceName: 'Team', canRestore: true, canPurge: false, deletedAt: new Date().toISOString() }
     const changed: string[] = []
     const repository: RecoveryRepository = {
       async findTrashed(userId, kind, id) {
@@ -29,6 +29,7 @@ describe('knowledge tools and recovery boundaries', () => {
         changed.push('restore')
       }, async purge() {
         changed.push('purge')
+        return true
       },
       async versions() {
         return []
@@ -36,9 +37,13 @@ describe('knowledge tools and recovery boundaries', () => {
         return null
       }, async checkpoint() {}
     }
-    const service = new RecoveryService(repository, { async get() {
+    const service = new RecoveryService(repository, { async writable() {
       throw new Error('Access denied')
-    } }, { async replaceMarkdown() {} })
+    }, async get() {
+      throw new Error('Access denied')
+    }, async commentable() {
+      throw new Error('Access denied')
+    } }, { async replaceMarkdown() {} }, new WorkspaceAccessPolicy(new MemoryWorkspaces()), new MemoryJournal())
     await expect(service.restore('outsider', 'page', 'trashed')).rejects.toMatchObject({ code: 'not_found' })
     await expect(service.purge(OWNER_ID, 'page', 'trashed')).rejects.toMatchObject({ code: 'forbidden' })
     await service.restore(OWNER_ID, 'page', 'trashed')
@@ -75,7 +80,7 @@ describe('knowledge tools and recovery boundaries', () => {
   })
   test('knowledge retrieval rejects a non-member before querying content', async () => {
     const access = new WorkspaceAccessPolicy(new MemoryWorkspaces())
-    const pageAccess = new PageService(new MemoryPages(), access, new FolderService(new MemoryFolders(), access))
+    const pageAccess = new PageService(new MemoryPages(), access, new FolderService(new MemoryFolders(), access, new MemoryJournal(), new MemoryResourceAccess()), new MemoryJournal(), new MemoryResourceAccess())
     const repository = { async search() {
       throw new Error('Repository must not be called')
     }, async context() {
@@ -121,11 +126,8 @@ describe('snapshot policy and notification failure isolation', () => {
         return []
       },
       async read() {},
-      async invitation() {
-        throw failure
-      },
       async comment() {
-        return []
+        throw failure
       },
       async mentions() {
         return []
@@ -135,7 +137,7 @@ describe('snapshot policy and notification failure isolation', () => {
     }, { report(_message, cause) {
       errors.push(cause)
     } })
-    await service.invitation(WORKSPACE_ID, 'member@example.invalid', OWNER_ID)
+    await service.comment('page', 'thread', 'Comment', OWNER_ID)
     expect(errors).toEqual([failure])
   })
 })

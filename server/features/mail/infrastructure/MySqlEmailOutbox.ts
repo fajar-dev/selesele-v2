@@ -1,7 +1,8 @@
-import { and, eq, gt, gte, isNull, lt, lte, or } from 'drizzle-orm'
+import { loadResourceScope } from '../../access/infrastructure/resourceScope'
+import { and, eq, gte, isNull, inArray, lt, lte, or, sql } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { Database } from '../../../platform/database/client'
-import { emailDeliveries, folders, pages, users, workspaceInvitations, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { emailDeliveries, users, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import type { EmailDelivery } from '../domain/EmailDelivery'
 import type { EmailOutbox } from '../domain/EmailOutbox'
 import { deliveryPolicy } from '../domain/deliveryPolicy'
@@ -22,31 +23,42 @@ export class MySqlEmailOutbox implements EmailOutbox {
       }
       const leaseToken = uuidv7()
       const attempts = row.attempts + 1
-      await transaction.update(emailDeliveries).set({ state: 'processing', leaseToken, attempts, leaseUntil: new Date(now.getTime() + deliveryPolicy.leaseMs) }).where(eq(emailDeliveries.id, row.id))
-      return { ...row, attempts, leaseToken }
+      const rows = row.deliveryMode === 'daily'
+        ? await transaction.select().from(emailDeliveries).where(and(eq(emailDeliveries.workspaceId, row.workspaceId), eq(emailDeliveries.recipient, row.recipient), eq(emailDeliveries.deliveryMode, 'daily'), eq(emailDeliveries.state, 'pending'), lte(emailDeliveries.availableAt, now), lt(emailDeliveries.attempts, deliveryPolicy.maxAttempts))).orderBy(emailDeliveries.id).limit(50).for('update', { skipLocked: true })
+        : [row]
+      if (!rows.some(item => item.id === row.id)) {
+        rows.push(row)
+      }
+      await transaction.update(emailDeliveries).set({ state: 'processing', leaseToken, attempts: sql`${emailDeliveries.attempts} + 1`, leaseUntil: new Date(now.getTime() + deliveryPolicy.leaseMs) }).where(inArray(emailDeliveries.id, rows.map(item => item.id)))
+      const digest = rows.map(item => ({ ...item, attempts: item.attempts + 1, leaseToken }))
+      return { ...row, attempts, leaseToken, digest: row.deliveryMode === 'daily' ? digest : undefined }
     }, { isolationLevel: 'read committed' })
   }
 
-  async deliverable(delivery: EmailDelivery, now: Date): Promise<boolean> {
-    if (delivery.kind === 'invitation') {
-      if (!delivery.invitationId || !delivery.invitationExpiresAt) {
+  async deliverable(delivery: EmailDelivery, _now: Date): Promise<boolean> {
+    if (delivery.recipientUserId) {
+      const [user] = await this.db.select({ enabled: users.invitationEmail }).from(users).where(eq(users.id, delivery.recipientUserId))
+      const [member] = await this.db.select({ preferences: workspaceMembers.notifications }).from(workspaceMembers).where(and(eq(workspaceMembers.workspaceId, delivery.workspaceId), eq(workspaceMembers.userId, delivery.recipientUserId)))
+      if (delivery.kind === 'invitation' ? !user?.enabled : member?.preferences?.email[delivery.kind] === false) {
         return false
       }
-      const [invitation] = await this.db.select({ id: workspaceInvitations.id }).from(workspaceInvitations)
-        .innerJoin(workspaces, eq(workspaces.id, workspaceInvitations.workspaceId))
-        .where(and(eq(workspaceInvitations.id, delivery.invitationId), eq(workspaceInvitations.workspaceId, delivery.workspaceId), eq(workspaceInvitations.email, delivery.recipient),
-          eq(workspaceInvitations.expiresAt, delivery.invitationExpiresAt), gt(workspaceInvitations.expiresAt, now), isNull(workspaces.deletedAt))).limit(1)
-      return !!invitation
+    }
+    if (delivery.kind === 'invitation') {
+      if (!delivery.memberId) {
+        return false
+      }
+      const [member] = await this.db.select({ id: workspaceMembers.id }).from(workspaceMembers).innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
+        .where(and(eq(workspaceMembers.id, delivery.memberId), eq(workspaceMembers.workspaceId, delivery.workspaceId), eq(workspaceMembers.email, delivery.recipient), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt))).limit(1)
+      return !!member
     }
     if (!delivery.pageId || !delivery.recipientUserId) {
       return false
     }
-    const [page] = await this.db.select({ id: pages.id }).from(pages)
-      .innerJoin(workspaces, eq(workspaces.id, pages.workspaceId))
-      .innerJoin(workspaceMembers, and(eq(workspaceMembers.workspaceId, workspaces.id), eq(workspaceMembers.userId, delivery.recipientUserId)))
-      .innerJoin(users, eq(users.id, workspaceMembers.userId)).leftJoin(folders, eq(folders.id, pages.folderId))
-      .where(and(eq(pages.id, delivery.pageId), eq(pages.workspaceId, delivery.workspaceId), eq(users.email, delivery.recipient), isNull(workspaces.deletedAt), isNull(pages.deletedAt), isNull(folders.deletedAt))).limit(1)
-    return !!page
+    const [user] = await this.db.select({ email: users.email }).from(users).where(eq(users.id, delivery.recipientUserId))
+    if (user?.email !== delivery.recipient) {
+      return false
+    }
+    return (await loadResourceScope(this.db, delivery.recipientUserId, delivery.workspaceId)).allowed('page').includes(delivery.pageId)
   }
 
   async complete(delivery: EmailDelivery, state: 'sent' | 'skipped', now: Date) {

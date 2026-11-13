@@ -1,32 +1,28 @@
+import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 import { PageDocumentService } from '../../server/features/pages/application/PageDocumentService'
 import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
 import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
-import { MembershipService } from '../../server/features/workspaces/application/MembershipService'
-import { InvitationService } from '../../server/features/workspaces/application/InvitationService'
 import { describe, expect, test } from 'bun:test'
 import { PageService } from '../../server/features/pages/application/PageService'
 import { WorkspaceService } from '../../server/features/workspaces/application/WorkspaceService'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
 import { AuthService } from '../../server/features/identity/application/AuthService'
-import { silentActivity, MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 
 function fixture() {
   const repository = new MemoryPages()
   const memberships = new MemoryWorkspaces()
   const folderRows = new MemoryFolders()
   const access = new WorkspaceAccessPolicy(memberships)
-  const workspaces = new WorkspaceService(memberships, access)
-  const members = new MembershipService(memberships, access)
-  const invitations = new InvitationService(memberships, memberships, access, silentActivity)
-  const folders = new FolderService(folderRows, access)
-  const service = new PageService(repository, access, folders)
+  const workspaces = new WorkspaceService(memberships, access, new MemoryJournal())
+  const folders = new FolderService(folderRows, access, new MemoryJournal(), new MemoryResourceAccess(repository, folderRows))
+  const service = new PageService(repository, access, folders, new MemoryJournal(), new MemoryResourceAccess(repository, folderRows))
   const documents = new PageDocumentService(service, repository, repository)
-  return { repository, memberships, folderRows, workspaces, members, invitations, access, folders, service, documents, id: repository.page.id }
+  return { repository, memberships, folderRows, workspaces, access, folders, service, documents, id: repository.page.id }
 }
 
 describe('workspace authorization', () => {
-  test('workspace members can create, edit and move pages without page ACLs', async () => {
+  test('workspace members can create, edit and move pages with inherited access', async () => {
     const { service, documents, repository, folders, id } = fixture()
     await service.update(id, { title: 'Shared page' }, EDITOR_ID)
     await documents.replace(id, '# Shared edit', EDITOR_ID)
@@ -39,9 +35,8 @@ describe('workspace authorization', () => {
   })
 
   test('outsiders cannot enumerate or mutate workspace resources', async () => {
-    const { service, documents, access, members, folders, id } = fixture()
+    const { service, documents, access, folders, id } = fixture()
     await expect(access.requireMember(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
-    await expect(members.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(service.get(id, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(documents.content(id, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     await expect(documents.replace(id, 'Injected content', 'outsider')).rejects.toMatchObject({ code: 'not_found' })
@@ -58,20 +53,15 @@ describe('workspace authorization', () => {
     expect(repository.page.folderId).toBeNull()
   })
 
-  test('only managers can invite or manage membership, and the owner stays protected', async () => {
-    const { workspaces, access, invitations, members } = fixture()
-    await expect(invitations.invite(WORKSPACE_ID, 'new@example.com', 'member', EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
-    await expect(members.changeRole(WORKSPACE_ID, OWNER_ID, 'member', OWNER_ID)).rejects.toMatchObject({ code: 'conflict' })
-    await expect(members.remove(WORKSPACE_ID, OWNER_ID, OWNER_ID)).rejects.toMatchObject({ code: 'conflict' })
+  test('only managers can change workspace configuration', async () => {
+    const { workspaces, access } = fixture()
     await expect(workspaces.delete(WORKSPACE_ID, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
-    await members.changeRole(WORKSPACE_ID, EDITOR_ID, 'admin', OWNER_ID)
-    expect((await access.requireManager(WORKSPACE_ID, EDITOR_ID)).role).toBe('admin')
-    await expect(invitations.invite(WORKSPACE_ID, 'owner@example.com', 'member', EDITOR_ID)).rejects.toMatchObject({ code: 'conflict' })
+    await expect(access.requireManager(WORKSPACE_ID, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
   })
 
   test('revocation and workspace deletion remove access to all page content', async () => {
-    const { workspaces, members, documents, id } = fixture()
-    await members.remove(WORKSPACE_ID, EDITOR_ID, OWNER_ID)
+    const { workspaces, memberships, documents, id } = fixture()
+    memberships.membership.delete(EDITOR_ID)
     await expect(documents.content(id, EDITOR_ID)).rejects.toMatchObject({ code: 'not_found' })
     await workspaces.delete(WORKSPACE_ID, OWNER_ID)
     await expect(documents.content(id, OWNER_ID)).rejects.toMatchObject({ code: 'not_found' })

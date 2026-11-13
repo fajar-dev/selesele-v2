@@ -7,13 +7,13 @@ export interface EmailDelivery {
   recipientUserId: string | null
   workspaceId: string
   pageId: string | null
-  invitationId: string | null
-  invitationExpiresAt: Date | null
+  memberId: string | null
   kind: NotificationItem['kind']
   title: string
   activity: EmailActivity | null
   attempts: number
   leaseToken: string
+  digest?: EmailDelivery[]
 }
 
 export interface EmailMessage {

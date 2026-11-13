@@ -4,3 +4,7 @@ export * from './pages'
 export * from './comments'
 export * from './library'
 export * from './mail'
+export * from './settings'
+export * from './access'
+
+export * from './media'

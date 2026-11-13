@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import * as z from 'zod'
 
 const smtpBoolean = (value: string | undefined, fallback: boolean) => {
   if (!value) {

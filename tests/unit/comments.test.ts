@@ -1,5 +1,5 @@
+import { MemoryResourceAccess, MemoryJournal, silentActivity, MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID } from '../support/fakes'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
-import { MembershipService } from '../../server/features/workspaces/application/MembershipService'
 import { describe, expect, test } from 'bun:test'
 import { uuidv7 } from 'uuidv7'
 import { CommentService } from '../../server/features/comments/application/CommentService'
@@ -9,7 +9,6 @@ import type { CommentRepository } from '../../server/features/comments/domain/Co
 import type { CommentThread } from '../../server/features/comments/domain/CommentThread'
 import type { CommentThreadInput } from '../../shared/contracts/comment'
 import { commentThreadSchema, commentBodySchema, commentResolutionSchema } from '../../shared/validation/comment'
-import { silentActivity, MemoryPages, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 
 const input: CommentThreadInput = { body: 'Please clarify this.', quote: 'Shared text', anchor: {
   from: { type: { client: 123, clock: 1 }, item: { client: 123, clock: 2 }, assoc: 0 },
@@ -48,8 +47,8 @@ function fixture() {
   const pages = new MemoryPages()
   const repositoryAccess = new MemoryWorkspaces()
   const access = new WorkspaceAccessPolicy(repositoryAccess)
-  const members = new MembershipService(repositoryAccess, access)
-  const pageService = new PageService(pages, access, new FolderService(new MemoryFolders(), access))
+  const members = repositoryAccess
+  const pageService = new PageService(pages, access, new FolderService(new MemoryFolders(), access, new MemoryJournal(), new MemoryResourceAccess()), new MemoryJournal(), new MemoryResourceAccess(pages))
   const repository = new MemoryComments()
   const published: string[] = []
   const events = { async commentsChanged(id: string) {
@@ -123,7 +122,7 @@ describe('text comment discussions', () => {
   test('membership revocation and page deletion protect previously accessible discussions', async () => {
     const { service, pageId, members, pages } = fixture()
     const thread = await service.create(pageId, input, EDITOR_ID)
-    await members.remove(WORKSPACE_ID, EDITOR_ID, OWNER_ID)
+    members.membership.delete(EDITOR_ID)
     await expect(service.list(pageId, EDITOR_ID)).rejects.toMatchObject({ code: 'not_found' })
     await expect(service.reply(pageId, thread.id, 'Revoked', EDITOR_ID)).rejects.toMatchObject({ code: 'not_found' })
     await pages.delete(pageId)
