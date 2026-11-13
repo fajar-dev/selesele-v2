@@ -1,7 +1,7 @@
 # SeleSele
 
 Aplikasi catatan dan kolaborasi tim seperti Notion
-Fitur utama: workspace dengan anggota langsung, grup, dan izin dokumen, folder dan page dengan drag-and-drop, editor kolaboratif realtime, komentar pada teks, ekspor Markdown, login Microsoft, pencarian global, favorites/recent, template, riwayat versi, trash, notifikasi realtime dan email, serta bantuan menulis dan tanya jawab workspace melalui AI gateway OpenAI-compatible.
+Fitur utama: workspace dengan anggota langsung, grup, dan izin dokumen, folder dan page dengan drag-and-drop, editor kolaboratif realtime, komentar pada teks, ekspor Markdown, login Microsoft, pencarian global, favorites/recent, template workspace, arsip page, riwayat versi dengan perbandingan, trash, notifikasi realtime dan email, backup terjadwal, serta bantuan menulis dan percakapan AI privat dengan sumber dokumen melalui gateway OpenAI-compatible.
 
 ## Menjalankan dengan Docker
 
@@ -60,7 +60,7 @@ bun run dev
 
 Buka **http://localhost:3000**. Migrasi lokal dijalankan manual; Docker menjalankannya sebelum aplikasi dimulai.
 
-Migrasi development disatukan dalam `drizzle/0000_initial_schema.sql`, termasuk tabel antrean email dan isi aktivitasnya. Untuk database development yang masih memakai riwayat migrasi sebelumnya, jalankan `bun run db:reset` sekali. Perintah ini **menghapus seluruh data development** lalu membangun ulang schema; setelah itu gunakan `bun run db:migrate` untuk migrasi berikutnya.
+Schema dimulai dari `drizzle/0000_initial_schema.sql`, lalu `0001_workspace_knowledge.sql` menambahkan percakapan, template, arsip page, dan target notifikasi. Gunakan `bun run db:migrate`; tidak diperlukan reset data untuk perubahan ini. `bun run db:reset` hanya untuk membangun ulang database development secara sengaja dan menghapus semua datanya.
 
 ## Menjalankan dengan PM2
 
@@ -133,14 +133,20 @@ Status tersedia pada tabel `email_deliveries`: `pending`, `processing`, `sent`, 
 1. Login dengan Microsoft, lalu buat workspace.
 2. Ubah nama, ikon, dan deskripsi langsung pada heading.
 3. Undang anggota melalui **Members**; undangan muncul di home penerima setelah login.
-4. Tambahkan folder/page melalui tombol tambah di sidebar. Pindahkan page dengan drag-and-drop.
-5. Pilih **Templates** untuk membuat meeting notes, SOP, project brief, atau dokumentasi siap pakai.
+4. Tambahkan folder/page melalui tombol tambah di sidebar. Pindahkan page dengan drag-and-drop. Jika akses anggota berubah, tinjau dampaknya sebelum mengonfirmasi.
+5. Pilih **Templates** untuk memakai template bawaan atau workspace. Owner/Admin dapat memilih **Save as workspace template** pada menu page; snapshot isi disimpan dan tetap mengikuti izin sumbernya.
 6. Gunakan **Ctrl/Cmd + K** untuk mencari judul dan isi dokumen. Tandai page dengan tombol bintang agar masuk **Favorites**; **Recently opened** menampilkan dokumen terakhir dibuka.
-7. Tulis bersama secara realtime. Blok teks lalu pilih **Comment**; gunakan tombol mention pada composer untuk menyebut anggota. Notifikasi undangan, komentar, mention, dan balasan muncul pada ikon lonceng tanpa refresh manual.
+7. Tulis bersama secara realtime. Blok teks lalu pilih **Comment**; gunakan tombol mention pada composer untuk menyebut anggota. Notifikasi undangan, komentar, mention, dan balasan muncul pada ikon lonceng tanpa refresh manual. Klik notifikasi untuk menuju thread atau teks mention terkait.
 8. Gunakan menu link editor untuk menautkan page dalam workspace. **Backlinks** menampilkan page yang merujuk dokumen tersebut.
-9. Buka **Version history** untuk preview, menyimpan snapshot manual, atau restore. Maksimal 100 versi; snapshot otomatis dibuat paling sering sekali per menit, dan isi saat ini disimpan sebelum restore.
+9. Buka **Version history** untuk preview, membandingkan perubahan dengan isi terkini, menyimpan snapshot manual, atau restore. Maksimal 100 versi; snapshot otomatis dibuat paling sering sekali per menit, dan isi saat ini disimpan sebelum restore.
 10. Item yang dihapus masuk **Trash**. Folder menyimpan page di dalamnya; workspace yang dihapus hanya bisa dipulihkan oleh owner. Penghapusan permanen memerlukan owner/admin (workspace: owner).
-11. Buka halaman **Ask workspace** dari sidebar untuk tanya jawab berdasarkan maksimal lima cuplikan dokumen yang dapat diakses, dengan referensi sumber. Kualitas jawaban bergantung pada dokumen dan model gateway.
+11. Buka **Ask workspace** untuk percakapan privat yang tersimpan, dengan pertanyaan lanjutan, rename, dan hapus. Jawaban memakai maksimal lima cuplikan dokumen yang dapat diakses dan menyertakan sumber. Jawaban lama disembunyikan jika akses sumbernya dicabut. Kualitas jawaban bergantung pada dokumen dan model gateway.
+12. Gunakan **Archive page** untuk menyimpan page tanpa menghapusnya. Page arsip dapat dibaca dari **Archived pages**, tetapi tidak dapat diedit/dikomentari sampai dipulihkan. Arsip mengikuti aturan izin hapus konten workspace.
+13. Pada **Members → Document access**, gunakan **Preview visible documents** untuk melihat akses efektif anggota beserta sumbernya. Preview hanya mencakup dokumen yang dapat dilihat pengelola itu sendiri.
+
+## Backup
+
+Aktifkan worker Docker dengan `docker compose --env-file .env.docker --profile backup up -d --build backup`. Default: backup saat mulai dan setiap pukul **01:00 WIB**, retensi **14 hari**, tersimpan di `./backups`. Backup mencakup seluruh database dan lampiran dengan pemeriksaan SHA-256; ekspor workspace tetap merupakan fitur berbeda. Lihat [panduan backup dan restore](docs/backup.md) untuk konfigurasi lokal/PM2, uji pemulihan, serta restore Docker.
 
 ## Perintah penting
 
@@ -170,4 +176,4 @@ Production membutuhkan HTTPS dan penyimpanan upload persisten. Jalankan satu ins
 
 [MIT](LICENSE)
 
-Untuk memeriksa SSR Members, Settings, dan Ask workspace saat `bun run dev` sedang berjalan, jalankan `bun run test:development` di terminal lain. Pengujian memakai fixture sementara dan tidak mengirim email.
+Untuk memeriksa SSR halaman workspace saat `bun run dev` sedang berjalan, jalankan `bun run test:development` di terminal lain. Pengujian memakai fixture sementara dan tidak mengirim email.

@@ -20,6 +20,7 @@ app/
     editor/               Rich-text extensions, selection, images and AI writing
     comments/             Discussions, anchored highlights and synchronization
     library/              Search, templates, personal page navigation
+    conversations/        Private AI history and follow-up state
     recovery/             Trash, version history and preview state
     notifications/        Realtime activity inbox
   pages/                  Thin Nuxt routes: params, metadata, screen selection
@@ -36,7 +37,8 @@ server/
     comments/             Discussion permissions and lifecycle
     writing/              Completion use case and provider adapter
     media/                Image policy, upload use case and storage port
-    library/              Authorized discovery and templates
+    library/              Authorized discovery and template snapshots
+    conversations/        Per-user conversations and source redaction
     recovery/             Trash access and shared snapshot policy
     notifications/        Recipient-scoped activity delivery
     mail/                 Durable email outbox, retry policy and SMTP adapter
@@ -97,7 +99,7 @@ Directory screens share their shell and heading, while editor screens retain the
 
 `recovery/domain/snapshotPolicy` owns checkpoint eligibility and retention. Both manual and collaborative snapshots use the same transactional database helper, with the page row locked before pruning. The document adapter receives a clock. Notification use cases receive an error reporter rather than writing to a concrete console transport.
 
-The current development baseline includes all 20 tables, including the email outbox and its activity snapshots, in `0000_initial_schema.sql`. After replacing earlier development migration history, run `bun run db:reset` against local development MySQL. This removes existing development data. Future changes use additive generated migrations; never rewrite deployed production history.
+The baseline contains 20 tables in `0000_initial_schema.sql`. The additive `0001_workspace_knowledge.sql` brings the schema to 23 tables and adds archive and notification target columns. Apply both with `db:migrate`; this feature update does not require a reset. Never rewrite deployed production history.
 
 See [design-system.md](design-system.md) for semantic sizing and the style audit rules.
 
@@ -136,3 +138,16 @@ The initial development migration contains members, groups, grants, settings/aud
 Members owns adding/removing/suspending people, role assignment, groups, and reviewing effective document access. Settings owns workspace identity, opening page, capability rules, personal delivery preferences, audit, data/retention, and workspace lifecycle/ownership. Settings never edits an individual role or document grant. Members never edits workspace retention, preferences, or lifecycle. Document policies reuse one access component and one backend evaluator.
 
 `WorkspaceManagementPage` and `SectionNavigation` give both screens the same heading, content width, navigation, responsive layout, loading/error presentation, and archive notice. Members queries and actions live in its feature composable. Activity and usage are requested when their category is opened. Settings PATCH accepts named sections, merges them under a workspace lock, rechecks the actor's current membership, and records the mutation in the same transaction. Refreshing server state preserves dirty fields in other sections. General details and the opening page have separate save actions.
+
+## Persistent knowledge features
+
+`conversations` scopes every operation to workspace and current user. Revision checks prevent concurrent turns overwriting history. Source permissions are rechecked before generation, after generation, and when reading historical answers. Inaccessible source answers are redacted rather than forwarded to follow-up requests. AI remains a read-only retrieval tool with bounded history and context.
+
+
+Workspace templates preserve a Markdown snapshot and retain their source page ID for current access checks. Initial page and Markdown are inserted together; template creation does not depend on a second document-replacement write. Archives preserve readable pages while excluding them from active navigation and discovery. The existing read-only editor path handles archived pages.
+
+Page movement computes effective before/after permissions through the same evaluator as ordinary access. An acknowledgement token covers the current affected access levels; the commit recomputes that impact inside the workspace lock and rejects stale acknowledgements. Member visibility preview shows effective access/source information without granting administrators a restricted-document bypass.
+
+Notifications store a discussion target when applicable. App/email URLs carry the thread ID or mention target; document screens resolve and highlight the target against current content. Deleted targets produce toast feedback. Version comparisons use a bounded exact line diff with a lossless full-replacement fallback for large edits; restoration continues through the collaboration queue.
+
+Full backups are a separate operator process, not an HTTP request or workspace export. The scheduler publishes verified SQL/upload archives and retains completed backups only. Restore is explicitly confirmed and tested in isolated temporary databases. Database transactions and filesystem archives are not a single atomic snapshot; see [backup.md](backup.md) for consistency and recovery procedures.
