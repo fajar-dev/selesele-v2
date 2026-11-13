@@ -3,11 +3,15 @@ import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
 import DetailPanel from '~/components/ui/DetailPanel.vue'
 import DocumentPreview from '~/components/ui/DocumentPreview.vue'
+import VersionComparison from './VersionComparison.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { usePageHistory } from '../composables/usePageHistory'
 
-const props = defineProps<{ pageId: string }>()
-const { open, selected, preview, busy, previewLoading, error, confirming, data, status, loadError, current, refresh, inspect, act } = usePageHistory(props.pageId)
+const props = defineProps<{
+  pageId: string
+}>()
+const { open, selected, preview, liveContent, busy, previewLoading, error, confirming, data, status, loadError, current, refresh, inspect, act } = usePageHistory(props.pageId)
+const view = ref('preview')
 const loading = computed(() => status.value === 'pending' || status.value === 'idle')
 const versions = computed(() => data.value.map((version, index) => ({
   value: version.id,
@@ -19,7 +23,6 @@ function selectVersion(id: string | undefined) {
     void inspect(id)
   }
 }
-
 useFeedbackToast(loadError, { key: `versions:${props.pageId}`, title: 'Unable to load versions', recovered: () => status.value === 'success', retry: () => refresh() })
 useFeedbackToast(error, { key: `version-action:${props.pageId}`, title: 'Unable to complete version request' })
 </script>
@@ -107,6 +110,22 @@ useFeedbackToast(error, { key: `version-action:${props.pageId}`, title: 'Unable 
           aria-label="Version preview"
           class="space-y-ui-xl"
         >
+          <div
+            class="flex gap-ui-sm"
+            role="group"
+            aria-label="Version view"
+          >
+            <UButton
+              v-for="item in ['preview', 'changes']"
+              :key="item"
+              :label="item === 'preview' ? 'Preview' : 'Changes'"
+              color="neutral"
+              :variant="view === item ? 'soft' : 'ghost'"
+              :aria-pressed="view === item"
+              size="sm"
+              @click="view = item"
+            />
+          </div>
           <div class="flex items-center gap-ui-sm text-xs text-muted">
             <UIcon
               name="i-lucide-file-clock"
@@ -118,8 +137,14 @@ useFeedbackToast(error, { key: `version-action:${props.pageId}`, title: 'Unable 
             <span class="ml-auto shrink-0">Read-only</span>
           </div>
           <DocumentPreview
+            v-if="view === 'preview'"
             :key="selected || ''"
             :content="preview"
+          />
+          <VersionComparison
+            v-else
+            :before="liveContent"
+            :after="preview"
           />
         </section>
         <div

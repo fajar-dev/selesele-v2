@@ -21,7 +21,9 @@ import type { TableColumn } from '@nuxt/ui'
 import type { PageItem } from '#shared/contracts/page'
 
 const route = useRoute()
-const { workspaceId } = defineProps<{ workspaceId: string }>()
+const { workspaceId } = defineProps<{
+  workspaceId: string
+}>()
 const { data, loading, error, refresh, pagesLoading, foldersLoading, membersLoading, pagesError, foldersError } = useWorkspace(workspaceId)
 const { save: updateWorkspace } = useWorkspaceActions(workspaceId)
 const manager = computed(() => !data.value?.workspace.archivedAt && (data.value?.workspace.role === 'owner' || data.value?.workspace.role === 'admin'))
@@ -32,7 +34,7 @@ const canEditFolder = computed(() => folder.value?.accessLevel === 'edit' && !da
 const search = ref('')
 const view = ref<'list' | 'grid'>('list')
 const selectedFolderId = computed(() => typeof route.query.folder === 'string' ? route.query.folder : null)
-const scopedPages = computed(() => data.value?.pages.filter(page => !selectedFolderId.value || page.folderId === selectedFolderId.value) || [])
+const scopedPages = computed(() => data.value?.pages.filter(page => !page.archivedAt && (!selectedFolderId.value || page.folderId === selectedFolderId.value)) || [])
 const pages = computed(() => scopedPages.value.filter(page => page.title.toLowerCase().includes(search.value.toLowerCase())))
 const { creatingPage, createPage } = usePageCreation(workspaceId)
 const { updateFolder } = useWorkspaceFolders(workspaceId)

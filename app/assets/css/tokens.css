@@ -58,6 +58,7 @@
   --container-command: 52dvh;
   --text-auth-display: clamp(2.375rem, 3.8vw, 3.375rem);
   --color-comment: #c68c1b;
+  --color-diff-add: #16803d;
   --color-comment-highlight: #f5b942;
   --color-comment-active: #b77912;
   --color-drag-indicator: #3b82f6;

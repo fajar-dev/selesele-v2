@@ -66,13 +66,12 @@ async function read(item?: NotificationItem) {
     await refresh()
     if (item) {
       open.value = false
-      await navigateTo(item.pageId ? `/workspaces/${item.workspaceId}/pages/${item.pageId}` : '/')
+      await navigateTo(item.pageId ? { path: `/workspaces/${item.workspaceId}/pages/${item.pageId}`, query: item.threadId ? { comment: item.threadId } : item.kind === 'mention' ? { mention: '1' } : {} } : '/')
     }
   } catch (cause) {
     toast.add({ title: 'Unable to update notifications', description: errorMessage(cause), color: 'error' })
   }
 }
-
 useFeedbackToast(error, { key: 'notifications', title: 'Unable to load notifications', recovered: () => status.value === 'success', retry: synchronize })
 </script>
 

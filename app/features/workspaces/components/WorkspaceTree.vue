@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
+import MoveAccessConfirmation from '~/features/pages/components/MoveAccessConfirmation.vue'
 import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
 import { usePageTemplates } from '~/features/library/composables/usePageTemplates'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
@@ -10,11 +11,21 @@ import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorksp
 import type { WorkspaceOverview, FolderItem } from '#shared/contracts/workspace'
 import type { PageItem } from '#shared/contracts/page'
 
-const props = defineProps<{ overview: WorkspaceOverview, pagesLoading: boolean, foldersLoading: boolean }>()
+const props = defineProps<{
+  overview: WorkspaceOverview
+  pagesLoading: boolean
+  foldersLoading: boolean
+}>()
 const emit = defineEmits<{
-  createPage: [folderId: string | null]
-  deleteFolder: [folder: FolderItem]
-  deletePage: [page: PageItem]
+  createPage: [
+        folderId: string | null
+  ]
+  deleteFolder: [
+        folder: FolderItem
+  ]
+  deletePage: [
+        page: PageItem
+  ]
 }>()
 const writable = computed(() => !props.overview.workspace.archivedAt)
 const canPage = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'createPages'))
@@ -38,9 +49,14 @@ function preserveCreationFocus(event: Event) {
   }
 }
 const route = useRoute()
-const { movingPageId, announcement, movePage } = usePageMovement(() => props.overview)
+const { movingPageId, announcement, pendingMove, movePage, confirmMove } = usePageMovement(() => props.overview)
+const moveOpen = computed({ get: () => !!pendingMove.value, set: (value) => {
+  if (!value) {
+    pendingMove.value = null
+  }
+} })
 const home = computed(() => `/workspaces/${props.overview.workspace.id}`)
-const rootPages = computed(() => props.overview.pages.filter(page => !page.folderId))
+const rootPages = computed(() => props.overview.pages.filter(page => !page.folderId && !page.archivedAt))
 const templates = usePageTemplates(props.overview.workspace.id, () => {
   creatingFromMenu.value = true
 })
@@ -53,9 +69,8 @@ const addItems = computed(() => [
   ...(canPage.value ? [{ label: 'Page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(null) }, templates.items(null)] : []),
   ...(canFolder.value ? [{ label: 'Folder', icon: 'i-lucide-folder-plus', onSelect: beginFolder }] : [])
 ])
-
 function folderPages(folder: FolderItem) {
-  return props.overview.pages.filter(page => page.folderId === folder.id)
+  return props.overview.pages.filter(page => page.folderId === folder.id && !page.archivedAt)
 }
 function folderItems(folder: FolderItem) {
   return [
@@ -294,5 +309,12 @@ watch(() => props.overview.workspace.id, () => {
     kind="folder"
     :resource-id="accessFolder.id"
     @close="accessFolder = null"
+  />
+  <MoveAccessConfirmation
+    v-if="pendingMove"
+    v-model:open="moveOpen"
+    :impact="pendingMove.impact"
+    :busy="!!movingPageId"
+    :on-confirm="confirmMove"
   />
 </template>

@@ -8,5 +8,5 @@ export const pageInputSchema = z.object({
   folderId: idSchema.nullable().optional()
 }).strict()
 export const pageUpdateSchema = pageInputSchema.omit({ folderId: true }).partial().refine(input => Object.keys(input).length > 0, 'Provide at least one field')
-export const pageLocationSchema = z.object({ folderId: idSchema.nullable() }).strict()
+export const pageLocationSchema = z.object({ folderId: idSchema.nullable(), acknowledgement: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict()
 export const contentSchema = z.object({ content: z.string().max(1000000) }).strict()

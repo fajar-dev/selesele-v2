@@ -5,10 +5,16 @@ import { useWorkspaceDirectory } from '~/features/workspaces/composables/useWork
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { WorkspaceItem } from '#shared/contracts/workspace'
 
-defineProps<{ workspace: WorkspaceItem }>()
+defineProps<{
+  workspace: WorkspaceItem
+}>()
 const { data, error, status, refresh } = useWorkspaceDirectory()
 const route = useRoute()
-type WorkspaceMenuItem = DropdownMenuItem | (DropdownMenuItem & { slot: 'workspace', emoji: string, checked: boolean })
+type WorkspaceMenuItem = DropdownMenuItem | (DropdownMenuItem & {
+  slot: 'workspace'
+  emoji: string
+  checked: boolean
+})
 const items = computed<WorkspaceMenuItem[][]>(() => [
   [
     { label: 'Switch workspace', type: 'label' },
@@ -22,6 +28,7 @@ const items = computed<WorkspaceMenuItem[][]>(() => [
     })),
     ...(error.value ? [{ label: 'Unable to load workspaces. Retry', icon: 'i-lucide-refresh-cw', onSelect: () => refresh() }] : [])
   ],
+  [{ label: 'Templates', icon: 'i-lucide-layout-template', to: `/workspaces/${route.params.workspaceId}/templates` }, { label: 'Archived pages', icon: 'i-lucide-archive', to: `/workspaces/${route.params.workspaceId}/archive` }],
   [{ label: 'All workspaces', icon: 'i-lucide-layout-grid', to: '/' }]
 ])
 function opened(open: boolean) {

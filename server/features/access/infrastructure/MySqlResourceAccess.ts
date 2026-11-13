@@ -7,9 +7,32 @@ import type { AccessLevel, ResourceKind, ResourcePolicy } from '../../../../shar
 import type { ResourceAccess } from '../domain/ResourceAccess'
 import { loadResourceScope } from './resourceScope'
 import { appendWorkspaceActivities } from '../../settings/infrastructure/MySqlWorkspaceJournal'
+import { pageMoveImpact } from './pageMovement'
 
 export class MySqlResourceAccess implements ResourceAccess {
   constructor(private readonly db: Database) { }
+  async previewMove(pageId: string, folderId: string | null, userId: string) {
+    const impact = await pageMoveImpact(this.db, pageId, folderId, userId)
+    return impact.canPreviewNames ? impact : { ...impact, changes: impact.changes.map((change, index) => ({ ...change, memberId: `affected-${index}`, name: '' })) }
+  }
+
+  async movePage(pageId: string, folderId: string | null, userId: string, acknowledgement?: string) {
+    const workspaceId = await this.locate('page', pageId)
+    await this.db.transaction(async (tx) => {
+      const [workspace] = await tx.select().from(workspaces).where(eq(workspaces.id, workspaceId)).for('update')
+      if (!workspace || workspace.deletedAt || workspace.archivedAt) {
+        throw new ApplicationError('forbidden', 'Workspace is unavailable or archived')
+      }
+      const impact = await pageMoveImpact(tx, pageId, folderId, userId)
+      if (impact.changes.length && acknowledgement !== impact.token) {
+        throw new ApplicationError('conflict', 'Moving this page changes access. Review the current access impact before confirming.')
+      }
+      await tx.update(pages).set({ folderId, updatedAt: new Date() }).where(eq(pages.id, pageId))
+      const [page] = await tx.select({ title: pages.title }).from(pages).where(eq(pages.id, pageId))
+      await appendWorkspaceActivities(tx, workspaceId, userId, [{ action: 'page.moved', target: page!.title, context: { pageId } }])
+    })
+  }
+
   private async locate(kind: ResourceKind, id: string, db: Database | DatabaseTransaction = this.db) {
     const [row] = kind === 'page'
       ? await db.select({ workspaceId: pages.workspaceId, deletedAt: pages.deletedAt }).from(pages).where(eq(pages.id, id))

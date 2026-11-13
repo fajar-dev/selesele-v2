@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import { useNotificationTarget } from '~/features/notifications/composables/useNotificationTarget'
+import { refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
 import type { WorkspaceItem, WorkspaceMember, FolderItem } from '#shared/contracts/workspace'
 import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
@@ -28,12 +30,22 @@ import { useFullscreen } from '@vueuse/core'
 import type { PageItem } from '#shared/contracts/page'
 import { showImageToolbar, showTableToolbar, showTextToolbar } from '~/features/editor/utils/editorSelection'
 
-const props = defineProps<{ page: PageItem, members: WorkspaceMember[], folders: FolderItem[], workspaceName: string, workspaceIcon?: string }>()
-const emit = defineEmits<{ updated: [page: PageItem] }>()
+const props = defineProps<{
+  page: PageItem
+  members: WorkspaceMember[]
+  folders: FolderItem[]
+  workspaceName: string
+  workspaceIcon?: string
+}>()
+const emit = defineEmits<{
+  updated: [
+        page: PageItem
+  ]
+}>()
 const { state: auth } = useAuth()
 const { save: saveMetadata, exporting: isExporting, exportMarkdown, remove: onConfirmDelete } = usePageActions(() => props.page, page => emit('updated', page))
 const personal = usePersonalLibrary()
-const { library } = useApi()
+const { library, pages: pageApi } = useApi()
 const favorite = computed(() => personal.data.value.favorites.some(item => item.id === props.page.id))
 onMounted(async () => {
   try {
@@ -45,14 +57,11 @@ const deleteOpen = ref(false)
 const accessOpen = ref(false)
 const editorRef = useTemplateRef('editorRef')
 const comments = usePageComments(props.page.id, editorRef)
+useNotificationTarget(editorRef, comments)
 const commentOpen = comments.open
 const textToolbarItems = computed(() => [[{ label: 'Comment', icon: 'i-lucide-message-square-plus', onClick: () => comments.start() }], ...bubbleToolbarItems.value])
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
-const {
-  collaborationReady, collaborationConnected, collaborationError, connectedUsers, customHandlers,
-  extensions, toolbarItems, bubbleToolbarItems, getImageToolbarItems, getTableToolbarItems,
-  emojiItems, mentionItems, suggestionItems, getDragHandleItems, onNodeChange
-} = usePageEditor(props.page.id, () => props.members, editorRef, { annotationExtension: comments.extension, onCommentsChanged: comments.synchronize })
+const { collaborationReady, collaborationConnected, collaborationError, connectedUsers, customHandlers, extensions, toolbarItems, bubbleToolbarItems, getImageToolbarItems, getTableToolbarItems, emojiItems, mentionItems, suggestionItems, getDragHandleItems, onNodeChange } = usePageEditor(props.page.id, () => props.members, editorRef, { annotationExtension: comments.extension, onCommentsChanged: comments.synchronize })
 const breadcrumbItems = computed(() => [
   { label: props.workspaceName, emoji: props.workspaceIcon, icon: 'i-lucide-panels-top-left', to: `/workspaces/${props.page.workspaceId}` },
   ...(props.page.folderId ? [{ label: props.folders.find(folder => folder.id === props.page.folderId)?.name || 'Folder', emoji: props.folders.find(folder => folder.id === props.page.folderId)?.icon || DEFAULT_FOLDER_ICON, to: `/workspaces/${props.page.workspaceId}?folder=${props.page.folderId}` }] : []),
@@ -73,13 +82,44 @@ const pagesItems = computed<DropdownMenuItem[]>(() => [
         accessOpen.value = true
       } }]
     : []),
-  ...(workspace.value && allowsWorkspaceAction(workspace.value.role, workspace.value.settings, 'deleteContent') ? [{ label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: openDeleteDialog }] : [])
+  ...(props.page.canManageAccess ? [{ label: 'Save as workspace template', icon: 'i-lucide-layout-template', onSelect: saveTemplate }] : []),
+  ...(workspace.value && allowsWorkspaceAction(workspace.value.role, workspace.value.settings, 'deleteContent') ? [{ label: 'Archive page', icon: 'i-lucide-archive', onSelect: archivePage }, { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: openDeleteDialog }] : [])
 ])
-
+const toast = useToast()
+const lifecycleBusy = ref(false)
+async function archivePage() {
+  if (lifecycleBusy.value) {
+    return
+  }
+  lifecycleBusy.value = true
+  try {
+    emit('updated', (await pageApi.archive(props.page.id, true)).data)
+    await refreshWorkspace(props.page.workspaceId)
+    toast.add({ title: 'Page archived', color: 'success' })
+  } catch (cause) {
+    toast.add({ title: 'Unable to archive page', description: errorMessage(cause), color: 'error' })
+  } finally {
+    lifecycleBusy.value = false
+  }
+}
+async function saveTemplate() {
+  if (lifecycleBusy.value) {
+    return
+  }
+  lifecycleBusy.value = true
+  try {
+    await library.saveTemplate(props.page.workspaceId, props.page.id, props.page.title.slice(0, 120), props.page.description)
+    await refreshNuxtData(`workspace-templates:${props.page.workspaceId}`)
+    toast.add({ title: 'Workspace template saved', color: 'success' })
+  } catch (cause) {
+    toast.add({ title: 'Unable to save template', description: errorMessage(cause), color: 'error' })
+  } finally {
+    lifecycleBusy.value = false
+  }
+}
 function openDeleteDialog(): void {
   deleteOpen.value = true
 }
-
 useFeedbackToast(collaborationError, { key: `page-collaboration:${props.page.id}`, title: 'Collaboration unavailable', color: 'warning' })
 </script>
 

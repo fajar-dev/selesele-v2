@@ -8,8 +8,7 @@ import { comments, commentThreads, documents, folders, notifications, pages, use
 import type { NotificationRepository } from '../domain/NotificationRepository'
 
 export class MySqlNotificationRepository implements NotificationRepository {
-  constructor(private readonly db: Database, private readonly emailEnabled: boolean) {}
-
+  constructor(private readonly db: Database, private readonly emailEnabled: boolean) { }
   private async actorName(userId?: string): Promise<string> {
     if (!userId) {
       return 'A workspace member'
@@ -28,12 +27,11 @@ export class MySqlNotificationRepository implements NotificationRepository {
     const scope = await loadResourceScope(this.db, userId)
     const visible = scope.allowed('page')
     const rows = await this.db.select({ id: notifications.id, kind: notifications.kind, title: notifications.title, workspaceId: notifications.workspaceId,
-      pageId: notifications.pageId, readAt: notifications.readAt, createdAt: notifications.createdAt }).from(notifications)
+      pageId: notifications.pageId, threadId: notifications.threadId, readAt: notifications.readAt, createdAt: notifications.createdAt }).from(notifications)
       .innerJoin(workspaces, eq(workspaces.id, notifications.workspaceId)).innerJoin(users, eq(users.id, notifications.userId))
       .leftJoin(workspaceMembers, and(eq(workspaceMembers.workspaceId, workspaces.id), eq(workspaceMembers.userId, userId)))
       .leftJoin(pages, eq(pages.id, notifications.pageId)).leftJoin(folders, eq(folders.id, pages.folderId))
-      .where(and(eq(notifications.userId, userId), isNull(workspaces.deletedAt), isNotNull(workspaceMembers.id), isNull(workspaceMembers.suspendedAt),
-        or(and(eq(notifications.kind, 'invitation'), isNull(notifications.pageId)), visible.length ? inArray(notifications.pageId, visible) : undefined))).orderBy(desc(notifications.createdAt), desc(notifications.id)).limit(100)
+      .where(and(eq(notifications.userId, userId), isNull(workspaces.deletedAt), isNotNull(workspaceMembers.id), isNull(workspaceMembers.suspendedAt), or(and(eq(notifications.kind, 'invitation'), isNull(notifications.pageId)), visible.length ? inArray(notifications.pageId, visible) : undefined))).orderBy(desc(notifications.createdAt), desc(notifications.id)).limit(100)
     return rows.map(row => ({ ...row, readAt: row.readAt?.toISOString() || null, createdAt: row.createdAt.toISOString() }))
   }
 
@@ -68,9 +66,9 @@ export class MySqlNotificationRepository implements NotificationRepository {
         const kind = mention ? 'mention' : event
         const title = `${mention ? 'You were mentioned' : event === 'comment' ? 'New comment' : 'New reply'} in ${page.title}`
         const deduplicationKey = `${eventId}:${member.id}`
-        await transaction.insert(notifications).values({ userId: member.id, workspaceId: page.workspaceId, pageId, kind, title, deduplicationKey })
+        await transaction.insert(notifications).values({ userId: member.id, workspaceId: page.workspaceId, pageId, threadId, kind, title, deduplicationKey })
         await this.email(transaction, { recipient: member.email, recipientUserId: member.id, workspaceId: page.workspaceId, pageId, kind, title, deduplicationKey,
-          activity: { actorName, workspaceName: page.workspaceName, pageTitle: page.title, body: emailExcerpt(body), quote: emailExcerpt(thread?.quote ?? '', 400) } })
+          activity: { actorName, workspaceName: page.workspaceName, pageTitle: page.title, threadId, body: emailExcerpt(body), quote: emailExcerpt(thread?.quote ?? '', 400) } })
         recipients.push(member.id)
       }
     })

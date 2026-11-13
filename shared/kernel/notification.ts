@@ -4,6 +4,7 @@ export interface NotificationItem {
   title: string
   workspaceId: string
   pageId: string | null
+  threadId?: string | null
   readAt: string | null
   createdAt: string
 }

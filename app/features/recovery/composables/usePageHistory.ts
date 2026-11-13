@@ -1,7 +1,8 @@
 import { useApi } from '~/core/http/useApi'
 
 export function usePageHistory(pageId: string) {
-  const { recovery } = useApi()
+  const { recovery, pages } = useApi()
+  const liveContent = ref('')
   let requestId = 0
   onScopeDispose(() => {
     requestId++
@@ -39,9 +40,10 @@ export function usePageHistory(pageId: string) {
     confirming.value = false
     error.value = ''
     try {
-      const result = await recovery.version(pageId, id)
+      const [result, live] = await Promise.all([recovery.version(pageId, id), pages.content(pageId)])
       if (request === requestId && selected.value === id) {
         preview.value = result.data.content
+        liveContent.value = live.data.content
       }
     } catch (cause) {
       if (request === requestId) {
@@ -78,5 +80,5 @@ export function usePageHistory(pageId: string) {
       busy.value = false
     }
   }
-  return { open, selected, preview, busy, previewLoading, error, confirming, data, status, loadError, current, refresh, inspect, act }
+  return { open, selected, preview, liveContent, busy, previewLoading, error, confirming, data, status, loadError, current, refresh, inspect, act }
 }

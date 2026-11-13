@@ -1,6 +1,8 @@
-import type { AccessLevel, ResourceKind, ResourcePolicy, MemberResourceAccess } from '../../../../shared/kernel/access'
+import type { AccessLevel, ResourceKind, ResourcePolicy, MemberResourceAccess, MoveImpact } from '../../../../shared/kernel/access'
 
 export interface ResourceAccess {
+  previewMove(pageId: string, folderId: string | null, userId: string): Promise<MoveImpact>
+  movePage(pageId: string, folderId: string | null, userId: string, acknowledgement?: string): Promise<void>
   require(kind: ResourceKind, id: string, userId: string, level: AccessLevel): Promise<AccessLevel>
   visible(kind: ResourceKind, workspaceId: string, userId: string): Promise<MemberResourceAccess[]>
   policy(kind: ResourceKind, id: string, userId: string): Promise<ResourcePolicy>

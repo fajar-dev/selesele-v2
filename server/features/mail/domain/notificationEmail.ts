@@ -22,15 +22,28 @@ const content = {
     introduction: 'You were mentioned on a workspace page. Open it to see the context and add your perspective.',
     actorAction: 'mentioned you', actionLabel: 'View mention'
   }
-} satisfies Record<EmailDelivery['kind'], { category: string, headline: string, introduction: string, actorAction: string, actionLabel: string }>
-
+} satisfies Record<EmailDelivery['kind'], {
+  category: string
+  headline: string
+  introduction: string
+  actorAction: string
+  actionLabel: string
+}>
 export function notificationEmail(delivery: EmailDelivery, origin: string): EmailMessage {
+  const activity = delivery.activity
   const invitation = delivery.kind === 'invitation'
   const path = invitation || !delivery.pageId ? '/' : `/workspaces/${delivery.workspaceId}/pages/${delivery.pageId}`
-  const url = new URL(path, origin).href
+  const target = new URL(path, origin)
+  if (!invitation && delivery.pageId) {
+    if (activity?.threadId) {
+      target.searchParams.set('comment', activity.threadId)
+    } else if (delivery.kind === 'mention') {
+      target.searchParams.set('mention', '1')
+    }
+  }
+  const url = target.href
   const title = delivery.title.replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ').trim()
   const copy = content[delivery.kind]
-  const activity = delivery.activity
   const context = activity?.pageTitle || activity?.workspaceName || title
   const details = [
     activity?.workspaceName,

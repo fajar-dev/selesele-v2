@@ -30,3 +30,13 @@ export interface MemberResourceAccess {
   parentLevel: AccessLevel
   canManage: boolean
 }
+export interface MoveImpact {
+  token: string
+  changes: {
+    memberId: string
+    name: string
+    before: AccessLevel
+    after: AccessLevel
+  }[]
+  canPreviewNames: boolean
+}

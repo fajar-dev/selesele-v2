@@ -20,7 +20,6 @@ import type { WorkspaceRole } from '../../shared/contracts/workspace'
 export const OWNER_ID = '019a71f3-32c1-7000-8000-000000000002'
 export const EDITOR_ID = '019a71f3-32c1-7000-8000-000000000003'
 export const WORKSPACE_ID = '019a71f3-32c1-7000-8000-000000000004'
-
 export class MemoryWorkspaces implements WorkspaceRepository {
   readonly workspace: Workspace = { id: WORKSPACE_ID, name: 'Team', description: '', icon: '🏡', createdAt: new Date(), updatedAt: new Date(), deletedAt: null, archivedAt: null, settings: defaultWorkspaceSettings() }
   readonly membership = new Map<string, WorkspaceRole>([[OWNER_ID, 'owner'], [EDITOR_ID, 'member']])
@@ -38,7 +37,11 @@ export class MemoryWorkspaces implements WorkspaceRepository {
     return this.workspace
   }
 
-  async update(_id: string, input: { name?: string, icon?: string, description?: string }) {
+  async update(_id: string, input: {
+    name?: string
+    icon?: string
+    description?: string
+  }) {
     Object.assign(this.workspace, input)
   }
 
@@ -46,7 +49,6 @@ export class MemoryWorkspaces implements WorkspaceRepository {
     this.workspace.deletedAt = new Date()
   }
 }
-
 export class MemoryFolders implements FolderRepository {
   readonly rows = new Map<string, Folder>()
   async list(workspaceId: string) {
@@ -64,7 +66,11 @@ export class MemoryFolders implements FolderRepository {
     return folder
   }
 
-  async update(id: string, _workspaceId: string, input: { name?: string, description?: string, icon?: string | null }) {
+  async update(id: string, _workspaceId: string, input: {
+    name?: string
+    description?: string
+    icon?: string | null
+  }) {
     Object.assign(this.rows.get(id)!, input)
   }
 
@@ -72,7 +78,6 @@ export class MemoryFolders implements FolderRepository {
     this.rows.delete(id)
   }
 }
-
 export class MemoryPages implements PageRepository, DocumentRepository {
   readonly page: Page = { id: '019a71f3-32c1-7000-8000-000000000001', workspaceId: WORKSPACE_ID, folderId: null,
     title: 'Test', description: '', icon: null, createdBy: OWNER_ID, createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
@@ -81,6 +86,10 @@ export class MemoryPages implements PageRepository, DocumentRepository {
   state: Uint8Array | null = null
   saves = 0
   failSave = false
+  async archive(_id: string, archived: boolean) {
+    this.page.archivedAt = archived ? new Date() : null
+  }
+
   async list(workspaceId: string) {
     return this.page.workspaceId === workspaceId && !this.page.deletedAt ? [this.page] : []
   }
@@ -89,7 +98,8 @@ export class MemoryPages implements PageRepository, DocumentRepository {
     return id === this.page.id && !this.page.deletedAt ? this.page : null
   }
 
-  async create(inputWorkspace: string, input: PageInput, userId: string) {
+  async create(inputWorkspace: string, input: PageInput, userId: string, content = '') {
+    this.markdown = content
     Object.assign(this.page, input, { workspaceId: inputWorkspace, createdBy: userId })
     return this.page
   }
@@ -128,10 +138,13 @@ export class MemoryPages implements PageRepository, DocumentRepository {
     this.saves++
   }
 }
-
 export class MemoryAccounts implements UserRepository, SessionRepository, IdentityProvider {
   readonly account: Account = { id: '019a71f3-32c1-7000-8000-000000000002', email: 'owner@example.com', name: 'Owner', avatar: null, isActive: true }
-  readonly sessions = new Map<string, { user: Account, expiresAt: Date }>()
+  readonly sessions = new Map<string, {
+    user: Account
+    expiresAt: Date
+  }>()
+
   async authorizationUrl() {
     return 'https://login.microsoftonline.com/authorize'
   }
@@ -166,21 +179,32 @@ export class MemoryAccounts implements UserRepository, SessionRepository, Identi
     return true
   }
 }
-
 export const silentActivity = {
-  async comment() {},
-  async mentions() {}
+  async comment() { },
+  async mentions() { }
 }
-
 export class MemoryJournal {
-  readonly entries: { workspaceId: string, actorId: string, action: string, target: string }[] = []
+  readonly entries: {
+    workspaceId: string
+    actorId: string
+    action: string
+    target: string
+  }[] = []
+
   async record(workspaceId: string, actorId: string, action: string, target: string) {
     this.entries.push({ workspaceId, actorId, action, target })
   }
 }
-
 export class MemoryResourceAccess implements ResourceAccess {
-  constructor(private readonly pages = new MemoryPages(), private readonly folders = new MemoryFolders()) {}
+  constructor(private readonly pages = new MemoryPages(), private readonly folders = new MemoryFolders()) { }
+  async previewMove() {
+    return { token: '', changes: [], canPreviewNames: true }
+  }
+
+  async movePage(pageId: string, folderId: string | null) {
+    await this.pages.move(pageId, folderId)
+  }
+
   async require(_kind: ResourceKind, _id: string, _userId: string, _level: AccessLevel) {
     return 'edit' as const
   }
@@ -194,10 +218,10 @@ export class MemoryResourceAccess implements ResourceAccess {
     throw new Error('Not used')
   }
 
-  async save() {}
+  async save() { }
   async memberResources() {
     return []
   }
 
-  async grant() {}
+  async grant() { }
 }

@@ -20,7 +20,7 @@ export const defaultNotificationPreferences = (): WorkspaceNotificationPreferenc
 export function allowsWorkspaceAction(role: WorkspaceRole, settings: WorkspaceSettings, capability: WorkspaceCapability): boolean {
   return role !== 'viewer' && (role !== 'member' || settings.permissions[capability] === 'members')
 }
-export type WorkspaceActivityAction = 'member.added' | 'member.suspended' | 'member.restored' | 'group.updated' | 'group.deleted' | 'resource.access_changed' | 'workspace.updated' | 'workspace.archived' | 'workspace.unarchived' | 'workspace.transferred' | 'workspace.left' | 'workspace.deleted' | 'settings.updated' | 'member.removed' | 'member.role_changed' | 'page.created' | 'page.updated' | 'page.moved' | 'page.deleted' | 'folder.created' | 'folder.updated' | 'folder.deleted' | 'content.restored' | 'content.purged'
+export type WorkspaceActivityAction = 'member.added' | 'member.suspended' | 'member.restored' | 'group.updated' | 'group.deleted' | 'resource.access_changed' | 'workspace.updated' | 'workspace.archived' | 'workspace.unarchived' | 'workspace.transferred' | 'workspace.left' | 'workspace.deleted' | 'settings.updated' | 'member.removed' | 'member.role_changed' | 'page.archived' | 'page.unarchived' | 'page.created' | 'page.updated' | 'page.moved' | 'page.deleted' | 'folder.created' | 'folder.updated' | 'folder.deleted' | 'content.restored' | 'content.purged'
 export interface WorkspaceActivity {
   id: string
   actorName: string

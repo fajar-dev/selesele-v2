@@ -51,6 +51,9 @@ useWorkspaceEvents(workspaceId, () => {
   }
 })
 const resources = computed(() => access.value.filter(item => item.title.toLowerCase().includes(resourceQuery.value.toLowerCase())))
+const previewVisibility = ref(false)
+const displayedResources = computed(() => resources.value.filter(item => !previewVisibility.value || item.level !== 'none'))
+const sourceLabels = { owner: 'Workspace owner', suspended: 'Membership suspended', direct: 'Individual override', group: 'Group permissions', inherited: 'Inherited from workspace or folder', restricted: 'Restricted without a matching grant', parent: 'Blocked by the parent folder' }
 const policy = ref<MemberResourceAccess | null>(null)
 const editing = ref<MemberResourceAccess | null>(null), level = ref('inherit'), expires = ref('')
 function start(item: MemberResourceAccess) {
@@ -107,7 +110,6 @@ async function moreHistory() {
 function date(value: string | null) {
   return value ? new Date(value).toLocaleString() : 'Not yet'
 }
-
 useFeedbackToast(error, { key: `member-update:${member.id}`, title: 'Unable to update member' })
 useFeedbackToast(() => tab.value === 'access' ? accessError.value : null, { key: `member-access:${workspaceId}:${member.id}`, title: 'Unable to load permissions', recovered: () => status.value === 'success', retry: () => refresh() })
 useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { key: `member-history:${workspaceId}:${member.id}`, title: 'Unable to load membership history', recovered: () => historyStatus.value === 'success', retry: () => refreshHistory() })
@@ -218,8 +220,16 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
           </div>
         </template>
         <template v-else-if="tab === 'access'">
+          <UButton
+            :label="previewVisibility ? 'Show all permissions' : 'Preview visible documents'"
+            icon="i-lucide-eye"
+            color="neutral"
+            variant="outline"
+            :aria-pressed="previewVisibility"
+            @click="previewVisibility = !previewVisibility"
+          />
           <p class="text-sm text-muted">
-            Effective access includes groups and parent folder restrictions. An individual override takes priority over group grants. Owners always retain full access.
+            {{ previewVisibility ? `Showing what ${member.name || member.email} can see, limited to documents you can also access. This does not sign you in as the member.` : 'Effective access includes groups and parent restrictions. Individual overrides take priority. A Viewer can never exceed view access.' }}
           </p>
           <UInput
             v-model="resourceQuery"
@@ -242,7 +252,7 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
             class="divide-y divide-muted"
           >
             <div
-              v-for="item in resources"
+              v-for="item in displayedResources"
               :key="item.id"
               class="py-ui-lg space-y-ui-md"
             >
@@ -254,7 +264,13 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
                   <p class="text-sm font-medium truncate">
                     {{ item.title }}
                   </p><p class="text-xs text-muted mt-ui-xs capitalize">
-                    {{ item.source }} · {{ item.mode }}
+                    {{ sourceLabels[item.source] }} · {{ item.mode }}
+                  </p>
+                  <p
+                    v-if="item.kind === 'page' && item.folderId"
+                    class="text-xs text-muted mt-ui-xs"
+                  >
+                    Folder limit: {{ item.parentLevel }}{{ member.role === 'viewer' ? ' · Viewer role limits this to read-only' : '' }}
                   </p>
                 </div><UBadge
                   :color="item.level === 'none' ? 'warning' : 'neutral'"
@@ -264,7 +280,7 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
                 </UBadge>
               </div>
               <div
-                v-if="item.canManage"
+                v-if="item.canManage && !previewVisibility"
                 class="flex gap-ui-sm justify-end"
               >
                 <UButton
@@ -282,7 +298,7 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
                 />
               </div>
               <div
-                v-if="editing?.id === item.id"
+                v-if="editing?.id === item.id && !previewVisibility"
                 class="rounded-md bg-muted p-ui-md space-y-ui-md"
               >
                 <USelect

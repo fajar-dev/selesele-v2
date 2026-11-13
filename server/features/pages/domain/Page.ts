@@ -9,8 +9,8 @@ export interface Page {
   createdAt: Date
   updatedAt: Date
   deletedAt: Date | null
+  archivedAt?: Date | null
 }
-
 export interface PageDraft {
   title: string
   description?: string

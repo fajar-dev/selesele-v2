@@ -7,6 +7,9 @@ import { pageLocationSchema } from '../../../../shared/validation/page'
 
 export default apiHandler(async (event) => {
   const id = idSchema.parse(getRouterParam(event, 'id'))
-  const { folderId } = pageLocationSchema.parse(await readBody(event))
-  return success(await getContainer().pages.move(id, folderId, currentUser(event).id))
+  const { folderId, acknowledgement } = pageLocationSchema.parse(await readBody(event))
+  const container = getContainer()
+  const page = await container.pages.move(id, folderId, currentUser(event).id, acknowledgement)
+  await container.invalidateWorkspace(page.workspaceId)
+  return success(page)
 })

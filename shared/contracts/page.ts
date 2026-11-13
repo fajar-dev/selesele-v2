@@ -6,9 +6,7 @@ export interface PageInput {
   icon?: string | null
   folderId?: string | null
 }
-
 export type PageUpdate = Partial<Omit<PageInput, 'folderId'>>
-
 export interface PageItem {
   id: string
   workspaceId: string
@@ -20,6 +18,7 @@ export interface PageItem {
   createdAt: string
   updatedAt: string
   deletedAt: string | null
+  archivedAt?: string | null
   accessLevel: AccessLevel
   canManageAccess: boolean
 }

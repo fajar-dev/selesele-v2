@@ -6,5 +6,5 @@ export * from './library'
 export * from './mail'
 export * from './settings'
 export * from './access'
-
 export * from './media'
+export * from './improvements'

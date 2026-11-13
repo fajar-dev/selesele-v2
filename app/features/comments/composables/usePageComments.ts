@@ -5,7 +5,9 @@ import type { CommentThreadItem } from '#shared/contracts/comment'
 import { CommentSynchronization } from '~/features/comments/synchronization/CommentSynchronization'
 import { captureCommentSelection, CommentHighlights, commentHighlightKey, commentRange } from '~/features/comments/editor/CommentHighlights'
 
-export function usePageComments(pageId: string, editorRef: Ref<{ editor: Editor | undefined } | null | undefined>, readOnly = false, onContentChanged?: () => void) {
+export function usePageComments(pageId: string, editorRef: Ref<{
+  editor: Editor | undefined
+} | null | undefined>, readOnly = false, onContentChanged?: () => void) {
   const { comments: commentApi } = useApi()
   const threads = ref<CommentThreadItem[]>([])
   const loading = ref(true)
@@ -16,25 +18,20 @@ export function usePageComments(pageId: string, editorRef: Ref<{ editor: Editor 
   const draftBody = ref('')
   const filter = ref<'open' | 'resolved'>('open')
   const toast = useToast()
-  const synchronization = new CommentSynchronization(
-    async () => (await commentApi.list(pageId)).data,
-    (snapshot) => {
-      threads.value = snapshot
-      loadError.value = ''
-      loading.value = false
-      if (activeId.value && activeId.value !== 'draft' && !snapshot.some(thread => thread.id === activeId.value)) {
-        activeId.value = null
-      }
-    },
-    (cause) => {
-      loadError.value = errorMessage(cause)
-      loading.value = false
-    },
-    (cause) => {
-      const status = cause && typeof cause === 'object' && 'statusCode' in cause ? cause.statusCode : undefined
-      return status !== 401 && status !== 403 && status !== 404
+  const synchronization = new CommentSynchronization(async () => (await commentApi.list(pageId)).data, (snapshot) => {
+    threads.value = snapshot
+    loadError.value = ''
+    loading.value = false
+    if (activeId.value && activeId.value !== 'draft' && !snapshot.some(thread => thread.id === activeId.value)) {
+      activeId.value = null
     }
-  )
+  }, (cause) => {
+    loadError.value = errorMessage(cause)
+    loading.value = false
+  }, (cause) => {
+    const status = cause && typeof cause === 'object' && 'statusCode' in cause ? cause.statusCode : undefined
+    return status !== 401 && status !== 403 && status !== 404
+  })
   const synchronize = () => synchronization.invalidate()
   useFeedbackToast(loadError, { key: `comments:${pageId}`, title: 'Unable to sync comments', retry: synchronize })
   function upsert(thread: CommentThreadItem) {
@@ -103,7 +100,7 @@ export function usePageComments(pageId: string, editorRef: Ref<{ editor: Editor 
   }
   const extension = CommentHighlights.configure({
     annotations: () => [
-      ...threads.value.filter(thread => !thread.resolvedAt).map(({ id, anchor }) => ({ id, anchor })),
+      ...threads.value.filter(thread => !thread.resolvedAt || thread.id === activeId.value).map(({ id, anchor }) => ({ id, anchor })),
       ...(draft.value ? [{ id: 'draft', anchor: draft.value.anchor }] : [])
     ],
     activeId: () => activeId.value,

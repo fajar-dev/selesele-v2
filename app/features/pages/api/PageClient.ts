@@ -1,10 +1,10 @@
 import type { ApiResponse } from '#shared/contracts/api'
+import type { MoveImpact } from '#shared/kernel/access'
 import type { PageInput, PageItem, PageUpdate } from '#shared/contracts/page'
 import type { ApiTransport } from '~/core/http/ApiTransport'
 
 export class PageClient {
-  constructor(private readonly http: ApiTransport) {}
-
+  constructor(private readonly http: ApiTransport) { }
   private path(id: string, suffix = '') {
     return `/pages/${encodeURIComponent(id)}${suffix}`
   }
@@ -25,8 +25,22 @@ export class PageClient {
     return this.http.request<ApiResponse<PageItem>>(this.path(id), { method: 'PUT', body })
   }
 
-  move(id: string, folderId: string | null) {
-    return this.http.request<ApiResponse<PageItem>>(this.path(id, '/location'), { method: 'PATCH', body: { folderId } })
+  move(id: string, folderId: string | null, acknowledgement?: string) {
+    return this.http.request<ApiResponse<PageItem>>(this.path(id, '/location'), { method: 'PATCH', body: { folderId, acknowledgement } })
+  }
+
+  previewMove(id: string, folderId: string | null) {
+    return this.http.request<ApiResponse<MoveImpact>>(this.path(id, '/location/preview'), { method: 'POST', body: { folderId } })
+  }
+
+  content(id: string) {
+    return this.http.request<ApiResponse<{
+      content: string
+    }>>(this.path(id, '/content'))
+  }
+
+  archive(id: string, archived: boolean) {
+    return this.http.request<ApiResponse<PageItem>>(this.path(id, '/archive'), { method: 'POST', body: { archived } })
   }
 
   state(id: string) {

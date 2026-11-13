@@ -1,4 +1,5 @@
 import { WorkspaceSettingsClient } from '~/features/settings/api/WorkspaceSettingsClient'
+import { ConversationClient } from '~/features/conversations/api/ConversationClient'
 import { LibraryClient } from '~/features/library/api/LibraryClient'
 import { RecoveryClient } from '~/features/recovery/api/RecoveryClient'
 import { NotificationClient } from '~/features/notifications/api/NotificationClient'
@@ -18,6 +19,7 @@ export default defineNuxtPlugin(() => {
     provide: {
       api: {
         auth: new AuthClient(http),
+        conversations: new ConversationClient(http),
         library: new LibraryClient(http),
         recovery: new RecoveryClient(http),
         notifications: new NotificationClient(http),

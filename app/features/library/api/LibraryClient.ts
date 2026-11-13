@@ -1,10 +1,10 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
 import type { ApiResponse } from '#shared/contracts/api'
-import type { KnowledgeAnswer, LibraryEntry, PageTemplate, PersonalLibrary } from '#shared/contracts/library'
+import type { LibraryEntry, PageTemplate, PersonalLibrary, WorkspaceTemplateSummary } from '#shared/contracts/library'
 import type { PageItem } from '#shared/contracts/page'
 
 export class LibraryClient {
-  constructor(private readonly http: ApiTransport) {}
+  constructor(private readonly http: ApiTransport) { }
   search(q: string, workspaceId?: string) {
     return this.http.request<ApiResponse<LibraryEntry[]>>('/library/search', { query: { q, workspaceId } })
   }
@@ -29,11 +29,19 @@ export class LibraryClient {
     return this.http.request<ApiResponse<PageTemplate[]>>('/templates')
   }
 
-  createTemplate(workspaceId: string, templateId: string, folderId: string | null) {
-    return this.http.request<ApiResponse<PageItem>>(`/workspaces/${workspaceId}/templates`, { method: 'POST', body: { templateId, folderId } })
+  workspaceTemplates(workspaceId: string) {
+    return this.http.request<ApiResponse<WorkspaceTemplateSummary[]>>(`/workspaces/${workspaceId}/templates`)
   }
 
-  answer(question: string, workspaceId: string) {
-    return this.http.request<ApiResponse<KnowledgeAnswer>>('/questions', { method: 'POST', body: { question, workspaceId } })
+  saveTemplate(workspaceId: string, pageId: string, title: string, description: string) {
+    return this.http.request(`/workspaces/${workspaceId}/templates/save`, { method: 'POST', body: { pageId, title, description: description.slice(0, 500) } })
+  }
+
+  removeTemplate(workspaceId: string, id: string) {
+    return this.http.request(`/workspaces/${workspaceId}/templates/${id}`, { method: 'DELETE' })
+  }
+
+  createTemplate(workspaceId: string, templateId: string, folderId: string | null) {
+    return this.http.request<ApiResponse<PageItem>>(`/workspaces/${workspaceId}/templates`, { method: 'POST', body: { templateId, folderId } })
   }
 }

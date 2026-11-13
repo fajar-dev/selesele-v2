@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import DataRetry from '~/components/ui/DataRetry.vue'
 import { libraryKeys } from '~/features/library/state/libraryKeys'
-
 import WorkspaceFavorites from '~/features/library/components/WorkspaceFavorites.vue'
 import { useLibrarySearch } from '~/features/library/composables/useLibrarySearch'
 import { usePageDeletion } from '~/features/pages/composables/usePageDeletion'
@@ -17,8 +16,9 @@ import type { PageItem } from '#shared/contracts/page'
 import type { FolderItem } from '#shared/contracts/workspace'
 
 const { folders: folderApi } = useApi()
-
-const { workspaceId } = defineProps<{ workspaceId: string }>()
+const { workspaceId } = defineProps<{
+  workspaceId: string
+}>()
 const { data: overview, loading, error, refresh, pagesLoading, foldersLoading, membersLoading, pagesError, foldersError } = useWorkspace(workspaceId)
 const route = useRoute()
 const { state: auth, service: authService } = useAuth()

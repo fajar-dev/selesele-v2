@@ -1,4 +1,7 @@
 import { eq } from 'drizzle-orm'
+import { ConversationService } from '../features/conversations/application/ConversationService'
+import { MySqlConversationRepository } from '../features/conversations/infrastructure/MySqlConversationRepository'
+import { MySqlWorkspaceTemplateRepository } from '../features/library/infrastructure/MySqlWorkspaceTemplateRepository'
 import { workspaceMembers } from '../platform/database/schema'
 import { MySqlResourceAccess } from '../features/access/infrastructure/MySqlResourceAccess'
 import { MemberService } from '../features/members/application/MemberService'
@@ -58,10 +61,7 @@ function createContainer() {
   const clock = new SystemClock()
   const tokens = new CryptographicTokens()
   const pageRepository = new MySqlPageRepository(database.db)
-  const auth = new AuthService(
-    new MySqlUserRepository(database.db),
-    new MySqlSessionRepository(database.db), tokens, clock
-  )
+  const auth = new AuthService(new MySqlUserRepository(database.db), new MySqlSessionRepository(database.db), tokens, clock)
   const emailConfig = mailConfig()
   const emailSender = emailConfig ? new SmtpEmailSender(emailConfig) : null
   const emailWorker = emailSender && emailConfig ? new EmailWorker(new EmailDeliveryService(new MySqlEmailOutbox(database.db), emailSender, clock, emailConfig.origin), new ConsoleErrorReporter()) : null
@@ -87,7 +87,7 @@ function createContainer() {
   const completions = new CompletionService(provider)
   const library = new LibraryService(new MySqlLibraryRepository(database.db), pages, workspaceAccess)
   const pageDocuments = new PageDocumentService(pages, documents, collaboration)
-
+  const questions = new WorkspaceQuestionService(library, provider)
   return {
     startWorkers: () => {
       emailWorker?.start()
@@ -97,11 +97,12 @@ function createContainer() {
     settings: new WorkspaceSettingsService(new MySqlSettingsRepository(database.db), workspaceAccess, pages, new BunWorkspaceArchive(imageStore, imageDirectory)),
     library,
     recovery: new RecoveryService(recoveryRepository, pages, collaboration, workspaceAccess, journal),
-    templates: new TemplateService(pages, pageDocuments),
+    templates: new TemplateService(pages, pageDocuments, new MySqlWorkspaceTemplateRepository(database.db), workspaceAccess, resources),
+    conversations: new ConversationService(new MySqlConversationRepository(database.db), workspaceAccess, resources, questions),
     notifications,
     notificationEvents,
     commentEvents,
-    questions: new WorkspaceQuestionService(library, provider),
+    questions,
     oauth: new OAuthService(new MicrosoftIdentityProvider({
       clientId: process.env.MICROSOFT_CLIENT_ID || '',
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
@@ -144,13 +145,10 @@ function createContainer() {
     }
   }
 }
-
 let container: ReturnType<typeof createContainer> | undefined
-
 export function getContainer() {
   return container ??= createContainer()
 }
-
 export async function closeContainer(): Promise<void> {
   try {
     await container?.close()

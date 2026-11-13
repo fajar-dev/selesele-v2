@@ -9,16 +9,15 @@ definePageMeta({ layout: 'workspace', key: route => String(route.params.id) })
 const route = useRoute()
 const workspaceId = String(route.params.workspaceId)
 const { page, overview, error, updated, loading, refresh } = usePageDocument(workspaceId, String(route.params.id))
-
 useFeedbackToast(() => !loading.value && !page.value ? error.value || 'This page is unavailable or you no longer have access.' : null, { key: `page-open:${String(route.params.id)}`, title: 'Unable to open page', retry: refresh })
 </script>
 
 <template>
   <PageReader
-    v-if="page && overview && (overview.workspace.archivedAt || page.accessLevel !== 'edit')"
+    v-if="page && overview && (overview.workspace.archivedAt || page.archivedAt || page.accessLevel !== 'edit')"
     :page="page"
     :workspace-name="overview.workspace.name"
-    :archived="!!overview.workspace.archivedAt"
+    :archived="!!overview.workspace.archivedAt || !!page.archivedAt"
   />
   <PageEditor
     v-else-if="page && overview"
