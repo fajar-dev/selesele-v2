@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataRetry from '~/components/ui/DataRetry.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { usePersonalLibrary } from '../composables/usePersonalLibrary'
 import type { WorkspaceItem } from '#shared/contracts/workspace'
@@ -54,12 +55,10 @@ watch(view, () => {
       :rows="3"
       class="pt-ui-lg"
     />
-    <UAlert
+    <DataRetry
       v-else-if="error"
-      title="Unable to load your pages"
-      color="error"
-      class="mt-ui-lg"
-      :actions="[{ label: 'Retry', onClick: () => refresh() }]"
+      :feedback-keys="['library:personal']"
+      :on-retry="() => refresh()"
     />
     <div v-else-if="visible.length">
       <NuxtLink

@@ -1,4 +1,5 @@
 import { libraryKeys } from '~/features/library/state/libraryKeys'
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { useApi } from '~/core/http/useApi'
 import { useWorkspaceState } from '~/features/workspaces/state/useWorkspaceState'
 import type { DropdownMenuItem } from '@nuxt/ui'
@@ -9,6 +10,7 @@ export function usePageTemplates(workspaceId: string, beforeCreate: () => void) 
   const toast = useToast()
   const busy = ref(false)
   const { data, error, status, refresh } = useLazyAsyncData(libraryKeys.templates, async () => (await library.templates()).data, { server: false, immediate: false, default: () => [] })
+  useFeedbackToast(error, { key: libraryKeys.templates, title: 'Unable to load templates', recovered: () => status.value === 'success', retry: () => refresh() })
 
   function load(open: boolean) {
     if (open && !data.value.length && status.value !== 'pending') {

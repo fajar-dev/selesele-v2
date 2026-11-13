@@ -16,8 +16,6 @@ export function usePageHistory(pageId: string) {
   const toast = useToast()
   const { data, status, error: loadError, refresh } = useLazyAsyncData(`versions:${pageId}`, async () => (await recovery.versions(pageId)).data, { server: false, immediate: false, default: () => [] })
   const current = computed(() => data.value.find(version => version.id === selected.value))
-  const time = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  const day = (date: string) => new Date(date).toLocaleDateString([], { day: 'numeric', month: 'short' })
   watch(open, async (value, _previous, onCleanup) => {
     let active = true
     onCleanup(() => {
@@ -80,5 +78,5 @@ export function usePageHistory(pageId: string) {
       busy.value = false
     }
   }
-  return { open, selected, preview, busy, previewLoading, error, confirming, data, status, loadError, current, time, day, inspect, act }
+  return { open, selected, preview, busy, previewLoading, error, confirming, data, status, loadError, current, refresh, inspect, act }
 }

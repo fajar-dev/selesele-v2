@@ -15,12 +15,22 @@ export default withNuxt(
     files: ['**/*.ts', '**/*.vue'],
     rules: {
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports', fixStyle: 'separate-type-imports' }],
-      '@typescript-eslint/no-explicit-any': 'error'
+      '@typescript-eslint/no-explicit-any': 'error',
+      'no-restricted-syntax': ['error', { selector: 'ImportDeclaration[source.value="zod"] > ImportSpecifier[imported.name="z"]', message: 'Use a namespace import for Zod so schemas work consistently in Bun development SSR.' }]
     }
   },
   {
     files: ['**/*.vue'],
-    rules: { 'vue/block-order': ['error', { order: ['script', 'template', 'style'] }] }
+    rules: {
+      'vue/block-order': ['error', { order: ['script', 'template', 'style'] }],
+      'vue/no-restricted-syntax': ['error', {
+        selector: 'VElement[rawName="UAlert"], VElement[rawName="u-alert"]',
+        message: 'Use toast feedback for notifications and DataRetry for failed queries.'
+      }, {
+        selector: 'VAttribute[key.name="role"][value.value="alert"]',
+        message: 'Announce notifications through the shared toast system.'
+      }]
+    }
   },
   {
     files: ['server/features/**/domain/**/*.ts', 'server/core/**/*.ts'],

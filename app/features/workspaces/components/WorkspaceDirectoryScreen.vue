@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import DataRetry from '~/components/ui/DataRetry.vue'
 import { useAuth } from '~/features/auth/composables/useAuth'
 import PersonalLibraryOverview from '~/features/library/components/PersonalLibraryOverview.vue'
 import LayoutToggle from '~/components/ui/LayoutToggle.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspaceDirectory } from '~/features/workspaces/composables/useWorkspaceDirectory'
-import { useInvitationInbox } from '../composables/useInvitationInbox'
 import DirectoryShell from '~/components/shell/DirectoryShell.vue'
 import DirectoryHeading from '~/components/shell/DirectoryHeading.vue'
 import PageToolbar from '~/components/ui/PageToolbar.vue'
@@ -33,9 +33,7 @@ const view = computed<'list' | 'grid'>({
   }
 })
 const { data, error, status, refresh: refreshDirectory } = useWorkspaceDirectory()
-const { invitations, inboxError, inboxStatus, refreshInbox, busy, respond } = useInvitationInbox(refreshDirectory)
 const loading = computed(() => !data.value.length && (status.value === 'idle' || status.value === 'pending'))
-const inboxLoading = computed(() => inboxStatus.value === 'idle' || inboxStatus.value === 'pending')
 const workspaces = computed(() => {
   const query = search.value.trim().toLocaleLowerCase()
   return data.value.filter(workspace => workspace.name.toLocaleLowerCase().includes(query)
@@ -59,89 +57,11 @@ const workspaces = computed(() => {
         />
       </template>
     </DirectoryHeading>
-    <UAlert
+    <DataRetry
       v-if="error"
-      title="Unable to load workspaces"
-      :description="errorMessage(error)"
-      color="error"
-      :actions="[{ label: 'Retry', onClick: () => refreshDirectory() }]"
+      :feedback-keys="['workspaces:directory']"
+      :on-retry="() => refreshDirectory()"
     />
-    <div
-      v-if="inboxLoading"
-      class="directory-inbox-loading"
-    >
-      <USkeleton
-        aria-hidden="true"
-        class="size-ui-4xl"
-      /><USkeleton
-        aria-hidden="true"
-        class="h-ui-lg w-ui-14xl max-w-proportion-three-quarters"
-      /><span
-        class="sr-only"
-        role="status"
-      >Loading invitations</span>
-    </div>
-    <UAlert
-      v-else-if="inboxError"
-      title="Unable to load invitations"
-      color="error"
-      :actions="[{ label: 'Retry', onClick: () => refreshInbox() }]"
-    />
-    <section
-      v-else-if="invitations.length"
-      aria-label="Workspace invitations"
-      class="directory-invitations"
-    >
-      <div class="directory-invitations-heading">
-        <UIcon
-          name="i-lucide-mail-open"
-          class="size-ui-lg"
-        /><h2>You’re invited</h2><UBadge
-          color="neutral"
-          variant="soft"
-          size="sm"
-        >
-          {{ invitations.length }}
-        </UBadge><span class="hidden sm:block ms-auto text-xs text-muted">Good work is better together.</span>
-      </div>
-      <ul class="divide-y divide-muted">
-        <li
-          v-for="invitation in invitations"
-          :key="invitation.id"
-          class="flex flex-wrap items-center justify-between gap-ui-lg py-ui-lg"
-        >
-          <div class="flex items-center gap-ui-md min-w-ui-zero flex-1 basis-ui-15xl">
-            <div class="directory-invitation-icon">
-              <UIcon
-                name="i-lucide-users"
-                class="size-ui-lg"
-              />
-            </div>
-            <div class="min-w-ui-zero">
-              <p class="text-sm font-medium text-highlighted break-words">
-                {{ invitation.workspaceName }}
-              </p><p class="text-xs text-muted mt-ui-xs">
-                <span class="capitalize">{{ invitation.role }}</span> access · Expires {{ formatCalendarDate(invitation.expiresAt) }}
-              </p>
-            </div>
-          </div>
-          <div class="flex items-center gap-ui-sm">
-            <UButton
-              label="Decline"
-              color="neutral"
-              variant="ghost"
-              :disabled="!!busy"
-              @click="respond(invitation.id, false)"
-            /><UButton
-              label="Accept invitation"
-              :loading="busy === invitation.id"
-              :disabled="!!busy"
-              @click="respond(invitation.id, true)"
-            />
-          </div>
-        </li>
-      </ul>
-    </section>
     <div class="directory-body">
       <section
         aria-label="Your workspaces"
@@ -289,10 +209,6 @@ const workspaces = computed(() => {
 .directory-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-ui-lg); padding-top: var(--spacing-ui-xl); }
 .directory-list { margin-bottom: calc(-1 * var(--spacing-ui-zero)); }
 .directory-empty { padding-block: var(--spacing-ui-8xl); border-top: none; }
-.directory-inbox-loading { display: flex; align-items: center; gap: var(--spacing-ui-md); margin-bottom: var(--spacing-ui-2xl); }
-.directory-invitations { border: var(--app-border-thin) solid var(--ui-border); background: var(--ui-bg); border-radius: var(--radius-sm); padding: var(--spacing-ui-lg) var(--spacing-ui-xl) 0; margin-bottom: var(--spacing-ui-2xl); }
-.directory-invitations-heading { display: flex; align-items: center; gap: var(--spacing-ui-sm); padding-bottom: var(--spacing-ui-md); border-bottom: var(--app-border-thin) solid var(--ui-border-muted); font-size: var(--text-xs); font-weight: var(--font-weight-medium); }
-.directory-invitation-icon { display: grid; place-items: center; width: var(--spacing-ui-4xl); height: var(--spacing-ui-4xl); flex-shrink: 0; border: var(--app-border-thin) solid var(--ui-border-muted); border-radius: var(--radius-sm); background: var(--ui-bg-muted); }
 @variant sm {
   .directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

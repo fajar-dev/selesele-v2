@@ -13,6 +13,7 @@ const emit = defineEmits<{ done: [], cancel: [] }>()
 const draft = ref(props.value)
 const busy = ref(false)
 const error = ref('')
+const toast = useToast()
 const input = useTemplateRef('input')
 let cancelled = false
 let completed = false
@@ -53,6 +54,7 @@ async function save() {
     emit('done')
   } catch (cause) {
     error.value = errorMessage(cause)
+    toast.add({ title: `Unable to save ${props.label.toLowerCase()}`, description: error.value, color: 'error' })
   } finally {
     busy.value = false
   }
@@ -102,21 +104,14 @@ defineExpose({ focus })
       role="status"
       class="sr-only"
     >Saving {{ label }}</span>
-    <span
+    <UButton
       v-if="error"
-      role="alert"
-      class="block mt-ui-xs text-xs leading-normal font-normal text-muted"
-    >
-      {{ error }}
-      <UButton
-        label="Retry"
-        size="xs"
-        color="neutral"
-        variant="link"
-        class="ml-ui-xs p-ui-zero"
-        @mousedown.prevent
-        @click="save"
-      />
-    </span>
+      label="Retry save"
+      size="xs"
+      color="neutral"
+      variant="link"
+      @mousedown.prevent
+      @click="save"
+    />
   </span>
 </template>

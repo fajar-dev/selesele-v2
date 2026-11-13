@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { libraryKeys } from '~/features/library/state/libraryKeys'
+import DataRetry from '~/components/ui/DataRetry.vue'
 
 import { useDebounce } from '@vueuse/core'
 import { useApi } from '~/core/http/useApi'
@@ -16,7 +18,7 @@ const search = ref('')
 const searchInput = { 'aria-label': 'Search all content', 'placeholder': 'Search your workspace…' }
 const closeButton = { 'size': 'xs' as const, 'aria-label': 'Close search' }
 const query = useDebounce(search, 200)
-const { data, status, error } = useLazyAsyncData(libraryKeys.search, async () => open.value && query.value.trim() ? (await library.search(query.value)).data : [], { server: false, default: () => [], watch: [query, open] })
+const { data, status, error, refresh } = useLazyAsyncData(libraryKeys.search, async () => open.value && query.value.trim() ? (await library.search(query.value)).data : [], { server: false, default: () => [], watch: [query, open] })
 const icons = { page: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace: 'i-lucide-panels-top-left' }
 const group = (id: string, label: string, entries: LibraryEntry[]) => ({ id, label, ignoreFilter: true, items: entries.map(item => ({ id: `${item.kind}:${item.id}`, label: item.title, description: plainTextSnippet(item.snippet), emoji: item.icon, icon: icons[item.kind], to: libraryPath(item), onSelect: () => {
   open.value = false
@@ -43,6 +45,8 @@ function shortcut(event: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', shortcut))
 onBeforeUnmount(() => window.removeEventListener('keydown', shortcut))
+
+useFeedbackToast(error, { key: libraryKeys.search, title: 'Unable to search content', recovered: () => status.value === 'success', retry: () => refresh() })
 </script>
 
 <template>
@@ -99,17 +103,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', shortcut))
               </div>
             </div>
           </div>
+          <DataRetry
+            v-else-if="error"
+            :feedback-keys="['library:search']"
+            :on-retry="() => refresh()"
+          />
           <div
             v-else
             class="flex flex-col items-center text-center gap-ui-sm"
           >
             <UIcon
-              :name="error ? 'i-lucide-search-x' : 'i-lucide-search'"
+              name="i-lucide-search"
               class="size-ui-2xl mb-ui-xs text-dimmed"
             /><p class="text-sm font-medium text-toned">
-              {{ error ? 'Search is unavailable' : search ? 'No results found' : 'Find the page you need' }}
+              {{ search ? 'No results found' : 'Find the page you need' }}
             </p><p class="text-xs text-muted">
-              {{ error ? errorMessage(error) : search ? 'Try a different word or a page title.' : 'Search by title or anything written inside a page.' }}
+              {{ search ? 'Try a different word or a page title.' : 'Search by title or anything written inside a page.' }}
             </p>
           </div>
         </template>

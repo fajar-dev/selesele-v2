@@ -10,24 +10,19 @@ const props = withDefaults(defineProps<{
 
 const open = defineModel<boolean>('open', { default: false })
 const isSubmitting = ref(false)
-const error = ref<string | null>(null)
-
-watch(open, () => {
-  error.value = null
-})
+const toast = useToast()
 
 async function confirm(): Promise<void> {
   if (isSubmitting.value) {
     return
   }
   isSubmitting.value = true
-  error.value = null
 
   try {
     await props.onConfirm()
     open.value = false
   } catch (cause) {
-    error.value = errorMessage(cause)
+    toast.add({ title: 'Unable to complete action', description: errorMessage(cause), color: 'error' })
   } finally {
     isSubmitting.value = false
   }
@@ -64,18 +59,6 @@ async function confirm(): Promise<void> {
         </span>
         <span>{{ title }}</span>
       </span>
-    </template>
-    <template
-      v-if="error"
-      #body
-    >
-      <UAlert
-        title="Unable to delete"
-        :description="error"
-        icon="i-lucide-circle-alert"
-        color="error"
-        variant="soft"
-      />
     </template>
     <template #footer>
       <UButton

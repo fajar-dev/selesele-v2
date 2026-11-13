@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import AppBrand from '~/components/shell/AppBrand.vue'
 import AuthWorkspacePreview from './AuthWorkspacePreview.vue'
 
 const route = useRoute()
 const failed = computed(() => route.query.error === 'microsoft')
+
+useFeedbackToast(() => failed.value ? 'Your sign-in was cancelled, expired, or could not be verified. Please try again.' : null, { key: 'microsoft-sign-in', title: 'Microsoft sign-in failed' })
 </script>
 
 <template>
@@ -45,14 +48,7 @@ const failed = computed(() => route.query.error === 'microsoft')
         <p class="auth-entry-description text-sm leading-relaxed text-muted mt-ui-xl mb-ui-4xl max-w-ui-18xl">
           One home for your notes, your projects, and the people you build with.
         </p>
-        <UAlert
-          v-if="failed"
-          color="error"
-          variant="soft"
-          title="Microsoft sign-in failed"
-          description="Your sign-in was cancelled, expired, or could not be verified. Please try again."
-          class="mb-ui-xl"
-        />
+
         <UButton
           to="/api/auth/microsoft"
           external

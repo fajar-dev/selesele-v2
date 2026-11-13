@@ -20,12 +20,14 @@
     "db:reset": "bun scripts/reset-database.ts",
     "test:integration": "bun scripts/integration.ts",
     "test:knowledge": "bun scripts/knowledge-integration.ts",
-    "verify": "bun run db:check && bun run audit:code && bun run audit:styles && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration && bun run test:knowledge && bun run test:mail",
+    "verify": "bun run db:check && bun run audit:code && bun run audit:styles && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration && bun run test:knowledge && bun run test:mail && bun run test:settings",
     "db:check": "bun --bun drizzle-kit check",
     "audit:code": "bun --bun knip",
     "audit:styles": "bun scripts/check-styles.ts",
     "mail:check": "bun scripts/check-mail.ts",
-    "test:mail": "bun scripts/mail-integration.ts"
+    "test:mail": "bun scripts/mail-integration.ts",
+    "test:settings": "bun scripts/settings-integration.ts",
+    "test:development": "bun scripts/development-smoke.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.90",

@@ -14,7 +14,7 @@ const extensions = [TaskList, TaskItem, TableKit]
     :editable="false"
     :extensions="extensions"
     :mention="false"
-    :ui="{ base: 'px-ui-zero py-ui-zero text-xs leading-loose focus:outline-none', content: 'max-w-none' }"
+    :ui="{ base: 'px-ui-zero py-ui-zero text-sm leading-relaxed focus:outline-none', content: 'max-w-none break-words' }"
   />
   <p
     v-else

@@ -1,4 +1,5 @@
 import { useApi } from '~/core/http/useApi'
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
 import { libraryKeys } from '~/features/library/state/libraryKeys'
 import type { TrashItem } from '#shared/contracts/recovery'
@@ -6,6 +7,7 @@ import type { TrashItem } from '#shared/contracts/recovery'
 export function useTrash(workspaceId: Ref<string | null>) {
   const { recovery } = useApi()
   const { data, error, status, refresh } = useLazyAsyncData('trash', async () => (await recovery.trash()).data, { server: false, default: () => [] })
+  useFeedbackToast(error, { key: 'trash', title: 'Unable to load trash', recovered: () => status.value === 'success', retry: () => refresh() })
   const scopedItems = computed(() => workspaceId.value ? data.value.filter(item => item.workspaceId === workspaceId.value) : data.value)
   const filter = ref('all')
   const search = ref('')

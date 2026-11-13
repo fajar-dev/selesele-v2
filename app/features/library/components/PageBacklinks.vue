@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
+import DataRetry from '~/components/ui/DataRetry.vue'
 import { useApi } from '~/core/http/useApi'
 
 const props = defineProps<{ pageId: string }>()
@@ -10,6 +12,8 @@ watch(open, (value) => {
     void refresh()
   }
 })
+
+useFeedbackToast(error, { key: `backlinks:${props.pageId}`, title: 'Unable to load backlinks', recovered: () => status.value === 'success', retry: () => refresh() })
 </script>
 
 <template>
@@ -33,11 +37,10 @@ watch(open, (value) => {
         >
           Loading…
         </p>
-        <UAlert
+        <DataRetry
           v-else-if="error"
-          title="Unable to load backlinks"
-          color="error"
-          :actions="[{ label: 'Retry', onClick: () => refresh() }]"
+          :feedback-keys="[`backlinks:${props.pageId}`]"
+          :on-retry="() => refresh()"
         />
         <p
           v-else-if="!data.length"

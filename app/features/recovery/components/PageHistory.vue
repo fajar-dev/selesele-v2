@@ -1,10 +1,27 @@
 <script setup lang="ts">
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
+import DataRetry from '~/components/ui/DataRetry.vue'
 import DetailPanel from '~/components/ui/DetailPanel.vue'
 import DocumentPreview from '~/components/ui/DocumentPreview.vue'
+import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { usePageHistory } from '../composables/usePageHistory'
 
 const props = defineProps<{ pageId: string }>()
-const { open, selected, preview, busy, previewLoading, error, confirming, data, status, loadError, current, time, day, inspect, act } = usePageHistory(props.pageId)
+const { open, selected, preview, busy, previewLoading, error, confirming, data, status, loadError, current, refresh, inspect, act } = usePageHistory(props.pageId)
+const loading = computed(() => status.value === 'pending' || status.value === 'idle')
+const versions = computed(() => data.value.map((version, index) => ({
+  value: version.id,
+  label: new Date(version.createdAt).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+  description: `${version.author || 'Automatic snapshot'}${index === 0 ? ' · Latest saved' : ''}`
+})))
+function selectVersion(id: string | undefined) {
+  if (id) {
+    void inspect(id)
+  }
+}
+
+useFeedbackToast(loadError, { key: `versions:${props.pageId}`, title: 'Unable to load versions', recovered: () => status.value === 'success', retry: () => refresh() })
+useFeedbackToast(error, { key: `version-action:${props.pageId}`, title: 'Unable to complete version request' })
 </script>
 
 <template>
@@ -13,184 +30,150 @@ const { open, selected, preview, busy, previewLoading, error, confirming, data, 
     title="Version history"
     description="Preview and restore previous versions of this page."
     icon="i-lucide-history"
-    wide
   >
-    <UButton
-      aria-label="Version history"
-      icon="i-lucide-history"
-      size="sm"
-      variant="ghost"
-      color="neutral"
-    />
+    <UTooltip text="Version history">
+      <UButton
+        aria-label="Version history"
+        icon="i-lucide-history"
+        size="sm"
+        variant="ghost"
+        color="neutral"
+      />
+    </UTooltip>
     <template #body>
-      <div class="history-layout">
-        <aside
-          class="history-timeline"
-          aria-label="Saved versions"
-        >
-          <div class="flex items-center justify-between mb-ui-lg px-ui-xs">
-            <span class="text-xs font-medium text-muted">Snapshots</span><UTooltip text="Save version now">
-              <UButton
-                aria-label="Save version now"
-                icon="i-lucide-plus"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :loading="busy"
-                @click="act(false)"
-              />
-            </UTooltip>
-          </div>
-          <div
-            v-if="status === 'pending' && !data.length"
-            class="space-y-ui-lg p-ui-sm"
-          >
-            <USkeleton
-              v-for="row in 3"
-              :key="row"
-              aria-hidden="true"
-              class="h-ui-4xl w-full"
-            />
-          </div>
-          <p
-            v-else-if="!data.length"
-            class="px-ui-xs text-xs text-muted leading-relaxed"
-          >
-            Snapshots appear as you write. Save one with the plus button.
+      <div class="sticky top-ui-zero z-10 bg-default border-b border-muted px-ui-xl py-ui-lg space-y-ui-md">
+        <div class="flex items-center justify-between gap-ui-md">
+          <p class="text-xs font-medium text-toned">
+            Saved versions
+            <span
+              v-if="data.length"
+              class="ml-ui-xs font-normal text-muted tabular-nums"
+            >{{ data.length }}</span>
           </p>
-          <button
-            v-for="version in data"
-            :key="version.id"
-            type="button"
-            class="history-version"
-            :class="{ 'is-selected': selected === version.id }"
-            :aria-pressed="selected === version.id"
-            :aria-label="`${day(version.createdAt)}, ${time(version.createdAt)} · ${version.author || 'Automatic snapshot'}`"
-            @click="inspect(version.id)"
-          >
-            <span class="flex items-center justify-between gap-ui-sm text-xs font-medium text-toned"><span>{{ day(version.createdAt) }}</span><span class="font-normal text-muted">{{ time(version.createdAt) }}</span></span>
-            <span class="block text-xs text-muted mt-ui-xs truncate">{{ version.author || 'Automatic snapshot' }}</span>
-          </button>
-          <p class="hidden sm:block mt-auto pt-ui-xl text-xs leading-normal text-dimmed">
-            Auto-saved while writing.<br>Up to 100 versions per page.
-          </p>
-        </aside>
-        <section
-          class="history-document"
-          aria-label="Version preview"
-        >
-          <UAlert
-            v-if="error || loadError"
-            title="Unable to load history"
-            :description="error || errorMessage(loadError)"
-            color="error"
-            variant="soft"
-            class="mb-ui-xl"
+          <UButton
+            label="Save version"
+            icon="i-lucide-plus"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :loading="busy"
+            @click="act(false)"
           />
-          <template v-if="current">
-            <div class="flex items-center justify-between gap-ui-md pb-ui-xl border-b border-muted mb-ui-2xl">
-              <div>
-                <p class="text-xs text-muted mb-ui-xs">
-                  Preview
-                </p><p class="text-sm font-medium text-highlighted">
-                  {{ day(current.createdAt) }}, {{ time(current.createdAt) }}
-                </p>
-              </div><UBadge
-                label="Saved version"
-                color="neutral"
-                variant="soft"
-                size="sm"
-              />
-            </div>
-            <div
-              v-if="previewLoading"
-              class="space-y-ui-lg"
-              role="status"
-              aria-label="Loading version preview"
-            >
-              <USkeleton
-                aria-hidden="true"
-                class="h-ui-2xl w-proportion-two-thirds"
-              /><USkeleton
-                v-for="row in 4"
-                :key="row"
-                aria-hidden="true"
-                class="h-ui-md w-full"
-              />
-            </div>
-            <DocumentPreview
-              v-else-if="preview !== null"
-              :key="selected || ''"
-              :content="preview"
-            />
-          </template>
-          <div
-            v-else-if="!loadError"
-            class="h-full min-h-ui-14xl flex flex-col items-center justify-center text-center px-ui-2xl"
-          >
+        </div>
+        <USkeleton
+          v-if="loading && !data.length"
+          aria-label="Loading saved versions"
+          class="h-ui-4xl w-full"
+        />
+        <USelectMenu
+          v-else-if="data.length"
+          :model-value="selected || undefined"
+          :items="versions"
+          value-key="value"
+          aria-label="Choose a saved version"
+          placeholder="Choose a version"
+          :search-input="{ placeholder: 'Find a version…' }"
+          :filter-fields="['label', 'description']"
+          :disabled="busy"
+          color="neutral"
+          variant="outline"
+          class="w-full"
+          :ui="{ itemLabel: 'text-sm', itemDescription: 'text-xs', value: 'truncate' }"
+          @update:model-value="selectVersion"
+        />
+        <p class="text-xs text-muted leading-relaxed">
+          Versions are saved automatically as you write. Previewing keeps your live page unchanged.
+        </p>
+      </div>
+      <div class="p-ui-xl space-y-ui-xl">
+        <DataRetry
+          v-if="loadError"
+          :feedback-keys="[`versions:${props.pageId}`]"
+          :on-retry="() => refresh()"
+        />
+        <DataRetry
+          v-if="error && current && preview === null"
+          :feedback-keys="[`version-action:${props.pageId}`]"
+          :on-retry="() => inspect(current!.id)"
+        />
+        <DataSkeleton
+          v-if="previewLoading || (loading && !data.length)"
+          label="Loading version preview"
+          kind="editor"
+          :rows="5"
+        />
+        <section
+          v-else-if="current && preview !== null"
+          aria-label="Version preview"
+          class="space-y-ui-xl"
+        >
+          <div class="flex items-center gap-ui-sm text-xs text-muted">
             <UIcon
-              name="i-lucide-history"
-              class="size-ui-3xl text-dimmed mb-ui-lg"
-            /><h3 class="text-sm font-medium text-toned">
-              Your page has a history
-            </h3><p class="text-xs text-muted leading-relaxed mt-ui-sm max-w-ui-16xl">
-              Save a snapshot to keep this moment, or come back after your next edit.
+              name="i-lucide-file-clock"
+              class="size-ui-lg shrink-0"
+            />
+            <p class="min-w-ui-zero truncate">
+              Saved by {{ current.author || 'automatic snapshot' }}
             </p>
+            <span class="ml-auto shrink-0">Read-only</span>
           </div>
+          <DocumentPreview
+            :key="selected || ''"
+            :content="preview"
+          />
         </section>
+        <div
+          v-else-if="!loadError && !error"
+          class="flex flex-col items-center text-center px-ui-xl py-ui-8xl"
+        >
+          <UIcon
+            name="i-lucide-history"
+            class="size-ui-3xl text-dimmed mb-ui-xl"
+          />
+          <h3 class="text-sm font-medium text-highlighted">
+            No saved versions yet
+          </h3>
+          <p class="text-xs text-muted leading-relaxed mt-ui-sm max-w-ui-16xl">
+            Save a version now, or keep writing. Your page history will appear here.
+          </p>
+        </div>
       </div>
     </template>
     <template #footer>
-      <div
-        v-if="confirming"
-        class="w-full space-y-ui-md"
-      >
-        <p class="text-xs text-muted leading-relaxed">
-          Replace the live page with this version? The current content will be saved first.
-        </p><div class="flex gap-ui-sm">
+      <div class="w-full space-y-ui-lg">
+        <div v-if="confirming">
+          <p class="text-sm font-medium text-highlighted">
+            Restore this version?
+          </p>
+          <p class="text-xs text-muted leading-relaxed mt-ui-sm">
+            This replaces the live page for everyone. Its current content will be saved in history first.
+          </p>
+        </div>
+        <div class="flex items-center justify-between gap-ui-md">
           <UButton
-            label="Confirm restore"
-            :loading="busy"
-            @click="act(true)"
-          /><UButton
+            v-if="confirming"
             label="Cancel"
             variant="ghost"
             color="neutral"
+            size="sm"
             :disabled="busy"
             @click="confirming = false"
           />
+          <span
+            v-else
+            class="text-xs text-muted"
+          >Up to 100 saved versions</span>
+          <UButton
+            :label="confirming ? 'Confirm restore' : 'Restore version'"
+            icon="i-lucide-rotate-ccw"
+            color="primary"
+            size="sm"
+            :loading="confirming && busy"
+            :disabled="!current || preview === null || previewLoading || busy"
+            @click="confirming ? act(true) : confirming = true"
+          />
         </div>
-      </div>
-      <div
-        v-else
-        class="flex items-center justify-between gap-ui-md w-full"
-      >
-        <p class="text-xs text-muted">
-          {{ current ? 'You’re viewing a previous version.' : 'Your live page stays unchanged.' }}
-        </p><UButton
-          label="Restore version"
-          icon="i-lucide-rotate-ccw"
-          size="sm"
-          :disabled="!current || preview === null || previewLoading"
-          @click="confirming = true"
-        />
       </div>
     </template>
   </DetailPanel>
 </template>
-
-<style scoped>
-@reference "~/assets/css/main.css";
-
-.history-layout { display: flex; min-height: 100%; }
-.history-timeline { display: flex; flex-direction: column; width: var(--container-timeline); flex-shrink: 0; padding: var(--spacing-ui-lg) var(--spacing-ui-md); border-right: var(--app-border-thin) solid var(--ui-border-muted); background: var(--app-sidebar); }
-.history-version { text-align: left; padding: var(--spacing-ui-md) var(--spacing-ui-sm); border-radius: var(--radius-sm); margin-bottom: var(--spacing-ui-2xs); }
-.history-version:hover, .history-version.is-selected { background: var(--app-hover); }
-.history-version.is-selected { box-shadow: var(--app-selected-version-shadow); }
-.history-document { flex: 1; min-width: 0; padding: var(--spacing-ui-2xl); }
-@variant max-sm {
-  .history-layout { flex-direction: column; }
-  .history-timeline { width: 100%; max-height: var(--container-timeline); overflow-y: auto; border-right: 0; border-bottom: var(--app-border-thin) solid var(--ui-border-muted); }
-  .history-document { padding: var(--spacing-ui-xl); }
-}
-</style>

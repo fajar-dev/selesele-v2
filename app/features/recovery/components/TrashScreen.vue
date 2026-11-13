@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataRetry from '~/components/ui/DataRetry.vue'
 import DirectoryShell from '~/components/shell/DirectoryShell.vue'
 import DirectoryHeading from '~/components/shell/DirectoryHeading.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
@@ -68,12 +69,10 @@ const icons = { page: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace
         :rows="3"
         class="py-ui-2xl"
       />
-      <UAlert
+      <DataRetry
         v-else-if="error"
-        title="Unable to load trash"
-        :description="errorMessage(error)"
-        color="error"
-        :actions="[{ label: 'Retry', onClick: () => refresh() }]"
+        :feedback-keys="['trash']"
+        :on-retry="() => refresh()"
         class="my-ui-2xl"
       />
       <div
@@ -134,6 +133,7 @@ const icons = { page: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace
               class="hidden sm:block text-xs text-muted"
             >{{ formatRelativeTime(item.deletedAt) }}</time><div class="flex items-center justify-end gap-ui-xs">
               <UButton
+                v-if="item.canRestore"
                 label="Restore"
                 icon="i-lucide-rotate-ccw"
                 size="xs"
