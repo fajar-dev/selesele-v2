@@ -8,7 +8,7 @@ interface CommentMessage {
 }
 export interface CommentThread {
   id: string
-  pageId: string
+  itemId: string
   quote: string
   anchor: CommentAnchor
   createdBy: string
@@ -17,7 +17,6 @@ export interface CommentThread {
   resolvedBy: string | null
   messages: CommentMessage[]
 }
-
 export interface CommentDraft {
   quote: string
   anchor: CommentAnchor

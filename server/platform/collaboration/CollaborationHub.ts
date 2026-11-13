@@ -2,40 +2,36 @@ import type { CommentEvents } from '../../features/comments/domain/CommentEvents
 import type { CollaborationPeer } from './CollaborationPeer'
 import * as Y from 'yjs'
 import type { SessionAuthenticator } from '../../features/identity/domain/SessionAuthenticator'
-import type { PageAccess } from '../../features/pages/domain/PageAccess'
-import type { DocumentRepository } from '../../features/pages/domain/DocumentRepository'
-import type { DocumentEditor } from '../../features/pages/domain/DocumentEditor'
+import type { ItemAccess } from '../../features/items/domain/ItemAccess'
+import type { DocumentRepository } from '../../features/items/domain/DocumentRepository'
+import type { DocumentEditor } from '../../features/items/domain/DocumentEditor'
 import { ApplicationError } from '../../core/errors/ApplicationError'
 import type { CollaborationConnection } from './CollaborationRoom'
 import { CollaborationRoom } from './CollaborationRoom'
 import { createDocument } from './document'
-
 /** Owns room lifecycles within one Bun application process. */
 export class CollaborationHub implements CommentEvents, DocumentEditor {
   private readonly rooms = new Map<string, Promise<CollaborationRoom>>()
   private readonly peerRooms = new Map<string, string>()
   private readonly roomWorkspaces = new Map<string, string>()
   private closed = false
-
-  constructor(
-    private readonly pages: PageAccess,
-    private readonly auth: SessionAuthenticator,
-    private readonly documents: DocumentRepository
-  ) {}
+  constructor(private readonly items: ItemAccess, private readonly auth: SessionAuthenticator, private readonly documents: DocumentRepository) {
+  }
 
   async connect(peer: CollaborationPeer, id: string, token: string): Promise<void> {
     while (!this.closed) {
       const user = await this.auth.authenticate(token)
-      const page = await this.pages.get(id, user.id)
-      this.roomWorkspaces.set(id, page.workspaceId)
+      const item = await this.items.get(id, user.id)
+      if (item.kind !== 'document') {
+        throw new ApplicationError('invalid_input', 'This collaboration protocol supports text documents only')
+      }
+      this.roomWorkspaces.set(id, item.workspaceId)
       const loading = this.getRoom(id)
       const room = await loading
-
       if (room.isClosing) {
         await this.disposeRoom(id, loading)
         continue
       }
-
       try {
         await this.authorize({ token, userId: user.id }, id)
       } catch (error) {
@@ -44,7 +40,6 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
         }
         throw error
       }
-
       if (room.isClosing) {
         continue
       }
@@ -52,19 +47,16 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
       room.add({ peer, token, userId: user.id, clients: new Set() })
       return
     }
-
     throw new ApplicationError('unavailable', 'Collaboration server is shutting down')
   }
 
   async message(peer: CollaborationPeer, data: Uint8Array): Promise<void> {
     const id = this.peerRooms.get(peer.id)
     const room = id ? await this.rooms.get(id) : undefined
-
     if (!room) {
       peer.close(1008, 'Not authenticated')
       return
     }
-
     await room.receive(peer, data)
   }
 
@@ -74,12 +66,10 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     if (!id) {
       return
     }
-
     const loading = this.rooms.get(id)
     if (!loading) {
       return
     }
-
     const room = await loading
     room.remove(peer)
     if (!room.connections.size) {
@@ -87,8 +77,8 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     }
   }
 
-  async commentsChanged(pageId: string): Promise<void> {
-    const loading = this.rooms.get(pageId)
+  async commentsChanged(itemId: string): Promise<void> {
+    const loading = this.rooms.get(itemId)
     if (!loading) {
       return
     }
@@ -166,7 +156,6 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     this.rooms.clear()
     this.peerRooms.clear()
     this.roomWorkspaces.clear()
-
     const failures = results.filter(result => result.status === 'rejected')
     if (failures.length) {
       throw new AggregateError(failures.map(result => result.reason), 'Unable to flush collaboration rooms')
@@ -175,7 +164,7 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
 
   private async authorize(connection: Pick<CollaborationConnection, 'token' | 'userId'>, id: string): Promise<void> {
     const user = await this.auth.authenticate(connection.token)
-    await this.pages.writable(id, user.id)
+    await this.items.writable(id, user.id)
   }
 
   private getRoom(id: string): Promise<CollaborationRoom> {
@@ -196,7 +185,6 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     const state = await this.documents.readState(id)
     const content = state ? '' : await this.documents.readContent(id)
     const document = createDocument(content, state)
-
     try {
       if (!state) {
         await this.documents.saveState(id, Y.encodeStateAsUpdate(document), content)

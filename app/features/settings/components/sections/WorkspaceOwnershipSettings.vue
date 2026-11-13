@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PageSection from '~/components/ui/PageSection.vue'
+import ScreenSection from '~/components/ui/ScreenSection.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import type { WorkspaceOverview } from '#shared/contracts/workspace'
 import { useAuth } from '~/features/auth/composables/useAuth'
@@ -23,10 +23,10 @@ const open = computed({ get: () => confirm.value !== null, set: (value: boolean)
   }
 } })
 const copy = computed(() => ({
-  archive: { title: 'Archive workspace', description: 'Members can still read documents they have access to. Editing, comments, and content changes are disabled until the workspace is restored.', label: 'Archive workspace' },
-  unarchive: { title: 'Restore workspace', description: 'Allow your team to edit pages and collaborate again.', label: 'Restore workspace' },
+  archive: { title: 'Archive workspace', description: 'Members can still read items they have access to. Editing, comments, and content changes are disabled until the workspace is restored.', label: 'Archive workspace' },
+  unarchive: { title: 'Restore workspace', description: 'Allow your team to edit items and collaborate again.', label: 'Restore workspace' },
   transfer: { title: 'Transfer ownership', description: 'The selected member becomes the owner. You remain an admin and lose owner-only controls.', label: 'Transfer ownership' },
-  leave: { title: 'Leave workspace', description: 'You will lose access to pages and discussions. A teammate with permission to add people can grant access again.', label: 'Leave workspace' },
+  leave: { title: 'Leave workspace', description: 'You will lose access to items and discussions. A teammate with permission to add people can grant access again.', label: 'Leave workspace' },
   delete: { title: 'Delete workspace', description: 'All members will lose access. The workspace will move to Trash and can be restored by its owner.', label: 'Delete workspace' }
 })[confirm.value || 'archive'])
 async function perform() {
@@ -40,7 +40,7 @@ async function perform() {
 
 <template>
   <div class="space-y-ui-6xl">
-    <PageSection
+    <ScreenSection
       v-if="owner"
       :title="overview.workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'"
       description="Keep completed work available to read without allowing further edits. You can restore the workspace at any time."
@@ -53,8 +53,8 @@ async function perform() {
         :loading="busy"
         @click="confirm = overview.workspace.archivedAt ? 'unarchive' : 'archive'"
       />
-    </PageSection>
-    <PageSection
+    </ScreenSection>
+    <ScreenSection
       v-if="owner"
       title="Transfer ownership"
       description="Hand the workspace over to another current member. You will remain an admin."
@@ -80,8 +80,8 @@ async function perform() {
       >
         Invite another member before transferring ownership.
       </p>
-    </PageSection>
-    <PageSection
+    </ScreenSection>
+    <ScreenSection
       title="Leave workspace"
       :description="owner ? 'Transfer ownership to another member before leaving.' : 'Leaving removes your access to workspace content and discussions.'"
     >
@@ -92,8 +92,8 @@ async function perform() {
         :disabled="owner || busy"
         @click="confirm = 'leave'"
       />
-    </PageSection>
-    <PageSection
+    </ScreenSection>
+    <ScreenSection
       v-if="owner"
       title="Delete workspace"
       description="Remove access for everyone and move the workspace to Trash."
@@ -105,7 +105,7 @@ async function perform() {
         :loading="busy"
         @click="confirm = 'delete'"
       />
-    </PageSection>
+    </ScreenSection>
     <ConfirmationDialog
       v-model:open="open"
       :title="copy.title"

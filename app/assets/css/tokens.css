@@ -1,5 +1,6 @@
 /* Central sizing vocabulary. Components consume names, never literal dimensions. */
 @theme {
+  --spacing-studio: max(28rem, calc(100svh - 22rem));
   --spacing-viewport: 100svh;
   --spacing-ui-zero: 0px;
   --spacing-ui-2xs: 0.125rem;
@@ -36,7 +37,8 @@
   --container-auth-story: 34rem;
   --container-auth-preview: 30rem;
   --container-directory: 78rem;
-  --container-document: 64rem;
+  --container-workspace: 78rem;
+  --container-conversation: 52rem;
   --container-rail: 18rem;
   --container-search: 40rem;
   --container-inbox: min(24rem, calc(100vw - 1.5rem));

@@ -1,6 +1,8 @@
+import type { ItemKind } from './content'
+
 export interface LibraryEntry {
   id: string
-  kind: 'page' | 'folder' | 'workspace'
+  kind: 'item' | 'folder' | 'workspace'
   workspaceId: string
   title: string
   icon: string | null
@@ -20,14 +22,15 @@ export interface KnowledgeAnswer {
   answer: string
   sources: Omit<KnowledgeSource, 'content'>[]
 }
-export interface PageTemplate {
+export interface ItemTemplate {
+  kind: ItemKind
   id: string
   title: string
   icon: string
   description: string
   content: string
 }
-export interface WorkspaceTemplateSummary extends Omit<PageTemplate, 'content'> {
+export interface WorkspaceTemplateSummary extends Omit<ItemTemplate, 'content'> {
   workspaceId: string
-  sourcePageId: string
+  sourceItemId: string
 }

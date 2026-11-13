@@ -1,16 +1,16 @@
-import type { PageItem } from '#shared/contracts/page'
+import type { ContentItem } from '#shared/contracts/item'
 import type { FolderItem, WorkspaceItem } from '#shared/contracts/workspace'
 import { workspaceKeys } from './workspaceKeys'
 
 export function useWorkspaceState(workspaceId: string) {
-  const { data: pages } = useNuxtData<PageItem[]>(workspaceKeys.pages(workspaceId))
+  const { data: items } = useNuxtData<ContentItem[]>(workspaceKeys.items(workspaceId))
   const { data: folders } = useNuxtData<FolderItem[]>(workspaceKeys.folders(workspaceId))
   const { data: workspace } = useNuxtData<WorkspaceItem>(workspaceKeys.detail(workspaceId))
-  function upsertPage(page: PageItem) {
-    pages.value = [page, ...(pages.value || []).filter(item => item.id !== page.id)]
+  function upsertItem(item: ContentItem) {
+    items.value = [item, ...(items.value || []).filter(entry => entry.id !== item.id)]
   }
-  function removePage(pageId: string) {
-    pages.value = (pages.value || []).filter(page => page.id !== pageId)
+  function removeItem(itemId: string) {
+    items.value = (items.value || []).filter(item => item.id !== itemId)
   }
   function addFolder(folder: FolderItem) {
     folders.value = [...(folders.value || []), folder]
@@ -21,5 +21,5 @@ export function useWorkspaceState(workspaceId: string) {
   function updateWorkspace(value: WorkspaceItem) {
     workspace.value = value
   }
-  return { upsertPage, removePage, addFolder, updateFolder, updateWorkspace }
+  return { upsertItem, removeItem, addFolder, updateFolder, updateWorkspace }
 }

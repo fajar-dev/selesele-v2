@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reconcileDraft } from '~/core/state/reconcileDraft'
-import PageSection from '~/components/ui/PageSection.vue'
+import ScreenSection from '~/components/ui/ScreenSection.vue'
 import EntityIconPicker from '~/components/ui/EntityIconPicker.vue'
 import { useWorkspaceActions } from '~/features/workspaces/composables/useWorkspaceActions'
 import type { WorkspaceOverview } from '#shared/contracts/workspace'
@@ -22,17 +22,17 @@ watch(() => props.overview.workspace, (workspace, previous) => {
 }, { immediate: true })
 const saving = ref(false)
 const overviewOption = 'workspace-overview'
-const homePages = computed(() => {
-  const selected = settings.value.homePageId
-  const unavailable = selected && !props.overview.pages.some(page => page.id === selected)
+const homeItems = computed(() => {
+  const selected = settings.value.homeItemId
+  const unavailable = selected && !props.overview.items.some(item => item.id === selected)
   return [
     { label: 'Workspace overview', value: overviewOption },
-    ...(unavailable ? [{ label: 'Unavailable document', value: selected, disabled: true }] : []),
-    ...props.overview.pages.map(page => ({ label: page.title, value: page.id }))
+    ...(unavailable ? [{ label: 'Unavailable item', value: selected, disabled: true }] : []),
+    ...props.overview.items.map(item => ({ label: item.title, value: item.id }))
   ]
 })
-const home = computed({ get: () => settings.value.homePageId || overviewOption, set: (value: string) => {
-  settings.value.homePageId = value === overviewOption ? null : value
+const home = computed({ get: () => settings.value.homeItemId || overviewOption, set: (value: string) => {
+  settings.value.homeItemId = value === overviewOption ? null : value
 } })
 async function submit() {
   saving.value = true
@@ -49,7 +49,7 @@ async function submit() {
 </script>
 
 <template>
-  <PageSection
+  <ScreenSection
     title="Workspace details"
     description="Give your team a recognizable place to work."
   >
@@ -95,27 +95,27 @@ async function submit() {
         :disabled="!form.name.trim()"
       />
     </form>
-  </PageSection>
-  <PageSection
-    title="Opening page"
+  </ScreenSection>
+  <ScreenSection
+    title="Opening item"
     description="Choose the document members open first. Each member still needs permission to read that document."
   >
     <UFormField
-      label="Default opening page"
+      label="Default opening item"
       description="Where members land when opening this workspace."
     >
       <USelect
         v-model="home"
-        :items="homePages"
+        :items="homeItems"
         class="w-full"
         :disabled="!manager"
       />
     </UFormField>
     <UButton
       v-if="manager"
-      label="Save opening page"
+      label="Save opening item"
       :loading="busy"
       @click="onSave"
     />
-  </PageSection>
+  </ScreenSection>
 </template>

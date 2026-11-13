@@ -1,12 +1,14 @@
 import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
-import type { PageAccess } from '../../pages/domain/PageAccess'
+import type { ItemAccess } from '../../items/domain/ItemAccess'
 import type { SettingsRepository } from '../domain/SettingsRepository'
 import type { WorkspaceArchive } from '../domain/WorkspaceArchive'
 import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '../../../../shared/kernel/workspaceSettings'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class WorkspaceSettingsService {
-  constructor(private readonly repository: SettingsRepository, private readonly access: WorkspaceAuthorization, private readonly pages: PageAccess, private readonly archiveWriter: WorkspaceArchive) { }
+  constructor(private readonly repository: SettingsRepository, private readonly access: WorkspaceAuthorization, private readonly items: ItemAccess, private readonly archiveWriter: WorkspaceArchive) {
+  }
+
   async get(id: string, userId: string) {
     const workspace = await this.access.requireMember(id, userId)
     return { settings: workspace.settings, archivedAt: workspace.archivedAt?.toISOString() ?? null, notifications: await this.repository.notifications(id, userId) }
@@ -14,10 +16,10 @@ export class WorkspaceSettingsService {
 
   async save(id: string, userId: string, settings: WorkspaceSettingsChanges) {
     await this.access.requireManager(id, userId)
-    if (settings.homePageId) {
-      const page = await this.pages.get(settings.homePageId, userId)
-      if (page.workspaceId !== id) {
-        throw new ApplicationError('invalid_input', 'Home page must belong to this workspace')
+    if (settings.homeItemId) {
+      const item = await this.items.get(settings.homeItemId, userId)
+      if (item.workspaceId !== id) {
+        throw new ApplicationError('invalid_input', 'Home item must belong to this workspace')
       }
     }
     await this.repository.save(id, userId, settings)

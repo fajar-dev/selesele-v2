@@ -6,7 +6,7 @@ import { migrate } from 'drizzle-orm/mysql2/migrator'
 import { createConnection } from 'mysql2/promise'
 import { createDatabase } from '../server/platform/database/client'
 import { databaseConfig } from '../server/platform/database/config'
-import { emailDeliveries, pages, workspaceActivity } from '../server/platform/database/schema'
+import { emailDeliveries, items, workspaceActivity } from '../server/platform/database/schema'
 import { AuthService } from '../server/features/identity/application/AuthService'
 import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
 import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
@@ -19,7 +19,7 @@ import { WorkspaceMaintenance } from '../server/features/settings/infrastructure
 import { MySqlWorkspaceJournal } from '../server/features/settings/infrastructure/MySqlWorkspaceJournal'
 import { MySqlRecoveryRepository } from '../server/features/recovery/infrastructure/MySqlRecoveryRepository'
 import { defaultNotificationPreferences, defaultWorkspaceSettings } from '../shared/kernel/workspaceSettings'
-import type { WorkspaceSettings, WorkspaceActivityPage } from '../shared/contracts/workspaceSettings'
+import type { WorkspaceSettings, WorkspaceActivityItem } from '../shared/contracts/workspaceSettings'
 
 const databaseName = `sele_settings_test_${randomUUID().replaceAll('-', '')}`
 const admin = await createConnection({ ...databaseConfig(), database: undefined, timezone: 'Z' })
@@ -73,35 +73,37 @@ try {
   await request(0, `${base}/settings`, 'PATCH', {}, 400)
   await request(0, `${base}/settings`, 'PATCH', { role: 'admin' }, 400)
   const independentRules = defaultWorkspaceSettings().permissions
-  independentRules.createPages = 'managers'
+  independentRules.createItems = 'managers'
   await Promise.all([
     request(0, `${base}/settings`, 'PATCH', { permissions: independentRules }),
     request(0, `${base}/settings`, 'PATCH', { trashRetentionDays: 30 })
   ])
-  const merged = await request<{ settings: WorkspaceSettings }>(0, `${base}/settings`)
+  const merged = await request<{
+    settings: WorkspaceSettings
+  }>(0, `${base}/settings`)
   assert.equal(merged.settings.trashRetentionDays, 30, 'Concurrent section saves preserve retention')
-  assert.equal(merged.settings.permissions.createPages, 'managers', 'Concurrent section saves preserve rules')
+  assert.equal(merged.settings.permissions.createItems, 'managers', 'Concurrent section saves preserve rules')
   await request(0, `${base}/settings`, 'PATCH', defaultWorkspaceSettings())
   for (const path of ['settings', 'activity', 'usage', 'export']) {
     await request(3, `${base}/${path}`, 'GET', undefined, 404)
   }
   await request(1, `${base}/activity`, 'GET', undefined, 403)
   const policy: WorkspaceSettings = defaultWorkspaceSettings()
-  policy.permissions = { inviteMembers: 'managers', createPages: 'managers', createFolders: 'managers', deleteContent: 'managers' }
+  policy.permissions = { inviteMembers: 'managers', createItems: 'managers', createFolders: 'managers', deleteContent: 'managers' }
   await request(1, `${base}/settings`, 'PATCH', policy, 403)
   await request(0, `${base}/settings`, 'PATCH', policy)
-  await request(1, `${base}/pages`, 'POST', { title: 'Blocked' }, 403)
+  await request(1, `${base}/items`, 'POST', { title: 'Blocked' }, 403)
   await request(1, `${base}/folders`, 'POST', { name: 'Blocked' }, 403)
   await request(1, `${base}/members`, 'POST', { emails: ['blocked@example.invalid'], role: 'member' }, 403)
   const folder = await request<{
     id: string
   }>(2, `${base}/folders`, 'POST', { name: 'Plans' }, 201)
-  const page = await request<{
+  const item = await request<{
     id: string
-  }>(0, `${base}/pages`, 'POST', { title: 'Launch', folderId: folder.id }, 201)
-  await request(0, `/pages/${page.id}/content`, 'POST', { content: '# Launch\n\nReview the final plan.' })
-  await request(1, `/pages/${page.id}`, 'DELETE', undefined, 403)
-  policy.homePageId = page.id
+  }>(0, `${base}/items`, 'POST', { title: 'Launch', folderId: folder.id }, 201)
+  await request(0, `/items/${item.id}/content`, 'POST', { content: '# Launch\n\nReview the final plan.' })
+  await request(1, `/items/${item.id}`, 'DELETE', undefined, 403)
+  policy.homeItemId = item.id
   policy.permissions.inviteMembers = 'members'
   await request(0, `${base}/settings`, 'PATCH', policy)
   await request(1, `${base}/members`, 'POST', { emails: ['guest@example.invalid'], role: 'admin' }, 403)
@@ -109,35 +111,37 @@ try {
   const other = await request<{
     id: string
   }>(3, '/workspaces', 'POST', { name: 'Private' }, 201)
-  const privatePage = await request<{
+  const privateItem = await request<{
     id: string
-  }>(3, `/workspaces/${other.id}/pages`, 'POST', { title: 'Private page' }, 201)
-  await request(0, `${base}/settings`, 'PATCH', { ...policy, homePageId: privatePage.id }, 404)
-  await request(0, `/pages/${page.id}/access`, 'PUT', { mode: 'restricted', grants: [] })
+  }>(3, `/workspaces/${other.id}/items`, 'POST', { title: 'Private item' }, 201)
+  await request(0, `${base}/settings`, 'PATCH', { ...policy, homeItemId: privateItem.id }, 404)
+  await request(0, `/items/${item.id}/access`, 'PUT', { mode: 'restricted', grants: [] })
   await request(2, `${base}/settings`, 'PATCH', { trashRetentionDays: 30 })
-  const adminSettings = await request<{ settings: WorkspaceSettings }>(2, `${base}/settings`)
-  assert.equal(adminSettings.settings.homePageId, page.id, 'Saving another section must not revalidate or replace a private opening page')
-  await request(0, `/pages/${page.id}/access`, 'PUT', { mode: 'inherit', grants: [] })
+  const adminSettings = await request<{
+    settings: WorkspaceSettings
+  }>(2, `${base}/settings`)
+  assert.equal(adminSettings.settings.homeItemId, item.id, 'Saving another section must not revalidate or replace a private opening item')
+  await request(0, `/items/${item.id}/access`, 'PUT', { mode: 'inherit', grants: [] })
   await request(0, `${base}/settings`, 'PATCH', { trashRetentionDays: 0 })
   await request(0, `${base}/archive`, 'POST', { archived: true })
-  await request(0, `${base}/pages`, 'POST', { title: 'Archived write' }, 403)
-  await request(0, `/pages/${page.id}/content`, 'POST', { content: 'Blocked' }, 403)
+  await request(0, `${base}/items`, 'POST', { title: 'Archived write' }, 403)
+  await request(0, `/items/${item.id}/content`, 'POST', { content: 'Blocked' }, 403)
   assert.ok((await request<{
     content: string
-  }>(1, `/pages/${page.id}/content`)).content.includes('Review'))
+  }>(1, `/items/${item.id}/content`)).content.includes('Review'))
   await request(2, `${base}/archive`, 'POST', { archived: false }, 403)
   await request(0, `${base}/archive`, 'POST', { archived: false })
   const preferences = defaultNotificationPreferences()
   preferences.email.mention = false
   await request(1, `${base}/notification-preferences`, 'PATCH', preferences)
   const notifications = new MySqlNotificationRepository(db, true)
-  await notifications.mentions(page.id, [accounts[1]!.userId], accounts[0]!.userId)
+  await notifications.mentions(item.id, [accounts[1]!.userId], accounts[0]!.userId)
   assert.equal((await db.select().from(emailDeliveries)).length, 0, 'Muted email does not enqueue')
   preferences.email.mention = true
   preferences.delivery = 'daily'
   await request(1, `${base}/notification-preferences`, 'PATCH', preferences)
-  await notifications.mentions(page.id, [accounts[1]!.userId], accounts[0]!.userId)
-  await notifications.mentions(page.id, [accounts[1]!.userId], accounts[0]!.userId)
+  await notifications.mentions(item.id, [accounts[1]!.userId], accounts[0]!.userId)
+  await notifications.mentions(item.id, [accounts[1]!.userId], accounts[0]!.userId)
   let sent = 0
   const outbox = new MySqlEmailOutbox(db)
   const due = new Date(Date.now() + 48 * 3600000)
@@ -149,7 +153,7 @@ try {
   assert.equal(await delivery.deliverNext(), true)
   assert.equal(sent, 1, 'Two daily jobs produce one email')
   assert.ok((await db.select().from(emailDeliveries)).every(row => row.state === 'sent'))
-  await notifications.mentions(page.id, [accounts[1]!.userId], accounts[0]!.userId)
+  await notifications.mentions(item.id, [accounts[1]!.userId], accounts[0]!.userId)
   preferences.email.mention = false
   await request(1, `${base}/notification-preferences`, 'PATCH', preferences)
   await delivery.deliverNext()
@@ -158,27 +162,27 @@ try {
   assert.equal(exported.status, 200)
   const archive = await new Bun.Archive(await exported.arrayBuffer()).files()
   assert.ok(archive.has('workspace.json'))
-  assert.ok([...archive.keys()].some(path => path.endsWith(`${page.id}.md`)))
+  assert.ok([...archive.keys()].some(path => path.endsWith(`${item.id}.md`)))
   const usage = await request<{
-    pages: number
+    items: number
     folders: number
     members: number
   }>(0, `${base}/usage`)
-  assert.deepEqual([usage.pages, usage.folders, usage.members], [1, 1, 4])
+  assert.deepEqual([usage.items, usage.folders, usage.members], [1, 1, 4])
   const journal = new MySqlWorkspaceJournal(db)
   for (let index = 0; index < 55; index++) {
     await journal.record(workspace.id, accounts[0]!.userId, 'workspace.updated', `Change ${index}`)
   }
-  const first = await request<WorkspaceActivityPage>(0, `${base}/activity`)
+  const first = await request<WorkspaceActivityItem>(0, `${base}/activity`)
   assert.equal(first.items.length, 50)
   assert.ok(first.nextCursor)
-  const second = await request<WorkspaceActivityPage>(0, `${base}/activity?cursor=${first.nextCursor}`)
+  const second = await request<WorkspaceActivityItem>(0, `${base}/activity?cursor=${first.nextCursor}`)
   assert.ok(second.items.every(item => !first.items.some(previous => previous.id === item.id)))
   const expiring = await request<{
     id: string
-  }>(0, `${base}/pages`, 'POST', { title: 'Old deleted page' }, 201)
-  await request(0, `/pages/${expiring.id}`, 'DELETE')
-  await db.update(pages).set({ deletedAt: new Date(Date.now() - 10 * 86400000) }).where(eq(pages.id, expiring.id))
+  }>(0, `${base}/items`, 'POST', { title: 'Old deleted item' }, 201)
+  await request(0, `/items/${expiring.id}`, 'DELETE')
+  await db.update(items).set({ deletedAt: new Date(Date.now() - 10 * 86400000) }).where(eq(items.id, expiring.id))
   policy.trashRetentionDays = 7
   await request(0, `${base}/settings`, 'PATCH', policy)
   const recovery = new MySqlRecoveryRepository(db)
@@ -197,9 +201,9 @@ try {
   } }).run()
   assert.equal((await purgeEvents()).length, previousEvents, 'A skipped purge does not record a false deletion event')
   await maintenance.run()
-  assert.equal((await db.select().from(pages).where(eq(pages.id, expiring.id))).length, 0, 'Retention removes expired Trash')
-  assert.equal(await recovery.purge('page', page.id, new Date()), false, 'No-op purge reports that nothing was deleted')
-  assert.equal((await db.select().from(pages).where(eq(pages.id, page.id))).length, 1, 'Purge cannot remove a restored/live page')
+  assert.equal((await db.select().from(items).where(eq(items.id, expiring.id))).length, 0, 'Retention removes expired Trash')
+  assert.equal(await recovery.purge('item', item.id, new Date()), false, 'No-op purge reports that nothing was deleted')
+  assert.equal((await db.select().from(items).where(eq(items.id, item.id))).length, 1, 'Purge cannot remove a restored/live item')
   await request(0, `${base}/leave`, 'POST', undefined, 409)
   await request(1, `${base}/ownership`, 'POST', { userId: accounts[1]!.userId }, 403)
   await request(0, `${base}/ownership`, 'POST', { userId: accounts[3]!.userId }, 409)
@@ -208,7 +212,7 @@ try {
   await request(1, `${base}/archive`, 'POST', { archived: true })
   await request(0, `${base}/leave`, 'POST')
   await request(0, `${base}/settings`, 'GET', undefined, 404)
-  console.log('Settings integration passed: permissions, isolation, archive read-only, landing page, personal notifications, SMTP digest grouping, queued preference checks, export, usage, audit pagination, retention, owner transfer and leave')
+  console.log('Settings integration passed: permissions, isolation, archive read-only, landing item, personal notifications, SMTP digest grouping, queued preference checks, export, usage, audit pagination, retention, owner transfer and leave')
 } finally {
   if (server) {
     server.kill('SIGTERM')

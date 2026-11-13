@@ -12,6 +12,6 @@ export default apiHandler(async (event) => {
   if (!file) {
     throw new ApplicationError('invalid_input', 'Select an image to upload')
   }
-  const pageId = idSchema.parse(parts?.find(part => part.name === 'pageId')?.data.toString())
-  return getContainer().images.put(file.data, user.id, pageId)
+  const itemId = idSchema.parse(parts?.find(part => part.name === 'itemId')?.data.toString())
+  return getContainer().images.put(file.data, user.id, itemId)
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PageSection from '~/components/ui/PageSection.vue'
+import ScreenSection from '~/components/ui/ScreenSection.vue'
 import type { WorkspaceNotificationPreferences } from '#shared/contracts/workspaceSettings'
 
 defineProps<{
@@ -8,15 +8,15 @@ defineProps<{
 }>()
 const model = defineModel<WorkspaceNotificationPreferences>({ required: true })
 const channels = [
-  { key: 'comment' as const, title: 'New comments', description: 'When someone comments on a page you are involved in.' },
+  { key: 'comment' as const, title: 'New comments', description: 'When someone comments on an item you are involved in.' },
   { key: 'reply' as const, title: 'Replies', description: 'Updates to discussions you are part of.' },
-  { key: 'mention' as const, title: 'Mentions', description: 'When a teammate mentions you in a page or comment.' },
+  { key: 'mention' as const, title: 'Mentions', description: 'When a teammate mentions you in an item or comment.' },
   { key: 'invitation' as const, title: 'Workspace access', description: 'Applies to workspace access notifications across your account. Always delivered immediately.' }
 ]
 </script>
 
 <template>
-  <PageSection
+  <ScreenSection
     title="Your email notifications"
     description="These preferences are personal. In-app notifications stay enabled."
   >
@@ -52,5 +52,5 @@ const channels = [
       :loading="busy"
       @click="onSave"
     />
-  </PageSection>
+  </ScreenSection>
 </template>

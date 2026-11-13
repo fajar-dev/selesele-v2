@@ -4,14 +4,15 @@ import type { ImageAuthorization } from '../domain/ImageAuthorization'
 import type { ImageStore } from '../domain/ImageStore'
 
 export class ImageService {
-  constructor(private readonly store: ImageStore, private readonly access: ImageAuthorization) {}
+  constructor(private readonly store: ImageStore, private readonly access: ImageAuthorization) {
+  }
 
-  async put(data: Uint8Array, userId: string, pageId: string) {
-    if (!await this.access.canUpload(pageId, userId)) {
+  async put(data: Uint8Array, userId: string, itemId: string) {
+    if (!await this.access.canUpload(itemId, userId)) {
       throw new ApplicationError('forbidden', 'Edit access is required to upload images')
     }
     const pathname = await this.store.write(data, imageExtension(data))
-    await this.access.register(pathname, userId, pageId)
+    await this.access.register(pathname, userId, itemId)
     return { pathname, url: `/images/${pathname}` }
   }
 

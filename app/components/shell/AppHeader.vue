@@ -92,7 +92,7 @@ async function logout(): Promise<void> {
         size="sm"
         @click="searchOpen = true"
       >
-        <span class="hidden sm:inline text-xs">Search pages…</span>
+        <span class="hidden sm:inline text-xs">Search items…</span>
         <template #trailing>
           <span class="hidden sm:inline ms-auto text-xs text-dimmed">⌘ K</span>
         </template>

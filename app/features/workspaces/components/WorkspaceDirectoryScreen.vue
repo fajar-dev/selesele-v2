@@ -7,7 +7,7 @@ import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspaceDirectory } from '~/features/workspaces/composables/useWorkspaceDirectory'
 import DirectoryShell from '~/components/shell/DirectoryShell.vue'
 import DirectoryHeading from '~/components/shell/DirectoryHeading.vue'
-import PageToolbar from '~/components/ui/PageToolbar.vue'
+import ScreenToolbar from '~/components/ui/ScreenToolbar.vue'
 import WorkspaceDirectoryCard from './WorkspaceDirectoryCard.vue'
 import { useWorkspaceCreation } from '~/features/workspaces/composables/useWorkspaceCreation'
 
@@ -74,7 +74,7 @@ const workspaces = computed(() => {
             label="Workspace layout"
           />
         </header>
-        <PageToolbar class="directory-toolbar">
+        <ScreenToolbar class="directory-toolbar">
           <template #left>
             <div
               role="group"
@@ -114,7 +114,7 @@ const workspaces = computed(() => {
               class="directory-search w-ui-13xl"
             />
           </template>
-        </PageToolbar>
+        </ScreenToolbar>
         <DataSkeleton
           v-if="loading"
           label="Loading workspace directory"

@@ -17,7 +17,7 @@ describe('resource access boundaries', () => {
     expect(resolveResourceAccess(subject, 'restricted', [grant('edit', { memberId: null, groupId: 'team' }), grant('none')], 'edit', now).level).toBe('none')
     expect(resolveResourceAccess(subject, 'restricted', [grant('none', { memberId: null, groupId: 'team' }), grant('comment')], 'edit', now).level).toBe('comment')
   })
-  test('pages cannot exceed parent access and viewer roles cannot be escalated by grants', () => {
+  test('items cannot exceed parent access and viewer roles cannot be escalated by grants', () => {
     for (const parent of ['none', 'view', 'comment'] as const) {
       expect(resolveResourceAccess(subject, 'inherit', [grant('edit')], parent, now).level).toBe(parent)
     }

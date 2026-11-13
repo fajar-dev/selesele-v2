@@ -16,7 +16,7 @@ const removed = computed(() => lines.value.filter(line => line.kind === 'remove'
     class="space-y-ui-lg"
   >
     <p class="text-xs text-muted leading-relaxed">
-      Compared with the live page when this preview was loaded. Restoring would add {{ added }} and remove {{ removed }} lines.
+      Compared with the live item when this preview was loaded. Restoring would add {{ added }} and remove {{ removed }} lines.
     </p>
     <p
       v-if="!added && !removed"

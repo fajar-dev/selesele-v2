@@ -1,9 +1,11 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
 import type { ApiResponse } from '#shared/contracts/api'
-import type { WorkspaceSettingsOverview, WorkspaceUsage, WorkspaceActivityPage, WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '#shared/contracts/workspaceSettings'
+import type { WorkspaceSettingsOverview, WorkspaceUsage, WorkspaceActivityItem, WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '#shared/contracts/workspaceSettings'
 
 export class WorkspaceSettingsClient {
-  constructor(private readonly http: ApiTransport) { }
+  constructor(private readonly http: ApiTransport) {
+  }
+
   get(id: string) {
     return this.http.request<ApiResponse<WorkspaceSettingsOverview>>(`/workspaces/${id}/settings`)
   }
@@ -17,7 +19,7 @@ export class WorkspaceSettingsClient {
   }
 
   activity(id: string, cursor?: string) {
-    return this.http.request<ApiResponse<WorkspaceActivityPage>>(`/workspaces/${id}/activity`, { query: { cursor } })
+    return this.http.request<ApiResponse<WorkspaceActivityItem>>(`/workspaces/${id}/activity`, { query: { cursor } })
   }
 
   usage(id: string) {

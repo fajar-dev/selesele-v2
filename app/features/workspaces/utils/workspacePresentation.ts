@@ -1,3 +1,3 @@
-export function formatPageCount(count: number) {
-  return `${count} ${count === 1 ? 'page' : 'pages'}`
+export function formatItemCount(count: number) {
+  return `${count} ${count === 1 ? 'item' : 'items'}`
 }

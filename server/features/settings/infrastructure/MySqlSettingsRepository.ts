@@ -1,7 +1,7 @@
 import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { and, count, desc, eq, isNull, lt, sql, inArray, or } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
-import { documents, folders, pages, imageUploads, users, workspaceActivity, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { canvases, documents, folders, items, imageUploads, users, workspaceActivity, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import { appendWorkspaceActivity } from './MySqlWorkspaceJournal'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 import { defaultNotificationPreferences, defaultWorkspaceSettings } from '../../../../shared/kernel/workspaceSettings'
@@ -9,7 +9,9 @@ import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from 
 import type { SettingsRepository } from '../domain/SettingsRepository'
 
 export class MySqlSettingsRepository implements SettingsRepository {
-  constructor(private readonly db: Database) { }
+  constructor(private readonly db: Database) {
+  }
+
   async save(id: string, userId: string, changes: WorkspaceSettingsChanges) {
     await this.db.transaction(async (tx) => {
       const [workspace] = await tx.select().from(workspaces).where(eq(workspaces.id, id)).for('update')
@@ -42,38 +44,38 @@ export class MySqlSettingsRepository implements SettingsRepository {
 
   async activity(id: string, userId: string, cursor?: string, memberId?: string) {
     const scope = await loadResourceScope(this.db, userId, id, undefined, true)
-    const allowed = [...scope.allowed('page'), ...scope.allowed('folder')]
-    const rows = await this.db.select().from(workspaceActivity).where(and(eq(workspaceActivity.workspaceId, id), memberId ? eq(workspaceActivity.subjectMemberId, memberId) : undefined, scope.memberships.some(row => row.member.role === 'owner') ? undefined : or(and(isNull(workspaceActivity.pageId), isNull(workspaceActivity.folderId)), allowed.length ? or(inArray(workspaceActivity.pageId, allowed), inArray(workspaceActivity.folderId, allowed)) : undefined), cursor ? lt(workspaceActivity.id, cursor) : undefined)).orderBy(desc(workspaceActivity.id)).limit(51)
+    const allowed = [...scope.allowed('item'), ...scope.allowed('folder')]
+    const rows = await this.db.select().from(workspaceActivity).where(and(eq(workspaceActivity.workspaceId, id), memberId ? eq(workspaceActivity.subjectMemberId, memberId) : undefined, scope.memberships.some(row => row.member.role === 'owner') ? undefined : or(and(isNull(workspaceActivity.itemId), isNull(workspaceActivity.folderId)), allowed.length ? or(inArray(workspaceActivity.itemId, allowed), inArray(workspaceActivity.folderId, allowed)) : undefined), cursor ? lt(workspaceActivity.id, cursor) : undefined)).orderBy(desc(workspaceActivity.id)).limit(51)
     return rows.map(row => ({ id: row.id, actorName: row.actorName, action: row.action, target: row.target, createdAt: row.createdAt.toISOString() }))
   }
 
   async usage(id: string, userId: string) {
     const scope = await loadResourceScope(this.db, userId, id)
-    const notesAllowed = scope.allowed('page')
+    const notesAllowed = scope.allowed('item')
     const foldersAllowed = scope.allowed('folder')
     const [[notes], [directories], [members], [bytes]] = await Promise.all([
-      notesAllowed.length ? this.db.select({ total: count() }).from(pages).leftJoin(folders, eq(folders.id, pages.folderId)).where(and(eq(pages.workspaceId, id), isNull(pages.deletedAt), isNull(folders.deletedAt), inArray(pages.id, notesAllowed))) : Promise.resolve([{ total: 0 }]),
+      notesAllowed.length ? this.db.select({ total: count() }).from(items).leftJoin(folders, eq(folders.id, items.folderId)).where(and(eq(items.workspaceId, id), isNull(items.deletedAt), isNull(folders.deletedAt), inArray(items.id, notesAllowed))) : Promise.resolve([{ total: 0 }]),
       foldersAllowed.length ? this.db.select({ total: count() }).from(folders).where(and(eq(folders.workspaceId, id), isNull(folders.deletedAt), inArray(folders.id, foldersAllowed))) : Promise.resolve([{ total: 0 }]),
       this.db.select({ total: count() }).from(workspaceMembers).where(eq(workspaceMembers.workspaceId, id)),
-      notesAllowed.length ? this.db.select({ total: sql<number>`coalesce(sum(octet_length(${documents.markdown}) + coalesce(octet_length(${documents.state}), 0)), 0)` }).from(documents).innerJoin(pages, eq(pages.id, documents.pageId)).where(and(eq(pages.workspaceId, id), inArray(pages.id, notesAllowed))) : Promise.resolve([{ total: 0 }])
+      notesAllowed.length ? this.db.select({ total: sql<number>`coalesce(sum(coalesce(octet_length(${documents.markdown}), 0) + coalesce(octet_length(${documents.state}), 0) + coalesce(octet_length(${canvases.content}), 0)), 0)` }).from(items).leftJoin(documents, eq(items.id, documents.itemId)).leftJoin(canvases, eq(items.id, canvases.itemId)).where(and(eq(items.workspaceId, id), inArray(items.id, notesAllowed))) : Promise.resolve([{ total: 0 }])
     ])
-    return { pages: Number(notes?.total ?? 0), folders: Number(directories?.total ?? 0), members: Number(members?.total ?? 0), documentBytes: Number(bytes?.total ?? 0) }
+    return { items: Number(notes?.total ?? 0), folders: Number(directories?.total ?? 0), members: Number(members?.total ?? 0), documentBytes: Number(bytes?.total ?? 0) }
   }
 
   async exportData(id: string, userId: string) {
     const scope = await loadResourceScope(this.db, userId, id)
-    const allowedPages = scope.allowed('page')
+    const allowedItems = scope.allowed('item')
     const allowedFolders = scope.allowed('folder')
     return this.db.transaction(async (tx) => {
       const [workspace] = await tx.select({ name: workspaces.name }).from(workspaces).where(eq(workspaces.id, id))
       const directories = allowedFolders.length ? await tx.select({ id: folders.id, name: folders.name }).from(folders).where(and(eq(folders.workspaceId, id), isNull(folders.deletedAt), inArray(folders.id, allowedFolders))) : []
-      const notes = allowedPages.length
-        ? await tx.select({ id: pages.id, title: pages.title, folderId: pages.folderId, markdown: documents.markdown }).from(pages)
-            .leftJoin(documents, eq(documents.pageId, pages.id)).leftJoin(folders, eq(folders.id, pages.folderId))
-            .where(and(eq(pages.workspaceId, id), inArray(pages.id, allowedPages), isNull(pages.deletedAt), isNull(folders.deletedAt)))
+      const notes = allowedItems.length
+        ? await tx.select({ id: items.id, title: items.title, folderId: items.folderId, kind: items.kind, canvas: canvases.content, markdown: documents.markdown }).from(items)
+            .leftJoin(documents, eq(documents.itemId, items.id)).leftJoin(canvases, eq(canvases.itemId, items.id)).leftJoin(folders, eq(folders.id, items.folderId))
+            .where(and(eq(items.workspaceId, id), inArray(items.id, allowedItems), isNull(items.deletedAt), isNull(folders.deletedAt)))
         : []
-      const images = allowedPages.length ? await tx.select({ filename: imageUploads.filename }).from(imageUploads).where(inArray(imageUploads.pageId, allowedPages)) : []
-      return { name: workspace!.name, attachments: images.map(image => image.filename), folders: directories, pages: notes.map(row => ({ ...row, markdown: row.markdown ?? '' })) }
+      const images = allowedItems.length ? await tx.select({ filename: imageUploads.filename }).from(imageUploads).where(inArray(imageUploads.itemId, allowedItems)) : []
+      return { name: workspace!.name, attachments: images.map(image => image.filename), folders: directories, items: notes.map(row => ({ ...row, markdown: row.markdown ?? '' })) }
     }, { isolationLevel: 'repeatable read', accessMode: 'read only' })
   }
 

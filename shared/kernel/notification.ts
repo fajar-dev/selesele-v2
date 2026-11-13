@@ -3,7 +3,7 @@ export interface NotificationItem {
   kind: 'invitation' | 'comment' | 'reply' | 'mention'
   title: string
   workspaceId: string
-  pageId: string | null
+  itemId: string | null
   threadId?: string | null
   readAt: string | null
   createdAt: string

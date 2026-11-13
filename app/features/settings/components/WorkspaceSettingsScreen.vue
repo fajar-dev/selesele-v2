@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
-import WorkspaceManagementPage from '~/features/workspaces/components/WorkspaceManagementPage.vue'
+import WorkspaceManagementScreen from '~/features/workspaces/components/WorkspaceManagementScreen.vue'
 import SectionNavigation from '~/components/ui/SectionNavigation.vue'
 import { useWorkspaceActions } from '~/features/workspaces/composables/useWorkspaceActions'
 import { useWorkspaceSettings } from '~/features/settings/composables/useWorkspaceSettings'
@@ -14,7 +14,9 @@ import WorkspaceActivitySettings from './sections/WorkspaceActivitySettings.vue'
 import WorkspaceDataSettings from './sections/WorkspaceDataSettings.vue'
 import WorkspaceOwnershipSettings from './sections/WorkspaceOwnershipSettings.vue'
 
-const { workspaceId } = defineProps<{ workspaceId: string }>()
+const { workspaceId } = defineProps<{
+  workspaceId: string
+}>()
 const { data, loading, error: workspaceError, refresh } = useWorkspace(workspaceId)
 const manager = computed(() => !!data.value && ['owner', 'admin'].includes(data.value.workspace.role))
 const { remove } = useWorkspaceActions(workspaceId)
@@ -33,12 +35,11 @@ watch(tabs, (items) => {
   }
 })
 const pending = computed(() => query.status.value === 'idle' || query.status.value === 'pending')
-
 useFeedbackToast(query.error, { key: `workspace-settings:${workspaceId}`, title: 'Unable to load settings', recovered: () => query.status.value === 'success', retry: () => query.refresh() })
 </script>
 
 <template>
-  <WorkspaceManagementPage
+  <WorkspaceManagementScreen
     :workspace-id="workspaceId"
     :workspace="data?.workspace"
     title="Settings"
@@ -73,7 +74,7 @@ useFeedbackToast(query.error, { key: `workspace-settings:${workspaceId}`, title:
         :overview="data"
         :manager="manager"
         :busy="busy"
-        :on-save="() => save({ homePageId: draft.homePageId })"
+        :on-save="() => save({ homeItemId: draft.homeItemId })"
       />
       <WorkspacePermissionSettings
         v-else-if="tab === 'permissions' && manager"
@@ -118,5 +119,5 @@ useFeedbackToast(query.error, { key: `workspace-settings:${workspaceId}`, title:
         :on-delete="remove"
       />
     </template>
-  </WorkspaceManagementPage>
+  </WorkspaceManagementScreen>
 </template>

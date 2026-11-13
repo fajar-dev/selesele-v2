@@ -4,7 +4,6 @@ import { idSchema } from '../../../shared/validation/workspace'
 import { SESSION_COOKIE } from '../../platform/http/session'
 
 const connections = new Map<string, Promise<void>>()
-
 export default defineWebSocketHandler({
   async upgrade(request) {
     const url = new URL(request.url)
@@ -14,14 +13,14 @@ export default defineWebSocketHandler({
     }
     const id = idSchema.safeParse(url.pathname.split('/').pop())
     if (!id.success) {
-      return new Response('Invalid page ID', { status: 400 })
+      return new Response('Invalid item ID', { status: 400 })
     }
     const token = request.headers.get('cookie')?.split(';').map(part => part.trim())
       .find(part => part.startsWith(`${SESSION_COOKIE}=`))?.slice(SESSION_COOKIE.length + 1)
     try {
       const user = await getContainer().auth.authenticate(token)
-      await getContainer().pages.get(id.data, user.id)
-      request.context.pageId = id.data
+      await getContainer().items.get(id.data, user.id)
+      request.context.itemId = id.data
       request.context.sessionToken = token
     } catch {
       return new Response('Unauthorized', { status: 401 })
@@ -29,7 +28,7 @@ export default defineWebSocketHandler({
   },
   async open(peer) {
     try {
-      const connecting = getContainer().collaboration.connect(peer, peer.context.pageId as string, peer.context.sessionToken as string)
+      const connecting = getContainer().collaboration.connect(peer, peer.context.itemId as string, peer.context.sessionToken as string)
       connections.set(peer.id, connecting)
       await connecting
     } catch {
@@ -45,12 +44,14 @@ export default defineWebSocketHandler({
     }
   },
   async close(peer) {
-    await connections.get(peer.id)?.catch(() => {})
+    await connections.get(peer.id)?.catch(() => {
+    })
     connections.delete(peer.id)
     await getContainer().collaboration.disconnect(peer)
   },
   async error(peer) {
-    await connections.get(peer.id)?.catch(() => {})
+    await connections.get(peer.id)?.catch(() => {
+    })
     connections.delete(peer.id)
     await getContainer().collaboration.disconnect(peer)
   }

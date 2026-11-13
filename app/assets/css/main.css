@@ -20,11 +20,11 @@
 @layer components {
   .workspace-content {
     width: 100%;
-    max-width: var(--container-document);
+    max-width: var(--container-workspace);
     margin-inline: auto;
-    padding-inline: var(--spacing-ui-xl);
+    padding-inline: var(--spacing-ui-lg);
   }
-  .workspace-content-start { padding-top: var(--spacing-ui-5xl); }
+  .workspace-content-start { padding-top: var(--spacing-ui-4xl); }
   .app-sidebar { background: var(--app-sidebar); }
   .surface-card { background: var(--ui-bg); }
   .sidebar-link {
@@ -87,12 +87,37 @@
 @keyframes app-enter { from { opacity: 0; } to { opacity: 1; } }
 
 @variant sm {
-  .workspace-content { padding-inline: var(--spacing-ui-5xl); }
-  .workspace-content-start { padding-top: var(--spacing-ui-7xl); }
+  .workspace-content { padding-inline: var(--spacing-ui-4xl); }
+}
+
+@variant lg {
+  .workspace-content { padding-inline: var(--spacing-ui-6xl); }
+}
+
+@layer components {
+  .editor-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-ui-sm);
+    padding-block: var(--spacing-ui-md);
+    border-bottom: var(--app-border-thin) solid var(--ui-border-muted);
+  }
+  .template-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border: var(--app-border-thin) solid var(--ui-border);
+    border-radius: var(--radius-md);
+    background: var(--ui-bg);
+    transition: border-color var(--app-duration-normal) ease, box-shadow var(--app-duration-normal) ease;
+  }
+  .template-card:hover { border-color: var(--ui-border-accented); box-shadow: var(--app-card-hover-shadow); }
+  .chat-message-body { line-height: var(--leading-relaxed); white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 
 @variant max-sm {
-  .workspace-page-table th:nth-child(2), .workspace-page-table td:nth-child(2) {
+  .workspace-item-table th:nth-child(2), .workspace-item-table td:nth-child(2) {
     display: none;
   }
 
@@ -171,3 +196,19 @@ html.dark .tiptap .shiki span {
 .header-directory { --ui-header-height: var(--spacing-ui-8xl); }
 
 .inherit-typography { font: inherit; letter-spacing: inherit; }
+
+@layer components {
+  .chat-markdown { white-space: normal; }
+  .chat-markdown > * + * { margin-top: var(--spacing-ui-lg); }
+  .chat-markdown :is(h1, h2, h3, h4) { color: var(--ui-text-highlighted); font-weight: var(--font-weight-semibold); line-height: var(--leading-snug); }
+  .chat-markdown :is(h1, h2) { font-size: var(--text-lg); }
+  .chat-markdown :is(h3, h4) { font-size: var(--text-base); }
+  .chat-markdown :is(ul, ol) { padding-inline-start: var(--spacing-ui-xl); }
+  .chat-markdown ul { list-style: disc; }
+  .chat-markdown ol { list-style: decimal; }
+  .chat-markdown li + li { margin-top: var(--spacing-ui-sm); }
+  .chat-markdown a { text-decoration: underline; text-underline-offset: var(--spacing-ui-2xs); }
+  .chat-markdown pre { overflow-x: auto; padding: var(--spacing-ui-lg); border: var(--app-border-thin) solid var(--ui-border); border-radius: var(--radius-md); background: var(--ui-bg-muted); white-space: pre; font-size: var(--text-xs); }
+  .chat-markdown :not(pre) > code { border-radius: var(--radius-sm); background: var(--ui-bg-accented); padding-inline: var(--spacing-ui-xs); font-size: var(--text-xs); }
+  .chat-markdown blockquote { border-inline-start: var(--app-border-emphasis) solid var(--ui-border); padding-inline-start: var(--spacing-ui-lg); color: var(--ui-text-muted); }
+}

@@ -1,7 +1,7 @@
-import { MemoryResourceAccess, MemoryWorkspaces, MemoryPages, MemoryFolders, MemoryJournal, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
+import { MemoryResourceAccess, MemoryWorkspaces, MemoryItems, MemoryFolders, MemoryJournal, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 import { describe, expect, test } from 'bun:test'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
-import { PageService } from '../../server/features/pages/application/PageService'
+import { ItemService } from '../../server/features/items/application/ItemService'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
 import { defaultNotificationPreferences, defaultWorkspaceSettings } from '../../shared/kernel/workspaceSettings'
 import { settingsInputSchema, notificationPreferencesSchema } from '../../shared/validation/workspaceSettings'
@@ -17,17 +17,17 @@ describe('workspace governance', () => {
     const access = new WorkspaceAccessPolicy(repo)
     const journal = new MemoryJournal()
     const folders = new FolderService(new MemoryFolders(), access, journal, new MemoryResourceAccess())
-    const pages = new PageService(new MemoryPages(), access, folders, journal, new MemoryResourceAccess())
-    const page = await pages.create(WORKSPACE_ID, { title: 'Plan' }, EDITOR_ID)
-    repo.workspace.settings.permissions.createPages = 'managers'
+    const items = new ItemService(new MemoryItems(), access, folders, journal, new MemoryResourceAccess())
+    const item = await items.create(WORKSPACE_ID, { title: 'Plan' }, EDITOR_ID)
+    repo.workspace.settings.permissions.createItems = 'managers'
     repo.workspace.settings.permissions.createFolders = 'managers'
     repo.workspace.settings.permissions.deleteContent = 'managers'
-    await expect(pages.create(WORKSPACE_ID, { title: 'Blocked' }, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
+    await expect(items.create(WORKSPACE_ID, { title: 'Blocked' }, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
     await expect(folders.create(WORKSPACE_ID, 'Blocked', EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
-    await expect(pages.delete(page.id, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
-    expect((await pages.get(page.id, EDITOR_ID)).title).toBe('Plan')
-    await pages.create(WORKSPACE_ID, { title: 'Manager page' }, OWNER_ID)
-    expect(journal.entries.some(row => row.action === 'page.created')).toBe(true)
+    await expect(items.delete(item.id, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
+    expect((await items.get(item.id, EDITOR_ID)).title).toBe('Plan')
+    await items.create(WORKSPACE_ID, { title: 'Manager item' }, OWNER_ID)
+    expect(journal.entries.some(row => row.action === 'item.created')).toBe(true)
   })
   test('archiving blocks writes for every role while keeping content readable', async () => {
     const repo = new MemoryWorkspaces()
@@ -35,7 +35,7 @@ describe('workspace governance', () => {
     repo.workspace.archivedAt = new Date()
     expect((await access.requireMember(WORKSPACE_ID, EDITOR_ID)).id).toBe(WORKSPACE_ID)
     await expect(access.requireWritable(WORKSPACE_ID, OWNER_ID)).rejects.toMatchObject({ code: 'forbidden' })
-    await expect(access.requireCapability(WORKSPACE_ID, EDITOR_ID, 'createPages')).rejects.toMatchObject({ code: 'forbidden' })
+    await expect(access.requireCapability(WORKSPACE_ID, EDITOR_ID, 'createItems')).rejects.toMatchObject({ code: 'forbidden' })
   })
   test('settings reject unsupported policy values and daily delivery has an explicit Jakarta boundary', () => {
     expect(settingsInputSchema.safeParse({ ...defaultWorkspaceSettings(), trashRetentionDays: 1 }).success).toBe(false)
@@ -50,17 +50,17 @@ describe('workspace governance', () => {
     }, async read() {
       return new Uint8Array([1, 2, 3])
     } }, '/tmp')
-    const bytes = await archive.create({ name: 'Team', attachments: [filename], folders: [{ id: 'folder', name: '../../etc' }], pages: [{ id: 'page', title: '../Project', folderId: 'folder', markdown: `![Image](/images/${filename})` }] })
+    const bytes = await archive.create({ name: 'Team', attachments: [filename], folders: [{ id: 'folder', name: '../../etc' }], items: [{ kind: 'document', canvas: null, id: 'item', title: '../Project', folderId: 'folder', markdown: `![Image](/images/${filename})` }] })
     const files = await new Bun.Archive(bytes).files()
     expect([...files.keys()].some(path => path.startsWith('../'))).toBe(false)
     expect(files.has(`attachments/${filename}`)).toBe(true)
-    expect(await files.get('etc-folder/Project-page.md')!.text()).toContain(`../attachments/${filename}`)
+    expect(await files.get('etc-folder/Project-item.md')!.text()).toContain(`../attachments/${filename}`)
     expect(files.has('workspace.json')).toBe(true)
-    const restricted = await new Bun.Archive(await archive.create({ name: 'Team', attachments: [], folders: [], pages: [{ id: 'copy', title: 'Copy', folderId: null, markdown: `![Private URL](/images/${filename})` }] })).files()
+    const restricted = await new Bun.Archive(await archive.create({ name: 'Team', attachments: [], folders: [], items: [{ kind: 'document', canvas: null, id: 'copy', title: 'Copy', folderId: null, markdown: `![Private URL](/images/${filename})` }] })).files()
     expect(restricted.has(`attachments/${filename}`)).toBe(false)
   })
   test('daily summaries bundle accessible notifications and skip revoked items before SMTP', async () => {
-    const item: EmailDelivery = { id: 'first', recipient: 'member@example.invalid', recipientUserId: 'member', workspaceId: 'team', pageId: 'page', memberId: null, kind: 'mention', title: 'New mention', activity: { actorName: 'Alex', workspaceName: 'Team', body: 'Please review.' }, attempts: 1, leaseToken: 'lease' }
+    const item: EmailDelivery = { id: 'first', recipient: 'member@example.invalid', recipientUserId: 'member', workspaceId: 'team', itemId: 'item', memberId: null, kind: 'mention', title: 'New mention', activity: { actorName: 'Alex', workspaceName: 'Team', body: 'Please review.' }, attempts: 1, leaseToken: 'lease' }
     const entries = [item, { ...item, id: 'second' }, { ...item, id: 'revoked' }]
     const states: string[] = []
     const outbox: EmailOutbox = { async claim() {

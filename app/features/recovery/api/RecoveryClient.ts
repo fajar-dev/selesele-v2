@@ -1,9 +1,11 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
 import type { ApiResponse } from '#shared/contracts/api'
-import type { PageVersion, TrashItem, TrashKind } from '#shared/contracts/recovery'
+import type { ItemVersion, TrashItem, TrashKind } from '#shared/contracts/recovery'
 
 export class RecoveryClient {
-  constructor(private readonly http: ApiTransport) {}
+  constructor(private readonly http: ApiTransport) {
+  }
+
   trash() {
     return this.http.request<ApiResponse<TrashItem[]>>('/trash')
   }
@@ -17,18 +19,20 @@ export class RecoveryClient {
   }
 
   versions(id: string) {
-    return this.http.request<ApiResponse<PageVersion[]>>(`/pages/${id}/versions`)
+    return this.http.request<ApiResponse<ItemVersion[]>>(`/items/${id}/versions`)
   }
 
   checkpoint(id: string) {
-    return this.http.request(`/pages/${id}/versions`, { method: 'POST' })
+    return this.http.request(`/items/${id}/versions`, { method: 'POST' })
   }
 
-  version(pageId: string, id: string) {
-    return this.http.request<ApiResponse<{ content: string }>>(`/pages/${pageId}/versions/${id}`)
+  version(itemId: string, id: string) {
+    return this.http.request<ApiResponse<{
+      content: string
+    }>>(`/items/${itemId}/versions/${id}`)
   }
 
-  restoreVersion(pageId: string, id: string) {
-    return this.http.request(`/pages/${pageId}/versions/${id}/restore`, { method: 'POST' })
+  restoreVersion(itemId: string, id: string) {
+    return this.http.request(`/items/${itemId}/versions/${id}/restore`, { method: 'POST' })
   }
 }

@@ -2,7 +2,7 @@ import type { WorkspaceActivityAction } from '../../../../shared/kernel/workspac
 
 export interface ActivityContext {
   memberId?: string
-  pageId?: string
+  itemId?: string
   folderId?: string
 }
 export interface WorkspaceJournal {

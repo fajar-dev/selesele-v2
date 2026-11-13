@@ -5,32 +5,25 @@ import { NodeViewWrapper } from '@tiptap/vue-3'
 
 const { media } = useApi()
 const props = defineProps<NodeViewProps>()
-
 const fileUploadRef = useTemplateRef('fileUploadRef')
-
 const toast = useToast()
 const loading = ref(false)
-
 async function onFileChange() {
   const target = fileUploadRef.value?.inputRef
   if (!target) {
     return
   }
-
   loading.value = true
-
   try {
     const file = target.files?.[0]
     if (!file) {
       return
     }
-    const result = await media.upload(file, props.extension.options.pageId)
-
+    const result = await media.upload(file, props.extension.options.itemId)
     const pos = props.getPos()
     if (typeof pos !== 'number') {
       return
     }
-
     props.editor
       .chain()
       .focus()

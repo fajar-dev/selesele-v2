@@ -1,11 +1,11 @@
-import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryFolders, MemoryPages, MemoryWorkspaces, OWNER_ID, WORKSPACE_ID } from '../support/fakes'
+import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryFolders, MemoryItems, MemoryWorkspaces, OWNER_ID, WORKSPACE_ID } from '../support/fakes'
 import { describe, expect, test } from 'bun:test'
 import { AuthService } from '../../server/features/identity/application/AuthService'
 import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
 import { SESSION_TTL_SECONDS } from '../../server/features/identity/domain/SessionPolicy'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
-import { PageService } from '../../server/features/pages/application/PageService'
+import { ItemService } from '../../server/features/items/application/ItemService'
 
 describe('application boundaries', () => {
   test('session lifetime uses the injected clock, including the exact expiry boundary', async () => {
@@ -20,17 +20,16 @@ describe('application boundaries', () => {
     now = new Date(expires)
     await expect(auth.authenticate(session.token)).rejects.toMatchObject({ code: 'unauthenticated' })
   })
-
   test('collection use cases authorize independently before accessing their repositories', async () => {
     const workspaces = new MemoryWorkspaces()
     const folders = new MemoryFolders()
-    const pages = new MemoryPages()
+    const items = new MemoryItems()
     const access = new WorkspaceAccessPolicy(workspaces)
-    const folderService = new FolderService(folders, access, new MemoryJournal(), new MemoryResourceAccess(pages, folders))
-    const pageService = new PageService(pages, access, folderService, new MemoryJournal(), new MemoryResourceAccess(pages, folders))
+    const folderService = new FolderService(folders, access, new MemoryJournal(), new MemoryResourceAccess(items, folders))
+    const itemService = new ItemService(items, access, folderService, new MemoryJournal(), new MemoryResourceAccess(items, folders))
     await expect(folderService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
-    await expect(pageService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
+    await expect(itemService.list(WORKSPACE_ID, 'outsider')).rejects.toMatchObject({ code: 'not_found' })
     expect(await folderService.list(WORKSPACE_ID, OWNER_ID)).toEqual([])
-    expect(await pageService.list(WORKSPACE_ID, OWNER_ID)).toHaveLength(1)
+    expect(await itemService.list(WORKSPACE_ID, OWNER_ID)).toHaveLength(1)
   })
 })

@@ -23,16 +23,16 @@ const emails = ref(''), busy = ref(false), error = ref('')
 const input = reactive<MemberAddInput>({ emails: [], role: 'member', groupIds: [], grants: [] })
 const resource = ref('none'), level = ref<'view' | 'comment' | 'edit' | 'none'>('view')
 const resources = computed(() => [
-  { label: 'Choose a document or folder', value: 'none' },
+  { label: 'Choose an item or folder', value: 'none' },
   ...(overview.value?.folders || []).filter(item => item.canManageAccess).map(item => ({ label: `Folder · ${item.name}`, value: `folder:${item.id}` })),
-  ...(overview.value?.pages || []).filter(item => item.canManageAccess).map(item => ({ label: `Page · ${item.title}`, value: `page:${item.id}` }))
+  ...(overview.value?.items || []).filter(item => item.canManageAccess).map(item => ({ label: `Item · ${item.title}`, value: `item:${item.id}` }))
 ])
 function addGrant() {
   if (resource.value === 'none') {
     return
   }
   const [kind, resourceId] = resource.value.split(':') as [
-        'folder' | 'page',
+        'folder' | 'item',
         string
   ]
   input.grants = [...input.grants.filter(item => item.resourceId !== resourceId), { kind, resourceId, level: level.value, expiresAt: null }]
@@ -51,7 +51,6 @@ async function submit() {
     busy.value = false
   }
 }
-
 useFeedbackToast(error, { key: `member-add:${workspaceId}`, title: 'Unable to add people' })
 </script>
 
@@ -112,7 +111,7 @@ useFeedbackToast(error, { key: `member-add:${workspaceId}`, title: 'Unable to ad
         Document access <span class="text-muted font-normal">· optional</span>
       </p>
       <p class="text-xs text-muted">
-        Set an initial override. A restricted parent folder still limits its pages.
+        Set an initial override. A restricted parent folder still limits its items.
       </p>
       <div class="flex flex-wrap gap-ui-sm">
         <USelect

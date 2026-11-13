@@ -1,7 +1,6 @@
 import type { CommentAnchor, CommentAuthor } from '../kernel/comment'
 
 export type { CommentAnchor } from '../kernel/comment'
-
 interface CommentMessageItem {
   id: string
   body: string
@@ -10,7 +9,7 @@ interface CommentMessageItem {
 }
 export interface CommentThreadItem {
   id: string
-  pageId: string
+  itemId: string
   quote: string
   anchor: CommentAnchor
   createdBy: string

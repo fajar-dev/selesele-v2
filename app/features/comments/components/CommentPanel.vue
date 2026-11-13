@@ -6,9 +6,14 @@ import CommentComposer from '~/features/comments/components/CommentComposer.vue'
 import CommentThread from '~/features/comments/components/CommentThread.vue'
 import { useAuth } from '~/features/auth/composables/useAuth'
 import type { CommentThreadItem } from '#shared/contracts/comment'
-import type { usePageComments } from '~/features/comments/composables/usePageComments'
+import type { useItemComments } from '~/features/comments/composables/useItemComments'
 
-const props = defineProps<{ comments: ReturnType<typeof usePageComments>, userId: string, manager: boolean, canComment?: boolean }>()
+const props = defineProps<{
+  comments: ReturnType<typeof useItemComments>
+  userId: string
+  manager: boolean
+  canComment?: boolean
+}>()
 const { open, threads, filter, activeId, draft, draftBody, loading, loadError } = props.comments
 const { state: auth } = useAuth()
 const openCount = computed(() => threads.value.filter(thread => !thread.resolvedAt).length)
@@ -95,7 +100,7 @@ watch(activeId, async (id) => {
       </nav>
       <DataRetry
         v-if="loadError"
-        :feedback-keys="[`comments:${comments.pageId}`]"
+        :feedback-keys="[`comments:${comments.itemId}`]"
         :on-retry="comments.synchronize"
         class="px-ui-xl"
       />
@@ -145,7 +150,7 @@ watch(activeId, async (id) => {
           {{ filter === 'resolved' ? 'No resolved discussions' : 'Start a conversation' }}
         </p>
         <p class="text-xs text-muted leading-relaxed max-w-ui-15xl mt-ui-sm">
-          {{ filter === 'resolved' ? 'Completed discussions will appear here.' : 'Select text in the page, then choose Comment.' }}
+          {{ filter === 'resolved' ? 'Completed discussions will appear here.' : 'Select text in the item, then choose Comment.' }}
         </p>
       </div>
       <CommentThread

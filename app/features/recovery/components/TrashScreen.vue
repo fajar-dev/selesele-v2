@@ -9,8 +9,8 @@ import { useTrash } from '../composables/useTrash'
 const route = useRoute()
 const workspaceId = computed(() => typeof route.query.workspace === 'string' ? route.query.workspace : null)
 const { error, refresh, scopedItems, filter, search, filtering, visible, loading, busy, deleting, deleteOpen, restore, purge } = useTrash(workspaceId)
-const filters = [{ value: 'all', label: 'All items' }, { value: 'page', label: 'Pages' }, { value: 'folder', label: 'Folders' }, { value: 'workspace', label: 'Workspaces' }]
-const icons = { page: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace: 'i-lucide-panels-top-left' }
+const filters = [{ value: 'all', label: 'All items' }, { value: 'item', label: 'Items' }, { value: 'folder', label: 'Folders' }, { value: 'workspace', label: 'Workspaces' }]
+const icons = { item: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace: 'i-lucide-panels-top-left' }
 </script>
 
 <template>
@@ -25,7 +25,7 @@ const icons = { page: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace
     /> Workspace settings</NuxtLink>
     <DirectoryHeading
       title="Trash"
-      :description="workspaceId ? 'Restore deleted pages and folders in this workspace.' : 'Find and restore deleted pages, folders, and workspaces.'"
+      :description="workspaceId ? 'Restore deleted items and folders in this workspace.' : 'Find and restore deleted items, folders, and workspaces.'"
     />
     <section
       aria-label="Deleted items"

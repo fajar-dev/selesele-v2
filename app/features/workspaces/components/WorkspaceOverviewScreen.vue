@@ -10,43 +10,45 @@ import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspaceActions } from '~/features/workspaces/composables/useWorkspaceActions'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import InlineTextField from '~/components/ui/InlineTextField.vue'
-import PageBreadcrumbs from '~/components/ui/PageBreadcrumbs.vue'
-import PageContent from '~/components/ui/PageContent.vue'
-import PageHeading from '~/components/ui/PageHeading.vue'
-import { usePageCreation } from '~/features/pages/composables/usePageCreation'
+import Breadcrumbs from '~/components/ui/Breadcrumbs.vue'
+import ScreenContent from '~/components/ui/ScreenContent.vue'
+import ScreenHeading from '~/components/ui/ScreenHeading.vue'
+import { useItemCreation } from '~/features/items/composables/useItemCreation'
 import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorkspaceFolders'
 import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
-import { formatPageCount } from '~/features/workspaces/utils/workspacePresentation'
+import { formatItemCount } from '~/features/workspaces/utils/workspacePresentation'
 import type { TableColumn } from '@nuxt/ui'
-import type { PageItem } from '#shared/contracts/page'
+import { itemKinds, itemTypeLabels } from '#shared/kernel/content'
+import type { ContentItem } from '#shared/contracts/item'
 
 const route = useRoute()
 const { workspaceId } = defineProps<{
   workspaceId: string
 }>()
-const { data, loading, error, refresh, pagesLoading, foldersLoading, membersLoading, pagesError, foldersError } = useWorkspace(workspaceId)
+const { data, loading, error, refresh, itemsLoading, foldersLoading, membersLoading, itemsError, foldersError } = useWorkspace(workspaceId)
 const { save: updateWorkspace } = useWorkspaceActions(workspaceId)
 const manager = computed(() => !data.value?.workspace.archivedAt && (data.value?.workspace.role === 'owner' || data.value?.workspace.role === 'admin'))
-const canCreate = computed(() => (!folder.value || folder.value.accessLevel === 'edit') && !!data.value && !data.value.workspace.archivedAt && allowsWorkspaceAction(data.value.workspace.role, data.value.workspace.settings, 'createPages'))
+const canCreate = computed(() => (!folder.value || folder.value.accessLevel === 'edit') && !!data.value && !data.value.workspace.archivedAt && allowsWorkspaceAction(data.value.workspace.role, data.value.workspace.settings, 'createItems'))
 const folder = computed(() => data.value?.folders.find(item => item.id === route.query.folder))
 const accessOpen = ref(false)
 const canEditFolder = computed(() => folder.value?.accessLevel === 'edit' && !data.value?.workspace.archivedAt)
 const search = ref('')
+const kindFilter = ref('__all')
 const view = ref<'list' | 'grid'>('list')
 const selectedFolderId = computed(() => typeof route.query.folder === 'string' ? route.query.folder : null)
-const scopedPages = computed(() => data.value?.pages.filter(page => !page.archivedAt && (!selectedFolderId.value || page.folderId === selectedFolderId.value)) || [])
-const pages = computed(() => scopedPages.value.filter(page => page.title.toLowerCase().includes(search.value.toLowerCase())))
-const { creatingPage, createPage } = usePageCreation(workspaceId)
+const scopedItems = computed(() => data.value?.items.filter(item => !item.archivedAt && (!selectedFolderId.value || item.folderId === selectedFolderId.value)) || [])
+const items = computed(() => scopedItems.value.filter(item => item.title.toLowerCase().includes(search.value.toLowerCase()) && (kindFilter.value === '__all' || item.kind === kindFilter.value)))
+const { creatingItem, createItem } = useItemCreation(workspaceId)
 const { updateFolder } = useWorkspaceFolders(workspaceId)
-const columns: TableColumn<PageItem>[] = [{ accessorKey: 'title', header: 'Page' }, { id: 'location', header: 'Location' }, { accessorKey: 'updatedAt', header: 'Last edited' }]
+const columns: TableColumn<ContentItem>[] = [{ accessorKey: 'title', header: 'Item' }, { accessorKey: 'kind', header: 'Type' }, { id: 'location', header: 'Location' }, { accessorKey: 'updatedAt', header: 'Last edited' }]
 const breadcrumbs = computed(() => [
   { label: data.value?.workspace.name || 'Workspace', emoji: data.value?.workspace.icon, icon: 'i-lucide-panels-top-left', to: `/workspaces/${workspaceId}` },
   ...(folder.value ? [{ label: folder.value.name, emoji: folder.value.icon || DEFAULT_FOLDER_ICON }] : [])
 ])
 watchEffect(() => {
-  const home = data.value?.workspace.settings.homePageId
-  if (home && !route.query.folder && !route.query.overview && data.value?.pages.some(page => page.id === home)) {
-    void navigateTo(`/workspaces/${workspaceId}/pages/${home}`, { replace: true })
+  const home = data.value?.workspace.settings.homeItemId
+  if (home && !route.query.folder && !route.query.overview && data.value?.items.some(item => item.id === home)) {
+    void navigateTo(`/workspaces/${workspaceId}/items/${home}`, { replace: true })
   }
 })
 </script>
@@ -57,10 +59,10 @@ watchEffect(() => {
   >
     <AppHeader>
       <template #left>
-        <PageBreadcrumbs :items="breadcrumbs" />
+        <Breadcrumbs :items="breadcrumbs" />
       </template>
     </AppHeader>
-    <PageContent>
+    <ScreenContent>
       <DataSkeleton
         v-if="loading || (selectedFolderId && foldersLoading)"
         kind="heading"
@@ -71,7 +73,7 @@ watchEffect(() => {
         :feedback-keys="[`workspaces:${workspaceId}`]"
         :on-retry="refresh"
       />
-      <PageHeading
+      <ScreenHeading
         v-else-if="data"
         :title="folder?.name || data.workspace.name"
       >
@@ -133,10 +135,10 @@ watchEffect(() => {
             />
           </UAvatarGroup>
           <span v-if="!membersLoading">{{ data.members.length }} {{ data.members.length === 1 ? 'member' : 'members' }}</span><span class="text-dimmed">·</span><USkeleton
-            v-if="pagesLoading"
+            v-if="itemsLoading"
             aria-hidden="true"
             class="h-ui-lg w-ui-6xl"
-          /><span v-else>{{ formatPageCount(scopedPages.length) }}</span><UBadge
+          /><span v-else>{{ formatItemCount(scopedItems.length) }}</span><UBadge
             color="neutral"
             variant="soft"
             size="sm"
@@ -154,16 +156,18 @@ watchEffect(() => {
             color="neutral"
             @click="accessOpen = true"
           />
-          <UButton
+          <UDropdownMenu
             v-if="canCreate"
-            label="New page"
-            icon="i-lucide-plus"
-            color="primary"
-            :loading="creatingPage"
-            @click="createPage(folder?.id || null)"
-          />
+            :items="itemKinds.map(kind => ({ label: itemTypeLabels[kind], onSelect: () => createItem(selectedFolderId, kind) }))"
+          >
+            <UButton
+              label="New item"
+              icon="i-lucide-plus"
+              :loading="creatingItem"
+            />
+          </UDropdownMenu>
         </template>
-      </PageHeading>
+      </ScreenHeading>
       <section
         v-if="data && !folder"
         class="space-y-ui-md"
@@ -204,13 +208,13 @@ watchEffect(() => {
             <div class="min-w-ui-zero flex-1">
               <h3 class="font-medium text-sm truncate">{{ item.name }}</h3>
               <USkeleton
-                v-if="pagesLoading"
+                v-if="itemsLoading"
                 aria-hidden="true"
                 class="h-ui-md w-ui-6xl mt-ui-xs"
               /><p
                 v-else
                 class="text-xs text-muted mt-ui-xs"
-              >{{ formatPageCount(data.pages.filter(page => page.folderId === item.id).length) }}</p>
+              >{{ formatItemCount(data.items.filter(entry => entry.folderId === item.id).length) }}</p>
             </div>
             <UIcon
               name="i-lucide-chevron-right"
@@ -222,7 +226,7 @@ watchEffect(() => {
       <section
         v-if="data"
         class="space-y-ui-lg"
-        aria-label="Workspace pages"
+        aria-label="Workspace items"
       >
         <div class="flex flex-wrap items-center justify-between gap-ui-md">
           <div class="flex items-center gap-ui-sm">
@@ -230,49 +234,54 @@ watchEffect(() => {
               name="i-lucide-files"
               class="size-ui-lg text-muted"
             /><h2 class="text-sm font-semibold">
-              {{ folder ? 'Pages in this folder' : 'All pages' }}
+              {{ folder ? 'Items in this folder' : 'All items' }}
             </h2><UBadge
               color="neutral"
               variant="soft"
               size="sm"
             >
-              {{ pages.length }}
+              {{ items.length }}
             </UBadge>
           </div>
           <div class="flex items-center gap-ui-sm">
+            <USelect
+              v-model="kindFilter"
+              :items="[{ label: 'All types', value: '__all' }, ...itemKinds.map(kind => ({ label: itemTypeLabels[kind], value: kind }))]"
+              aria-label="Filter item type"
+            />
             <UInput
               v-model="search"
-              placeholder="Search pages…"
-              aria-label="Search workspace pages"
+              placeholder="Search items…"
+              aria-label="Search workspace items"
               icon="i-lucide-search"
               size="sm"
               class="w-ui-13xl sm:w-ui-14xl"
             />
             <LayoutToggle
               v-model="view"
-              label="Page layout"
+              label="Item layout"
             />
           </div>
         </div>
         <DataSkeleton
-          v-if="pagesLoading"
-          label="Loading workspace pages"
+          v-if="itemsLoading"
+          label="Loading workspace items"
         />
         <DataRetry
-          v-else-if="pagesError"
-          :feedback-keys="[`workspaces:${workspaceId}:pages`]"
+          v-else-if="itemsError"
+          :feedback-keys="[`workspaces:${workspaceId}:items`]"
           :on-retry="refresh"
         />
         <UTable
-          v-else-if="pages.length && view === 'list'"
-          :data="pages"
+          v-else-if="items.length && view === 'list'"
+          :data="items"
           :columns="columns"
-          class="workspace-page-table"
+          class="workspace-item-table"
           :ui="{ root: 'border-t border-muted', thead: 'bg-transparent', separator: 'bg-(--ui-border-muted)', tbody: 'divide-y divide-muted', th: 'text-xs font-normal text-muted py-ui-md border-muted', td: 'py-ui-md border-muted', tr: 'hover:bg-muted/65 transition-colors' }"
         >
           <template #title-cell="{ row }">
             <UButton
-              :to="`/workspaces/${workspaceId}/pages/${row.original.id}`"
+              :to="`/workspaces/${workspaceId}/items/${row.original.id}`"
               color="neutral"
               variant="link"
               class="px-ui-zero font-medium text-highlighted max-w-ui-15xl sm:max-w-ui-18xl"
@@ -286,6 +295,9 @@ watchEffect(() => {
               </template><span class="truncate">{{ row.original.title }}</span>
             </UButton>
           </template>
+          <template #kind-cell="{ row }">
+            <span class="text-xs text-muted">{{ itemTypeLabels[row.original.kind] }}</span>
+          </template>
           <template #location-cell="{ row }">
             <span class="inline-flex items-center gap-ui-xs text-xs text-muted"><EntityIcon
               :value="row.original.folderId ? data.folders.find(item => item.id === row.original.folderId)?.icon || DEFAULT_FOLDER_ICON : data.workspace.icon"
@@ -298,31 +310,31 @@ watchEffect(() => {
           </template>
         </UTable>
         <div
-          v-else-if="pages.length"
+          v-else-if="items.length"
           class="grid sm:grid-cols-2 xl:grid-cols-3 gap-ui-lg"
         >
           <NuxtLink
-            v-for="page in pages"
-            :key="page.id"
-            :to="`/workspaces/${workspaceId}/pages/${page.id}`"
+            v-for="item in items"
+            :key="item.id"
+            :to="`/workspaces/${workspaceId}/items/${item.id}`"
             class="group"
           >
             <UCard
               class="workspace-card surface-card h-full"
               :ui="{ body: 'p-ui-xl sm:p-ui-xl' }"
             ><EntityIcon
-              :value="page.icon"
+              :value="item.icon"
               fallback="i-lucide-file"
               class="size-ui-4xl text-3xl"
-            /><h3 class="font-semibold text-sm mt-ui-lg truncate">{{ page.title }}</h3><p class="text-xs text-muted mt-ui-xl">Edited {{ formatRelativeTime(page.updatedAt) }}</p></UCard>
+            /><h3 class="font-semibold text-sm mt-ui-lg truncate">{{ item.title }}</h3><p class="text-xs text-muted mt-ui-xl">Edited {{ formatRelativeTime(item.updatedAt) }}</p></UCard>
           </NuxtLink>
         </div>
         <UEmpty
           v-else
           variant="naked"
           :icon="search ? 'i-lucide-search' : 'i-lucide-file-pen-line'"
-          :title="search ? 'No pages found' : 'Start with a blank page'"
-          :description="search ? 'Try another title or clear your search.' : 'A quick thought, a project plan, a shared idea. It all starts here.'"
+          :title="search ? 'No items found' : 'Start with a blank item'"
+          :description="search ? 'Try another title or clear your search.' : 'A shared document, a project board, a sketch, or a diagram. Start here.'"
           class="bg-default py-ui-7xl"
           :ui="{ avatar: 'bg-transparent text-muted ring-0', title: 'text-base', description: 'max-w-sm' }"
         >
@@ -335,16 +347,16 @@ watchEffect(() => {
               @click="search = ''"
             /><UButton
               v-else-if="canCreate"
-              label="Create a page"
+              label="Create document"
               icon="i-lucide-plus"
               color="primary"
-              :loading="creatingPage"
-              @click="createPage(folder?.id || null)"
+              :loading="creatingItem"
+              @click="createItem(folder?.id || null)"
             />
           </template>
         </UEmpty>
       </section>
-    </PageContent>
+    </ScreenContent>
   </div>
   <ResourceAccessPanel
     v-if="accessOpen && folder"

@@ -4,8 +4,7 @@ import { defaultNotificationPreferences } from '../../../../shared/kernel/worksp
 import { nextDigestAt } from '../domain/digestSchedule'
 import { emailDeliveries, users, workspaceMembers } from '../../../platform/database/schema'
 
-type PendingEmail = Pick<typeof emailDeliveries.$inferInsert, 'deduplicationKey' | 'recipient' | 'recipientUserId' | 'workspaceId' | 'pageId' | 'memberId' | 'kind' | 'title' | 'activity'>
-
+type PendingEmail = Pick<typeof emailDeliveries.$inferInsert, 'deduplicationKey' | 'recipient' | 'recipientUserId' | 'workspaceId' | 'itemId' | 'memberId' | 'kind' | 'title' | 'activity'>
 /** Persist with the notification, never perform network delivery in this transaction. */
 export async function enqueueEmail(transaction: DatabaseTransaction, message: PendingEmail): Promise<void> {
   let deliveryMode: 'immediate' | 'daily' = 'immediate'

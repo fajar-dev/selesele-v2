@@ -87,6 +87,7 @@ export function useConversations(workspaceId: string) {
       }
       question.value = ''
       current.value = response
+      pendingQuestion.value = ''
       await navigateTo({ path: `/workspaces/${workspaceId}/ask`, query: { chat: chat.id } }, { replace: !selected.value })
       if (!active) {
         return

@@ -1,4 +1,4 @@
-/** Signals committed changes to connected page viewers. */
+/** Signals committed changes to connected item viewers. */
 export interface CommentEvents {
-  commentsChanged(pageId: string): Promise<void>
+  commentsChanged(itemId: string): Promise<void>
 }

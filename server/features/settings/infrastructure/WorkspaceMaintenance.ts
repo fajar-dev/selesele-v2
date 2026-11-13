@@ -1,6 +1,6 @@
 import { and, eq, isNotNull, isNull, lte } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
-import { folders, pages, workspaces } from '../../../platform/database/schema'
+import { folders, items, workspaces } from '../../../platform/database/schema'
 import type { RecoveryRepository } from '../../recovery/domain/RecoveryRepository'
 import type { WorkspaceJournal } from '../domain/WorkspaceJournal'
 import type { ErrorReporter } from '../../../core/ports/ErrorReporter'
@@ -8,7 +8,9 @@ import type { ErrorReporter } from '../../../core/ports/ErrorReporter'
 export class WorkspaceMaintenance {
   private timer?: ReturnType<typeof setInterval>
   private active?: Promise<void>
-  constructor(private readonly db: Database, private readonly recovery: RecoveryRepository, private readonly journal: WorkspaceJournal, private readonly errors: ErrorReporter) { }
+  constructor(private readonly db: Database, private readonly recovery: RecoveryRepository, private readonly journal: WorkspaceJournal, private readonly errors: ErrorReporter) {
+  }
+
   start() {
     if (this.timer) {
       return
@@ -32,13 +34,13 @@ export class WorkspaceMaintenance {
       }
       const before = new Date(now.getTime() - days * 86400000)
       const directories = await this.db.select({ id: folders.id, name: folders.name }).from(folders).where(and(eq(folders.workspaceId, workspace.id), lte(folders.deletedAt, before))).limit(100)
-      const notes = await this.db.select({ id: pages.id, name: pages.title }).from(pages).where(and(eq(pages.workspaceId, workspace.id), lte(pages.deletedAt, before))).limit(100)
-      for (const [kind, rows] of [['folder', directories], ['page', notes]] as const) {
+      const notes = await this.db.select({ id: items.id, name: items.title }).from(items).where(and(eq(items.workspaceId, workspace.id), lte(items.deletedAt, before))).limit(100)
+      for (const [kind, rows] of [['folder', directories], ['item', notes]] as const) {
         for (const row of rows) {
           if (!await this.recovery.purge(kind, row.id, before)) {
             continue
           }
-          await this.journal.record(workspace.id, 'system', 'content.purged', `Retention policy: ${row.name}`, { pageId: kind === 'page' ? row.id : undefined, folderId: kind === 'folder' ? row.id : undefined })
+          await this.journal.record(workspace.id, 'system', 'content.purged', `Retention policy: ${row.name}`, { itemId: kind === 'item' ? row.id : undefined, folderId: kind === 'folder' ? row.id : undefined })
         }
       }
     }

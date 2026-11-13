@@ -3,30 +3,31 @@ import type { CommentThreadInput, CommentThreadItem } from '#shared/contracts/co
 import type { ApiTransport } from '~/core/http/ApiTransport'
 
 export class CommentClient {
-  constructor(private readonly http: ApiTransport) {}
+  constructor(private readonly http: ApiTransport) {
+  }
 
-  private path(pageId: string, threadId?: string) {
-    const base = `/pages/${encodeURIComponent(pageId)}/comments`
+  private path(itemId: string, threadId?: string) {
+    const base = `/items/${encodeURIComponent(itemId)}/comments`
     return threadId ? `${base}/${encodeURIComponent(threadId)}` : base
   }
 
-  list(pageId: string) {
-    return this.http.request<ApiResponse<CommentThreadItem[]>>(this.path(pageId))
+  list(itemId: string) {
+    return this.http.request<ApiResponse<CommentThreadItem[]>>(this.path(itemId))
   }
 
-  create(pageId: string, body: CommentThreadInput) {
-    return this.http.request<ApiResponse<CommentThreadItem>>(this.path(pageId), { method: 'POST', body })
+  create(itemId: string, body: CommentThreadInput) {
+    return this.http.request<ApiResponse<CommentThreadItem>>(this.path(itemId), { method: 'POST', body })
   }
 
-  reply(pageId: string, threadId: string, body: string) {
-    return this.http.request<ApiResponse<CommentThreadItem>>(`${this.path(pageId, threadId)}/replies`, { method: 'POST', body: { body } })
+  reply(itemId: string, threadId: string, body: string) {
+    return this.http.request<ApiResponse<CommentThreadItem>>(`${this.path(itemId, threadId)}/replies`, { method: 'POST', body: { body } })
   }
 
-  resolve(pageId: string, threadId: string, resolved: boolean) {
-    return this.http.request<ApiResponse<CommentThreadItem>>(this.path(pageId, threadId), { method: 'PATCH', body: { resolved } })
+  resolve(itemId: string, threadId: string, resolved: boolean) {
+    return this.http.request<ApiResponse<CommentThreadItem>>(this.path(itemId, threadId), { method: 'PATCH', body: { resolved } })
   }
 
-  delete(pageId: string, threadId: string) {
-    return this.http.request(this.path(pageId, threadId), { method: 'DELETE' })
+  delete(itemId: string, threadId: string) {
+    return this.http.request(this.path(itemId, threadId), { method: 'DELETE' })
   }
 }

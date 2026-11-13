@@ -192,7 +192,7 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
             </UBadge>
           </UFormField>
           <p class="text-xs text-muted leading-relaxed">
-            Viewers can read. Members can edit where document permissions allow. Admins manage people and settings; restricted documents still require access.
+            Viewers can read. Members can edit where item permissions allow. Admins manage people and settings; restricted items still require access.
           </p>
           <div>
             <h3 class="text-sm font-medium">
@@ -221,7 +221,7 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
         </template>
         <template v-else-if="tab === 'access'">
           <UButton
-            :label="previewVisibility ? 'Show all permissions' : 'Preview visible documents'"
+            :label="previewVisibility ? 'Show all permissions' : 'Preview visible items'"
             icon="i-lucide-eye"
             color="neutral"
             variant="outline"
@@ -229,18 +229,18 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
             @click="previewVisibility = !previewVisibility"
           />
           <p class="text-sm text-muted">
-            {{ previewVisibility ? `Showing what ${member.name || member.email} can see, limited to documents you can also access. This does not sign you in as the member.` : 'Effective access includes groups and parent restrictions. Individual overrides take priority. A Viewer can never exceed view access.' }}
+            {{ previewVisibility ? `Showing what ${member.name || member.email} can see, limited to items you can also access. This does not sign you in as the member.` : 'Effective access includes groups and parent restrictions. Individual overrides take priority. A Viewer can never exceed view access.' }}
           </p>
           <UInput
             v-model="resourceQuery"
             icon="i-lucide-search"
-            placeholder="Find a page or folder…"
+            placeholder="Find an item or folder…"
             class="w-full"
             aria-label="Filter member resources"
           />
           <DataSkeleton
             v-if="status === 'idle' || status === 'pending'"
-            label="Loading document permissions"
+            label="Loading item permissions"
           />
           <DataRetry
             v-else-if="accessError"
@@ -267,7 +267,7 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
                     {{ sourceLabels[item.source] }} · {{ item.mode }}
                   </p>
                   <p
-                    v-if="item.kind === 'page' && item.folderId"
+                    v-if="item.kind === 'item' && item.folderId"
                     class="text-xs text-muted mt-ui-xs"
                   >
                     Folder limit: {{ item.parentLevel }}{{ member.role === 'viewer' ? ' · Viewer role limits this to read-only' : '' }}
@@ -318,7 +318,7 @@ useFeedbackToast(() => tab.value === 'history' ? historyError.value : null, { ke
                   />
                 </UFormField>
                 <p class="text-xs text-muted">
-                  Parent folder permits {{ item.parentLevel }}. A page cannot exceed its parent’s access.
+                  Parent folder permits {{ item.parentLevel }}. An item cannot exceed its parent’s access.
                 </p>
                 <div class="flex justify-end gap-ui-sm">
                   <UButton

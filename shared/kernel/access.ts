@@ -1,5 +1,5 @@
 export type AccessLevel = 'none' | 'view' | 'comment' | 'edit'
-export type ResourceKind = 'folder' | 'page'
+export type ResourceKind = 'folder' | 'item'
 export type ResourceMode = 'inherit' | 'restricted'
 export const accessRank: Record<AccessLevel, number> = { none: 0, view: 1, comment: 2, edit: 3 }
 export const accessLevels: AccessLevel[] = ['none', 'view', 'comment', 'edit']

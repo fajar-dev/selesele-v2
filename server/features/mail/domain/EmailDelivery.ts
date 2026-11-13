@@ -6,7 +6,7 @@ export interface EmailDelivery {
   recipient: string
   recipientUserId: string | null
   workspaceId: string
-  pageId: string | null
+  itemId: string | null
   memberId: string | null
   kind: NotificationItem['kind']
   title: string
@@ -15,7 +15,6 @@ export interface EmailDelivery {
   leaseToken: string
   digest?: EmailDelivery[]
 }
-
 export interface EmailMessage {
   id: string
   to: string

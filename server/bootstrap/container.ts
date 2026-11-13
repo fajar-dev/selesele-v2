@@ -1,3 +1,6 @@
+import { CanvasService } from '../features/canvases/application/CanvasService'
+import { MySqlCanvasRepository } from '../features/canvases/infrastructure/MySqlCanvasRepository'
+import { ZodCanvasCodec } from '../features/canvases/infrastructure/ZodCanvasCodec'
 import { eq } from 'drizzle-orm'
 import { ConversationService } from '../features/conversations/application/ConversationService'
 import { MySqlConversationRepository } from '../features/conversations/infrastructure/MySqlConversationRepository'
@@ -37,15 +40,15 @@ import { WorkspaceService } from '../features/workspaces/application/WorkspaceSe
 import { FolderService } from '../features/workspaces/application/FolderService'
 import { MySqlWorkspaceRepository } from '../features/workspaces/infrastructure/MySqlWorkspaceRepository'
 import { MySqlFolderRepository } from '../features/workspaces/infrastructure/MySqlFolderRepository'
-import { MySqlDocumentRepository } from '../features/pages/infrastructure/MySqlDocumentRepository'
-import { PageService } from '../features/pages/application/PageService'
-import { PageDocumentService } from '../features/pages/application/PageDocumentService'
+import { MySqlDocumentRepository } from '../features/items/infrastructure/MySqlDocumentRepository'
+import { ItemService } from '../features/items/application/ItemService'
+import { ItemContentService } from '../features/items/application/ItemContentService'
 import { GatewayCompletionProvider } from '../features/writing/infrastructure/GatewayCompletionProvider'
 import { MicrosoftIdentityProvider } from '../features/identity/infrastructure/MicrosoftIdentityProvider'
 import { OAuthService } from '../features/identity/application/OAuthService'
 import { CollaborationHub } from '../platform/collaboration/CollaborationHub'
 import { createDatabase } from '../platform/database/client'
-import { MySqlPageRepository } from '../features/pages/infrastructure/MySqlPageRepository'
+import { MySqlItemRepository } from '../features/items/infrastructure/MySqlItemRepository'
 import { MySqlSessionRepository } from '../features/identity/infrastructure/MySqlSessionRepository'
 import { MySqlUserRepository } from '../features/identity/infrastructure/MySqlUserRepository'
 import { resolve } from 'node:path'
@@ -60,7 +63,7 @@ function createContainer() {
   const imageStore = new LocalImageStore(imageDirectory)
   const clock = new SystemClock()
   const tokens = new CryptographicTokens()
-  const pageRepository = new MySqlPageRepository(database.db)
+  const itemRepository = new MySqlItemRepository(database.db)
   const auth = new AuthService(new MySqlUserRepository(database.db), new MySqlSessionRepository(database.db), tokens, clock)
   const emailConfig = mailConfig()
   const emailSender = emailConfig ? new SmtpEmailSender(emailConfig) : null
@@ -77,16 +80,18 @@ function createContainer() {
   const workspaceAccess = new WorkspaceAccessPolicy(workspaceRepository)
   const workspaces = new WorkspaceService(workspaceRepository, workspaceAccess, journal)
   const folders = new FolderService(folderRepository, workspaceAccess, journal, resources)
-  const pages = new PageService(pageRepository, workspaceAccess, folders, journal, resources)
-  const collaboration = new CollaborationHub(pages, auth, documents)
+  const items = new ItemService(itemRepository, workspaceAccess, folders, journal, resources)
+  const collaboration = new CollaborationHub(items, auth, documents)
   const provider = new GatewayCompletionProvider({
     baseURL: process.env.AI_BASE_URL || '',
     apiKey: process.env.AI_API_KEY || '',
     model: process.env.AI_MODEL || ''
   })
   const completions = new CompletionService(provider)
-  const library = new LibraryService(new MySqlLibraryRepository(database.db), pages, workspaceAccess)
-  const pageDocuments = new PageDocumentService(pages, documents, collaboration)
+  const library = new LibraryService(new MySqlLibraryRepository(database.db), items, workspaceAccess)
+  const canvasRepository = new MySqlCanvasRepository(database.db)
+  const canvases = new CanvasService(canvasRepository, items, new ZodCanvasCodec())
+  const itemContent = new ItemContentService(items, documents, collaboration, canvasRepository)
   const questions = new WorkspaceQuestionService(library, provider)
   return {
     startWorkers: () => {
@@ -94,10 +99,11 @@ function createContainer() {
       maintenance.start()
     },
     auth,
-    settings: new WorkspaceSettingsService(new MySqlSettingsRepository(database.db), workspaceAccess, pages, new BunWorkspaceArchive(imageStore, imageDirectory)),
+    settings: new WorkspaceSettingsService(new MySqlSettingsRepository(database.db), workspaceAccess, items, new BunWorkspaceArchive(imageStore, imageDirectory)),
     library,
-    recovery: new RecoveryService(recoveryRepository, pages, collaboration, workspaceAccess, journal),
-    templates: new TemplateService(pages, pageDocuments, new MySqlWorkspaceTemplateRepository(database.db), workspaceAccess, resources),
+    canvases,
+    recovery: new RecoveryService(recoveryRepository, items, collaboration, workspaceAccess, journal, canvases),
+    templates: new TemplateService(items, itemContent, new MySqlWorkspaceTemplateRepository(database.db), workspaceAccess, resources),
     conversations: new ConversationService(new MySqlConversationRepository(database.db), workspaceAccess, resources, questions),
     notifications,
     notificationEvents,
@@ -122,11 +128,11 @@ function createContainer() {
     },
     members: new MemberService(new MySqlMemberRepository(database.db, !!emailConfig), workspaceAccess, resources),
     folders,
-    pages,
-    documents: pageDocuments,
+    items,
+    content: itemContent,
     collaboration,
     completions,
-    comments: new CommentService(new MySqlCommentRepository(database.db), pages, workspaceAccess, { async commentsChanged(id) {
+    comments: new CommentService(new MySqlCommentRepository(database.db), items, workspaceAccess, { async commentsChanged(id) {
       commentEvents.changed(id)
       await collaboration.commentsChanged(id)
     } }, notifications),

@@ -3,7 +3,9 @@ import type { ActivityPublisher } from '../domain/ActivityPublisher'
 import type { NotificationRepository } from '../domain/NotificationRepository'
 
 export class NotificationService implements ActivityPublisher {
-  constructor(private readonly repository: NotificationRepository, private readonly changed: (userId: string) => void, private readonly errors: ErrorReporter) {}
+  constructor(private readonly repository: NotificationRepository, private readonly changed: (userId: string) => void, private readonly errors: ErrorReporter) {
+  }
+
   list(userId: string) {
     return this.repository.list(userId)
   }
@@ -24,11 +26,11 @@ export class NotificationService implements ActivityPublisher {
     }
   }
 
-  comment(pageId: string, threadId: string, body: string, actorId: string, event: 'comment' | 'reply' = 'reply') {
-    return this.publish(() => this.repository.comment(pageId, threadId, body, actorId, event))
+  comment(itemId: string, threadId: string, body: string, actorId: string, event: 'comment' | 'reply' = 'reply') {
+    return this.publish(() => this.repository.comment(itemId, threadId, body, actorId, event))
   }
 
-  mentions(pageId: string, userIds: string[], actorId?: string) {
-    return this.publish(() => this.repository.mentions(pageId, userIds, actorId))
+  mentions(itemId: string, userIds: string[], actorId?: string) {
+    return this.publish(() => this.repository.mentions(itemId, userIds, actorId))
   }
 }

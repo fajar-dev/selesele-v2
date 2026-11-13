@@ -1,34 +1,37 @@
 <script setup lang="ts">
+import { itemKinds, itemTypeLabels } from '#shared/kernel/content'
+import type { ItemKind } from '#shared/kernel/content'
 import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
-import MoveAccessConfirmation from '~/features/pages/components/MoveAccessConfirmation.vue'
+import MoveAccessConfirmation from '~/features/items/components/MoveAccessConfirmation.vue'
 import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
-import { usePageTemplates } from '~/features/library/composables/usePageTemplates'
+import { useItemTemplates } from '~/features/library/composables/useItemTemplates'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
-import WorkspacePageLink from '~/features/workspaces/components/WorkspacePageLink.vue'
-import { usePageMovement } from '~/features/pages/composables/usePageMovement'
+import WorkspaceItemLink from '~/features/workspaces/components/WorkspaceItemLink.vue'
+import { useItemMovement } from '~/features/items/composables/useItemMovement'
 import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorkspaceFolders'
 import type { WorkspaceOverview, FolderItem } from '#shared/contracts/workspace'
-import type { PageItem } from '#shared/contracts/page'
+import type { ContentItem } from '#shared/contracts/item'
 
 const props = defineProps<{
   overview: WorkspaceOverview
-  pagesLoading: boolean
+  itemsLoading: boolean
   foldersLoading: boolean
 }>()
 const emit = defineEmits<{
-  createPage: [
-        folderId: string | null
+  createItem: [
+        folderId: string | null,
+        kind: ItemKind
   ]
   deleteFolder: [
         folder: FolderItem
   ]
-  deletePage: [
-        page: PageItem
+  deleteItem: [
+        item: ContentItem
   ]
 }>()
 const writable = computed(() => !props.overview.workspace.archivedAt)
-const canPage = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'createPages'))
+const canItem = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'createItems'))
 const canFolder = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'createFolders'))
 const canDelete = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'deleteContent'))
 const accessFolder = ref<FolderItem | null>(null)
@@ -38,9 +41,9 @@ function beginFolder() {
   creatingFromMenu.value = true
   void createFolder()
 }
-function beginPage(folderId: string | null) {
+function beginItem(folderId: string | null, kind: ItemKind = 'document') {
   creatingFromMenu.value = true
-  emit('createPage', folderId)
+  emit('createItem', folderId, kind)
 }
 function preserveCreationFocus(event: Event) {
   if (creatingFromMenu.value) {
@@ -49,32 +52,33 @@ function preserveCreationFocus(event: Event) {
   }
 }
 const route = useRoute()
-const { movingPageId, announcement, pendingMove, movePage, confirmMove } = usePageMovement(() => props.overview)
+const { movingItemId, announcement, pendingMove, moveItem, confirmMove } = useItemMovement(() => props.overview)
 const moveOpen = computed({ get: () => !!pendingMove.value, set: (value) => {
   if (!value) {
     pendingMove.value = null
   }
 } })
 const home = computed(() => `/workspaces/${props.overview.workspace.id}`)
-const rootPages = computed(() => props.overview.pages.filter(page => !page.folderId && !page.archivedAt))
-const templates = usePageTemplates(props.overview.workspace.id, () => {
+const rootItems = computed(() => props.overview.items.filter(item => !item.folderId && !item.archivedAt))
+const templates = useItemTemplates(props.overview.workspace.id, () => {
   creatingFromMenu.value = true
 })
 const collapsed = ref(new Set<string>())
-const draggedPage = ref<PageItem | null>(null)
+const draggedItem = ref<ContentItem | null>(null)
 const dropTarget = ref<string | null>(null)
-const pageDragType = 'application/x-sele-page'
+const itemDragType = 'application/x-sele-item'
 const rootTarget = 'workspace-root'
+const creationItems = (folderId: string | null) => itemKinds.map(kind => ({ label: itemTypeLabels[kind], icon: { document: 'i-lucide-file-text', kanban: 'i-lucide-columns-3', whiteboard: 'i-lucide-pencil-ruler', diagram: 'i-lucide-workflow' }[kind], onSelect: () => beginItem(folderId, kind) }))
 const addItems = computed(() => [
-  ...(canPage.value ? [{ label: 'Page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(null) }, templates.items(null)] : []),
+  ...(canItem.value ? [...creationItems(null), templates.items(null)] : []),
   ...(canFolder.value ? [{ label: 'Folder', icon: 'i-lucide-folder-plus', onSelect: beginFolder }] : [])
 ])
-function folderPages(folder: FolderItem) {
-  return props.overview.pages.filter(page => page.folderId === folder.id && !page.archivedAt)
+function folderContent(folder: FolderItem) {
+  return props.overview.items.filter(item => item.folderId === folder.id && !item.archivedAt)
 }
 function folderItems(folder: FolderItem) {
   return [
-    ...(canPage.value && folder.accessLevel === 'edit' ? [{ label: 'New page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(folder.id) }, templates.items(folder.id)] : []),
+    ...(canItem.value && folder.accessLevel === 'edit' ? [...creationItems(folder.id), templates.items(folder.id)] : []),
     ...(folder.canManageAccess
       ? [{ label: 'Manage access', icon: 'i-lucide-shield-check', onSelect: () => {
           accessFolder.value = folder
@@ -90,24 +94,24 @@ function toggleFolder(folderId: string) {
     collapsed.value.add(folderId)
   }
 }
-function startDrag(event: DragEvent, page: PageItem) {
-  if (!event.dataTransfer || movingPageId.value || page.accessLevel !== 'edit') {
+function startDrag(event: DragEvent, item: ContentItem) {
+  if (!event.dataTransfer || movingItemId.value || item.accessLevel !== 'edit') {
     event.preventDefault()
     return
   }
-  draggedPage.value = page
+  draggedItem.value = item
   event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData(pageDragType, page.id)
+  event.dataTransfer.setData(itemDragType, item.id)
 }
 function endDrag() {
-  draggedPage.value = null
+  draggedItem.value = null
   dropTarget.value = null
 }
 function canDrop(folderId: string | null) {
-  return (!folderId || props.overview.folders.some(folder => folder.id === folderId && folder.accessLevel === 'edit')) && !!draggedPage.value && !movingPageId.value && draggedPage.value.folderId !== folderId
+  return (!folderId || props.overview.folders.some(folder => folder.id === folderId && folder.accessLevel === 'edit')) && !!draggedItem.value && !movingItemId.value && draggedItem.value.folderId !== folderId
 }
 function dragOver(event: DragEvent, folderId: string | null) {
-  if (!draggedPage.value) {
+  if (!draggedItem.value) {
     return
   }
   event.preventDefault()
@@ -135,16 +139,16 @@ function dragLeave(event: DragEvent) {
   dropTarget.value = null
 }
 async function drop(event: DragEvent, folderId: string | null) {
-  if (!draggedPage.value) {
+  if (!draggedItem.value) {
     return
   }
   event.preventDefault()
   event.stopPropagation()
-  const page = draggedPage.value
-  const valid = canDrop(folderId) && event.dataTransfer?.getData(pageDragType) === page.id
+  const item = draggedItem.value
+  const valid = canDrop(folderId) && event.dataTransfer?.getData(itemDragType) === item.id
   endDrag()
   if (valid) {
-    await movePage(page, folderId)
+    await moveItem(item, folderId)
   }
 }
 watch(() => props.overview.workspace.id, () => {
@@ -155,8 +159,8 @@ watch(() => props.overview.workspace.id, () => {
 
 <template>
   <section
-    aria-label="Pages and folders"
-    :aria-busy="!!movingPageId"
+    aria-label="Items and folders"
+    :aria-busy="!!movingItemId"
     @keydown.esc="endDrag"
   >
     <div
@@ -167,9 +171,9 @@ watch(() => props.overview.workspace.id, () => {
       @dragleave="dragLeave"
       @drop="drop($event, null)"
     >
-      <span class="sidebar-section-label">Pages</span>
+      <span class="sidebar-section-label">Items</span>
       <span
-        v-if="draggedPage?.folderId"
+        v-if="draggedItem?.folderId"
         class="ml-auto text-xs text-muted"
       >Drop here to move out</span>
       <UDropdownMenu
@@ -180,7 +184,7 @@ watch(() => props.overview.workspace.id, () => {
       >
         <UButton
           icon="i-lucide-plus"
-          aria-label="Add page or folder"
+          aria-label="Add item or folder"
           :loading="creatingFolder"
           size="xs"
           variant="ghost"
@@ -247,53 +251,53 @@ watch(() => props.overview.workspace.id, () => {
           class="ml-ui-xl border-l border-muted pl-ui-xs mt-ui-2xs space-y-ui-2xs"
         >
           <li
-            v-for="page in folderPages(folder)"
-            :key="page.id"
-            :data-page-id="page.id"
+            v-for="item in folderContent(folder)"
+            :key="item.id"
+            :data-item-id="item.id"
           >
-            <WorkspacePageLink
-              :can-delete="canDelete && page.accessLevel === 'edit'"
-              :page="page"
+            <WorkspaceItemLink
+              :can-delete="canDelete && item.accessLevel === 'edit'"
+              :item="item"
               :home="home"
-              :active="route.params.id === page.id"
-              :moving="movingPageId === page.id"
-              :disabled="!!movingPageId || !writable"
-              @drag-page="startDrag"
+              :active="route.params.id === item.id"
+              :moving="movingItemId === item.id"
+              :disabled="!!movingItemId || !writable"
+              @drag-item="startDrag"
               @end-drag="endDrag"
-              @delete-page="emit('deletePage', $event)"
+              @delete-item="emit('deleteItem', $event)"
             />
           </li>
           <li
-            v-if="!pagesLoading && !folderPages(folder).length"
+            v-if="!itemsLoading && !folderContent(folder).length"
             class="px-ui-sm py-ui-sm text-xs text-muted"
           >
-            {{ draggedPage ? 'Drop on the folder to move here' : 'Empty folder' }}
+            {{ draggedItem ? 'Drop on the folder to move here' : 'Empty folder' }}
           </li>
         </ul>
       </li>
       <li
-        v-for="page in rootPages"
-        :key="page.id"
-        :data-page-id="page.id"
+        v-for="item in rootItems"
+        :key="item.id"
+        :data-item-id="item.id"
       >
-        <WorkspacePageLink
-          :can-delete="canDelete && page.accessLevel === 'edit'"
-          :page="page"
+        <WorkspaceItemLink
+          :can-delete="canDelete && item.accessLevel === 'edit'"
+          :item="item"
           :home="home"
-          :active="route.params.id === page.id"
-          :moving="movingPageId === page.id"
-          :disabled="!!movingPageId || !writable"
-          @drag-page="startDrag"
+          :active="route.params.id === item.id"
+          :moving="movingItemId === item.id"
+          :disabled="!!movingItemId || !writable"
+          @drag-item="startDrag"
           @end-drag="endDrag"
-          @delete-page="emit('deletePage', $event)"
+          @delete-item="emit('deleteItem', $event)"
         />
       </li>
     </ul>
     <p
-      v-if="!pagesLoading && !foldersLoading && !overview.pages.length && !overview.folders.length"
+      v-if="!itemsLoading && !foldersLoading && !overview.items.length && !overview.folders.length"
       class="px-ui-sm py-ui-sm text-xs leading-relaxed text-muted"
     >
-      Add your first page or folder.
+      Add your first item or folder.
     </p>
     <p
       class="sr-only"
@@ -314,7 +318,7 @@ watch(() => props.overview.workspace.id, () => {
     v-if="pendingMove"
     v-model:open="moveOpen"
     :impact="pendingMove.impact"
-    :busy="!!movingPageId"
+    :busy="!!movingItemId"
     :on-confirm="confirmMove"
   />
 </template>

@@ -5,7 +5,7 @@
   >
     <div class="auth-preview-back" />
     <UCard
-      class="auth-preview-page"
+      class="auth-preview-item"
       :ui="{ body: 'p-ui-zero sm:p-ui-zero' }"
     >
       <div class="auth-preview-path">
@@ -76,7 +76,7 @@
 
 .auth-preview { position: relative; margin-top: var(--spacing-ui-4xl); padding-right: var(--spacing-ui-md); max-width: var(--container-auth-preview); color: var(--color-neutral-800); }
 .auth-preview-back { position: absolute; inset: var(--spacing-ui-sm) var(--spacing-ui-sm) calc(-1 * var(--spacing-ui-sm)) var(--spacing-ui-sm); background: var(--color-neutral-700); border: var(--app-border-thin) solid var(--color-neutral-600); border-radius: var(--radius-sm); transform: var(--app-preview-rotation); }
-.auth-preview-page { position: relative; background: var(--color-white); color: var(--color-neutral-800); border-radius: var(--radius-sm); box-shadow: var(--app-preview-shadow); }
+.auth-preview-item { position: relative; background: var(--color-white); color: var(--color-neutral-800); border-radius: var(--radius-sm); box-shadow: var(--app-preview-shadow); }
 .auth-preview-path { display: flex; align-items: center; gap: var(--spacing-ui-sm); padding: var(--spacing-ui-md) var(--spacing-ui-lg); border-bottom: var(--app-border-thin) solid var(--color-neutral-200); color: var(--color-neutral-500); font-size: var(--text-xs); }
 .auth-preview-document { padding: var(--spacing-ui-2xl) var(--spacing-ui-3xl) var(--spacing-ui-3xl); }
 .auth-preview-status { display: inline-flex; align-items: center; gap: var(--spacing-ui-xs); color: var(--color-neutral-500); font-size: var(--text-xs); }

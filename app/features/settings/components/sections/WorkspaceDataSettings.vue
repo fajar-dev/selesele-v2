@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
-import PageSection from '~/components/ui/PageSection.vue'
+import ScreenSection from '~/components/ui/ScreenSection.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import type { WorkspaceSettings, WorkspaceUsage } from '#shared/contracts/workspaceSettings'
 
@@ -23,15 +23,14 @@ watch(() => model.value.trashRetentionDays, (days) => {
   }
 })
 const formatBytes = (value: number) => value < 1024 * 1024 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`
-
 useFeedbackToast(() => props.error, { key: `workspace-usage:${props.workspaceId}`, title: 'Unable to load usage', recovered: () => !props.loading && !props.error, retry: () => props.onRetry() })
 </script>
 
 <template>
   <div class="space-y-ui-6xl">
-    <PageSection
+    <ScreenSection
       title="Workspace usage"
-      description="Document storage includes the collaborative state. Attachment storage counts files referenced by active pages."
+      description="Document storage includes the collaborative state. Attachment storage counts files referenced by active items."
     >
       <DataSkeleton
         v-if="loading"
@@ -47,7 +46,7 @@ useFeedbackToast(() => props.error, { key: `workspace-usage:${props.workspaceId}
         class="grid grid-cols-2 sm:grid-cols-3 gap-ui-xl"
       >
         <div
-          v-for="stat in [{ label: 'Pages', value: usage.pages }, { label: 'Folders', value: usage.folders }, { label: 'Members', value: usage.members }, { label: 'Documents', value: formatBytes(usage.documentBytes) }, { label: 'Attachments', value: formatBytes(usage.attachmentBytes) }]"
+          v-for="stat in [{ label: 'Items', value: usage.items }, { label: 'Folders', value: usage.folders }, { label: 'Members', value: usage.members }, { label: 'Documents', value: formatBytes(usage.documentBytes) }, { label: 'Attachments', value: formatBytes(usage.attachmentBytes) }]"
           :key="stat.label"
         >
           <dt class="text-xs text-muted">
@@ -57,10 +56,10 @@ useFeedbackToast(() => props.error, { key: `workspace-usage:${props.workspaceId}
           </dd>
         </div>
       </dl>
-    </PageSection>
-    <PageSection
+    </ScreenSection>
+    <ScreenSection
       title="Export workspace"
-      description="Download active pages as Markdown with their referenced images. The .tar.gz archive preserves folders and includes a workspace index. Exports are limited to 50 MB."
+      description="Download active items as Markdown with their referenced images. The .tar.gz archive preserves folders and includes a workspace index. Exports are limited to 50 MB."
     >
       <UButton
         label="Export Markdown & attachments"
@@ -70,10 +69,10 @@ useFeedbackToast(() => props.error, { key: `workspace-usage:${props.workspaceId}
         :loading="busy"
         @click="onExport"
       />
-    </PageSection>
-    <PageSection
+    </ScreenSection>
+    <ScreenSection
       title="Trash retention"
-      description="Choose when deleted pages and folders are permanently removed. Automatic deletion cannot be undone and applies to items already in Trash."
+      description="Choose when deleted items and folders are permanently removed. Automatic deletion cannot be undone and applies to items already in Trash."
     >
       <USelect
         v-model="model.trashRetentionDays"
@@ -93,6 +92,6 @@ useFeedbackToast(() => props.error, { key: `workspace-usage:${props.workspaceId}
           :to="`/trash?workspace=${workspaceId}`"
         />
       </div>
-    </PageSection>
+    </ScreenSection>
   </div>
 </template>

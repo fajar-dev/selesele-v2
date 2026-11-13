@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { eq, inArray } from 'drizzle-orm'
 import { createDatabase } from '../server/platform/database/client'
-import { documents, folders, pages, sessions, users, workspaceMembers, workspaces, resourceGrants } from '../server/platform/database/schema'
+import { documents, folders, items, sessions, users, workspaceMembers, workspaces, resourceGrants } from '../server/platform/database/schema'
 import { AuthService } from '../server/features/identity/application/AuthService'
 import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
 import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
@@ -71,13 +71,13 @@ try {
   const folder = await request<{
     id: string
   }>(0, `${base}/folders`, 'POST', { name: 'Confidential' }, 201)
-  const page = await request<{
+  const item = await request<{
     id: string
-  }>(0, `${base}/pages`, 'POST', { title: 'Private launch', folderId: folder.id }, 201)
-  const pagePath = `/pages/${page.id}`, folderPolicy = `${base}/folders/${folder.id}/access`
+  }>(0, `${base}/items`, 'POST', { title: 'Private launch', folderId: folder.id }, 201)
+  const itemPath = `/items/${item.id}`, folderPolicy = `${base}/folders/${folder.id}/access`
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWoYAAAAASUVORK5CYII=', 'base64')
   const form = new FormData()
-  form.append('pageId', page.id)
+  form.append('itemId', item.id)
   form.append('file', new Blob([png], { type: 'image/png' }), 'test.png')
   const upload = await fetch(new URL('/api/upload', origin), { method: 'POST', headers: { Cookie: `sele_session=${accounts[0]!.token}`, Origin: origin.origin }, body: form })
   assert.equal(upload.status, 200)
@@ -89,37 +89,37 @@ try {
   const imageRead = (actor: number) => fetch(new URL(image.url, origin), { headers: { Cookie: `sele_session=${accounts[actor]!.token}` } })
   assert.equal((await imageRead(0)).status, 200)
   assert.equal((await imageRead(2)).status, 200, 'Image follows the source document permissions')
-  await request(0, `${pagePath}/content`, 'POST', { content: `# SECRET_PERMISSION_TOKEN\n\nLaunch is Monday.\n\n![Test](${image.url})` })
+  await request(0, `${itemPath}/content`, 'POST', { content: `# SECRET_PERMISSION_TOKEN\n\nLaunch is Monday.\n\n![Test](${image.url})` })
   assert.equal((await imageRead(2)).status, 200)
   const anonymousImage = await fetch(new URL(image.url, origin), { redirect: 'manual' })
   assert.ok([401, 302].includes(anonymousImage.status), 'Anonymous image requests are denied or redirected to sign-in')
   assert.ok(!anonymousImage.headers.get('content-type')?.startsWith('image/'), 'Anonymous responses never include image content')
-  await request(3, pagePath)
-  await request(3, pagePath, 'PUT', { title: 'Illegal edit' }, 403)
-  await request(3, `${base}/pages`, 'POST', { title: 'Illegal creation' }, 403)
+  await request(3, itemPath)
+  await request(3, itemPath, 'PUT', { title: 'Illegal edit' }, 403)
+  await request(3, `${base}/items`, 'POST', { title: 'Illegal creation' }, 403)
   await request(2, folderPolicy, 'PUT', { mode: 'restricted', grants: [] }, 403)
   await request(0, folderPolicy, 'PUT', { mode: 'restricted', grants: [] })
   for (const actor of [1, 2, 3, 5]) {
-    await request(actor, pagePath, 'GET', undefined, 404)
-    await request(actor, `${pagePath}/content`, 'GET', undefined, 404)
-    await request(actor, `${pagePath}/md`, 'GET', undefined, 404)
+    await request(actor, itemPath, 'GET', undefined, 404)
+    await request(actor, `${itemPath}/content`, 'GET', undefined, 404)
+    await request(actor, `${itemPath}/md`, 'GET', undefined, 404)
     assert.equal((await request<{
       id: string
-    }[]>(actor, `${base}/pages`)).length, 0)
+    }[]>(actor, `${base}/items`)).length, 0)
     assert.equal((await request<{
       id: string
     }[]>(actor, '/library/search?q=SECRET_PERMISSION_TOKEN')).length, 0)
   }
   assert.equal((await imageRead(2)).status, 404, 'Restricted attachments cannot be fetched by URL')
-  const publicPage = await request<{
+  const publicItem = await request<{
     id: string
-  }>(2, `${base}/pages`, 'POST', { title: 'Image URL copy attempt' }, 201)
-  await request(2, `/pages/${publicPage.id}/content`, 'POST', { content: `![Copied private URL](${image.url})` })
+  }>(2, `${base}/items`, 'POST', { title: 'Image URL copy attempt' }, 201)
+  await request(2, `/items/${publicItem.id}/content`, 'POST', { content: `![Copied private URL](${image.url})` })
   assert.equal((await imageRead(2)).status, 404, 'Copying a private image URL into a readable document cannot broaden access')
-  await request(2, `/pages/${publicPage.id}`, 'DELETE')
+  await request(2, `/items/${publicItem.id}`, 'DELETE')
   assert.equal((await request<{
-    pages: number
-  }>(1, `${base}/usage`)).pages, 0)
+    items: number
+  }>(1, `${base}/usage`)).items, 0)
   const exported = await fetch(new URL(`/api${base}/export`, origin), { headers: { Cookie: `sele_session=${accounts[1]!.token}` } })
   assert.equal(exported.status, 200)
   const archive = await new Bun.Archive(await exported.arrayBuffer()).files()
@@ -134,7 +134,7 @@ try {
     }[]
   }>(1, `${base}/activity`)
   assert.ok(!events.items.some(item => item.target.includes('Private launch')), 'Audit must not reveal private document titles')
-  const email: EmailDelivery = { id: 'test', recipient: accounts[2]!.email, recipientUserId: accounts[2]!.userId, workspaceId, pageId: page.id, memberId: null, kind: 'comment', title: 'Private launch', activity: null, attempts: 1, leaseToken: 'test' }
+  const email: EmailDelivery = { id: 'test', recipient: accounts[2]!.email, recipientUserId: accounts[2]!.userId, workspaceId, itemId: item.id, memberId: null, kind: 'comment', title: 'Private launch', activity: null, attempts: 1, leaseToken: 'test' }
   assert.equal(await new MySqlEmailOutbox(db).deliverable(email, new Date()), false, 'Queued email is rechecked against current access')
   await request(0, `${base}/groups`, 'POST', { name: 'Design', description: 'Project team', memberIds: [member(2).id] })
   const [group] = await request<MemberGroup[]>(0, `${base}/groups`)
@@ -142,36 +142,36 @@ try {
   await request(0, folderPolicy, 'PUT', { mode: 'restricted', grants: [{ memberId: null, groupId: group!.id, level: 'comment', expiresAt: null }] })
   assert.equal((await request<{
     accessLevel: string
-  }>(2, pagePath)).accessLevel, 'comment')
-  await request(2, pagePath, 'PUT', { title: 'Illegal edit' }, 403)
+  }>(2, itemPath)).accessLevel, 'comment')
+  await request(2, itemPath, 'PUT', { title: 'Illegal edit' }, 403)
   const anchor = { from: { tname: 'default', assoc: 0 }, to: { tname: 'default', assoc: -1 } }
   const thread = await request<{
     id: string
-  }>(2, `${pagePath}/comments`, 'POST', { quote: 'Launch', body: 'Please review', anchor }, 201)
-  await request(2, `${pagePath}/comments/${thread.id}/replies`, 'POST', { body: 'Commenting without edit is allowed' }, 201)
-  await request(0, `${base}/members/${member(2).id}/access`, 'PUT', { kind: 'page', resourceId: page.id, level: 'edit', expiresAt: null })
+  }>(2, `${itemPath}/comments`, 'POST', { quote: 'Launch', body: 'Please review', anchor }, 201)
+  await request(2, `${itemPath}/comments/${thread.id}/replies`, 'POST', { body: 'Commenting without edit is allowed' }, 201)
+  await request(0, `${base}/members/${member(2).id}/access`, 'PUT', { kind: 'item', resourceId: item.id, level: 'edit', expiresAt: null })
   assert.equal((await request<{
     accessLevel: string
-  }>(2, pagePath)).accessLevel, 'comment', 'Parent comment permission caps direct page edit grant')
+  }>(2, itemPath)).accessLevel, 'comment', 'Parent comment permission caps direct item edit grant')
   await request(0, `${base}/members/${member(2).id}/access`, 'PUT', { kind: 'folder', resourceId: folder.id, level: 'none', expiresAt: null })
-  await request(2, pagePath, 'GET', undefined, 404)
+  await request(2, itemPath, 'GET', undefined, 404)
   await request(0, `${base}/members/${member(2).id}/access`, 'PUT', { kind: 'folder', resourceId: folder.id, level: 'view', expiresAt: new Date(Date.now() + 3600000).toISOString() })
   assert.equal((await request<{
     accessLevel: string
-  }>(2, pagePath)).accessLevel, 'view')
+  }>(2, itemPath)).accessLevel, 'view')
   await db.update(resourceGrants).set({ expiresAt: new Date(Date.now() - 60000) }).where(eq(resourceGrants.memberId, member(2).id))
   assert.equal((await request<{
     accessLevel: string
-  }>(2, pagePath)).accessLevel, 'comment', 'Expired individual grant falls back to active group')
+  }>(2, itemPath)).accessLevel, 'comment', 'Expired individual grant falls back to active group')
   await request(0, `${base}/groups/${group!.id}`, 'PUT', { name: 'Design', description: 'Project team', memberIds: [] })
-  await request(2, pagePath, 'GET', undefined, 404)
+  await request(2, itemPath, 'GET', undefined, 404)
   await request(0, folderPolicy, 'PUT', { mode: 'inherit', grants: [] })
-  await request(2, pagePath)
+  await request(2, itemPath)
   await request(0, `${base}/members/${member(2).id}`, 'PATCH', { suspended: true })
   await request(2, base, 'GET', undefined, 404)
-  await request(2, pagePath, 'GET', undefined, 404)
+  await request(2, itemPath, 'GET', undefined, 404)
   await request(0, `${base}/members/${member(2).id}`, 'PATCH', { suspended: false })
-  await request(2, pagePath)
+  await request(2, itemPath)
   const bulk = await request<{
     memberId: string
     success: boolean
@@ -189,20 +189,22 @@ try {
   const added = await Promise.all(concurrentEmails.map(email => request<MemberAddResult[]>(0, `${base}/members`, 'POST', { emails: [email], grants: [{ kind: 'folder', resourceId: folder.id, level: 'view', expiresAt: null }] }, 201)))
   assert.ok(added.every(results => results[0]?.status === 'added'), 'Concurrent grant transactions complete without exhausting the connection pool')
   const concurrentMembers = (await request<MemberItem[]>(0, `${base}/members`)).filter(item => concurrentEmails.includes(item.email))
-  const removed = await request<{ success: boolean }[]>(0, `${base}/members/bulk`, 'POST', { memberIds: concurrentMembers.map(item => item.id), action: 'remove' })
+  const removed = await request<{
+    success: boolean
+  }[]>(0, `${base}/members/bulk`, 'POST', { memberIds: concurrentMembers.map(item => item.id), action: 'remove' })
   assert.ok(removed.every(item => item.success))
   await request(0, `${base}/members/${member(2).id}`, 'DELETE')
-  await request(2, pagePath, 'GET', undefined, 404)
+  await request(2, itemPath, 'GET', undefined, 404)
   roster = await request<MemberItem[]>(0, `${base}/members`)
   assert.equal(roster.length, 4)
   console.log('Member access checks passed: immediate access, email claim, role hierarchy, Viewer, groups, overrides, parent caps, expiry, comments, search, audit, email revalidation, suspension, bulk results and concurrent transaction saturation')
 } finally {
   if (workspaceId) {
-    const rows = await db.select({ id: pages.id }).from(pages).where(eq(pages.workspaceId, workspaceId))
+    const rows = await db.select({ id: items.id }).from(items).where(eq(items.workspaceId, workspaceId))
     if (rows.length) {
-      await db.delete(documents).where(inArray(documents.pageId, rows.map(item => item.id)))
+      await db.delete(documents).where(inArray(documents.itemId, rows.map(item => item.id)))
     }
-    await db.delete(pages).where(eq(pages.workspaceId, workspaceId))
+    await db.delete(items).where(eq(items.workspaceId, workspaceId))
     await db.delete(folders).where(eq(folders.workspaceId, workspaceId))
     await db.delete(workspaceMembers).where(eq(workspaceMembers.workspaceId, workspaceId))
     await db.delete(workspaces).where(eq(workspaces.id, workspaceId))

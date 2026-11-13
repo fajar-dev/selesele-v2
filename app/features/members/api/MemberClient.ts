@@ -2,10 +2,12 @@ import type { ApiTransport } from '~/core/http/ApiTransport'
 import type { ApiResponse } from '#shared/contracts/api'
 import type { MemberItem, MemberDirectory, MemberGroup, MemberAddInput, MemberAddResult, MemberBulkAction, MemberResourceAccess, AccessLevel, ResourceKind } from '#shared/contracts/member'
 import type { InviteRole } from '#shared/contracts/workspace'
-import type { WorkspaceActivityPage } from '#shared/contracts/workspaceSettings'
+import type { WorkspaceActivityItem } from '#shared/contracts/workspaceSettings'
 
 export class MemberClient {
-  constructor(private readonly http: ApiTransport) { }
+  constructor(private readonly http: ApiTransport) {
+  }
+
   private path(id: string) {
     return `/workspaces/${id}`
   }
@@ -67,6 +69,6 @@ export class MemberClient {
   }
 
   history(id: string, memberId: string, cursor?: string) {
-    return this.http.request<ApiResponse<WorkspaceActivityPage>>(`${this.path(id)}/members/${memberId}/history`, { query: { cursor } })
+    return this.http.request<ApiResponse<WorkspaceActivityItem>>(`${this.path(id)}/members/${memberId}/history`, { query: { cursor } })
   }
 }

@@ -3,5 +3,5 @@ import type { H3Event } from '@nuxt/nitro-server/h3'
 import { idSchema } from '../../../shared/validation/workspace'
 
 export function commentRoute(event: H3Event) {
-  return { pageId: idSchema.parse(getRouterParam(event, 'id')), threadId: idSchema.parse(getRouterParam(event, 'threadId')) }
+  return { itemId: idSchema.parse(getRouterParam(event, 'id')), threadId: idSchema.parse(getRouterParam(event, 'threadId')) }
 }

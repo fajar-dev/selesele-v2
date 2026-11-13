@@ -1,7 +1,7 @@
 # SeleSele
 
-Aplikasi catatan dan kolaborasi tim seperti Notion
-Fitur utama: workspace dengan anggota langsung, grup, dan izin dokumen, folder dan page dengan drag-and-drop, editor kolaboratif realtime, komentar pada teks, ekspor Markdown, login Microsoft, pencarian global, favorites/recent, template workspace, arsip page, riwayat versi dengan perbandingan, trash, notifikasi realtime dan email, backup terjadwal, serta bantuan menulis dan percakapan AI privat dengan sumber dokumen melalui gateway OpenAI-compatible.
+Workspace kolaboratif untuk dokumen, kanban, whiteboard, dan diagram.
+Satu monolith Nuxt + Bun dengan login Microsoft, folder dan izin akses per item, editor dokumen realtime, kanban task, whiteboard untuk menggambar, serta editor diagram node/konektor. Mendukung komentar dokumen, pencarian lintas jenis item, favorites, template, version history, arsip, Trash, AI workspace, email notifikasi, dan backup terjadwal.
 
 ## Menjalankan dengan Docker
 
@@ -60,7 +60,7 @@ bun run dev
 
 Buka **http://localhost:3000**. Migrasi lokal dijalankan manual; Docker menjalankannya sebelum aplikasi dimulai.
 
-Schema dimulai dari `drizzle/0000_initial_schema.sql`, lalu `0001_workspace_knowledge.sql` menambahkan percakapan, template, arsip page, dan target notifikasi. Gunakan `bun run db:migrate`; tidak diperlukan reset data untuk perubahan ini. `bun run db:reset` hanya untuk membangun ulang database development secara sengaja dan menghapus semua datanya.
+Schema development memakai satu baseline `drizzle/0000_initial_schema.sql` dengan 24 tabel. Rewrite ini mengganti model konten menjadi `items`; untuk lingkungan development lama, jalankan `bun run db:reset` satu kali. **Reset menghapus semua data development, termasuk akun dan session.** Setelah itu gunakan `bun run db:migrate` untuk perubahan schema berikutnya.
 
 ## Menjalankan dengan PM2
 
@@ -102,17 +102,17 @@ AI menggunakan endpoint `/chat/completions` dengan streaming. Isi `AI_BASE_URL` 
 
 Tambahkan satu atau beberapa email dari halaman **Members**. Akses langsung aktif tanpa persetujuan; email yang belum punya akun terhubung otomatis saat login Microsoft dengan email yang sama. Role tersedia: Owner, Admin, Member, dan Viewer. Pencarian, filter, grup, aksi massal, suspend, detail anggota, serta riwayat perubahan tersedia di halaman ini.
 
-Owner mengelola grup dan Admin. Izin folder/page dapat diwariskan atau dibatasi untuk orang/grup tertentu: tanpa akses, baca, komentar, atau edit, dengan tanggal kedaluwarsa opsional. Atur dari **Manage access** pada dokumen atau **Members → Document access**. Izin page dibatasi oleh folder induknya; Admin tetap membutuhkan akses ke dokumen restricted. Pemeriksaan yang sama berlaku pada editor, komentar, pencarian, AI, ekspor, Trash, notifikasi, dan gambar.
+Owner mengelola grup dan Admin. Izin folder/item dapat diwariskan atau dibatasi untuk orang/grup tertentu: tanpa akses, baca, komentar, atau edit, dengan tanggal kedaluwarsa opsional. Atur dari **Manage access** pada dokumen atau **Members → Document access**. Izin item dibatasi oleh folder induknya; Admin tetap membutuhkan akses ke dokumen restricted. Pemeriksaan yang sama berlaku pada editor, komentar, pencarian, AI, ekspor, Trash, notifikasi, dan gambar.
 
 ## Workspace Settings
 
 Pengaturan dikelompokkan menjadi General, Workspace rules, Notifications, Activity log, Data & recovery, serta Lifecycle. Members tetap berada pada halaman terpisah.
 
 - **General:** nama, ikon, deskripsi, dan halaman pembuka workspace.
-- **Workspace rules:** owner/admin menentukan siapa yang boleh mengundang anggota, membuat page/folder, dan menghapus konten. Hanya Owner yang dapat menetapkan atau mengelola Admin.
+- **Workspace rules:** owner/admin menentukan siapa yang boleh mengundang anggota, membuat item/folder, dan menghapus konten. Hanya Owner yang dapat menetapkan atau mengelola Admin.
 - **Notifications:** preferensi email pribadi per workspace, dengan pengiriman langsung atau ringkasan harian pukul **08:00 WIB**. Preferensi undangan berlaku untuk seluruh akun dan undangan dikirim langsung. Notifikasi aplikasi tetap aktif. Email yang sudah mengantre memeriksa preferensi dan hak akses lagi sebelum dikirim.
 - **Activity log:** riwayat perubahan konten, anggota, dan pengaturan, hanya untuk owner/admin. Perubahan dokumen mengikuti interval snapshot agar pengetikan tidak memenuhi log.
-- **Data & recovery:** statistik dokumen/lampiran dan ekspor `.tar.gz` berisi Markdown serta gambar yang diunggah dan dirujuk page aktif. Batas ekspor 50 MB. Retensi Trash dapat dipilih 7/30/90 hari atau manual; default manual. Penghapusan otomatis berlaku juga untuk item lama dan tidak dapat dibatalkan. Worker memeriksa setiap menit; workspace yang diarsipkan tidak diproses.
+- **Data & recovery:** statistik dokumen/lampiran dan ekspor `.tar.gz` berisi Markdown serta gambar yang diunggah dan dirujuk item aktif. Batas ekspor 50 MB. Retensi Trash dapat dipilih 7/30/90 hari atau manual; default manual. Penghapusan otomatis berlaku juga untuk item lama dan tidak dapat dibatalkan. Worker memeriksa setiap menit; workspace yang diarsipkan tidak diproses.
 - **Lifecycle:** hanya owner dapat mengarsipkan/memulihkan dan mentransfer kepemilikan. Arsip tetap bisa dibaca, tetapi konten dan kolaborasinya tidak dapat diubah. Owner lama menjadi admin setelah transfer. Owner harus transfer kepemilikan sebelum keluar.
 
 ## Email notifikasi
@@ -130,19 +130,25 @@ Status tersedia pada tabel `email_deliveries`: `pending`, `processing`, `sent`, 
 
 ## Cara menggunakan
 
-1. Login dengan Microsoft, lalu buat workspace.
-2. Ubah nama, ikon, dan deskripsi langsung pada heading.
-3. Undang anggota melalui **Members**; undangan muncul di home penerima setelah login.
-4. Tambahkan folder/page melalui tombol tambah di sidebar. Pindahkan page dengan drag-and-drop. Jika akses anggota berubah, tinjau dampaknya sebelum mengonfirmasi.
-5. Pilih **Templates** untuk memakai template bawaan atau workspace. Owner/Admin dapat memilih **Save as workspace template** pada menu page; snapshot isi disimpan dan tetap mengikuti izin sumbernya.
-6. Gunakan **Ctrl/Cmd + K** untuk mencari judul dan isi dokumen. Tandai page dengan tombol bintang agar masuk **Favorites**; **Recently opened** menampilkan dokumen terakhir dibuka.
-7. Tulis bersama secara realtime. Blok teks lalu pilih **Comment**; gunakan tombol mention pada composer untuk menyebut anggota. Notifikasi undangan, komentar, mention, dan balasan muncul pada ikon lonceng tanpa refresh manual. Klik notifikasi untuk menuju thread atau teks mention terkait.
-8. Gunakan menu link editor untuk menautkan page dalam workspace. **Backlinks** menampilkan page yang merujuk dokumen tersebut.
-9. Buka **Version history** untuk preview, membandingkan perubahan dengan isi terkini, menyimpan snapshot manual, atau restore. Maksimal 100 versi; snapshot otomatis dibuat paling sering sekali per menit, dan isi saat ini disimpan sebelum restore.
-10. Item yang dihapus masuk **Trash**. Folder menyimpan page di dalamnya; workspace yang dihapus hanya bisa dipulihkan oleh owner. Penghapusan permanen memerlukan owner/admin (workspace: owner).
-11. Buka **Ask workspace** untuk percakapan privat yang tersimpan, dengan pertanyaan lanjutan, rename, dan hapus. Jawaban memakai maksimal lima cuplikan dokumen yang dapat diakses dan menyertakan sumber. Jawaban lama disembunyikan jika akses sumbernya dicabut. Kualitas jawaban bergantung pada dokumen dan model gateway.
-12. Gunakan **Archive page** untuk menyimpan page tanpa menghapusnya. Page arsip dapat dibaca dari **Archived pages**, tetapi tidak dapat diedit/dikomentari sampai dipulihkan. Arsip mengikuti aturan izin hapus konten workspace.
-13. Pada **Members → Document access**, gunakan **Preview visible documents** untuk melihat akses efektif anggota beserta sumbernya. Preview hanya mencakup dokumen yang dapat dilihat pengelola itu sendiri.
+1. Login dengan Microsoft, lalu buat workspace. Ubah nama, ikon, dan deskripsinya langsung pada heading.
+2. Gunakan tombol tambah pada **Items** atau **New item**, lalu pilih **Document**, **Kanban**, **Whiteboard**, atau **Diagram**. Item langsung dibuat tanpa modal. Folder dapat berisi semua jenis item.
+3. Pindahkan item dengan drag-and-drop pada sidebar. Jika izin anggota berubah akibat folder tujuan, tinjau dampaknya sebelum mengonfirmasi.
+4. **Document:** tulis bersama secara realtime, tambahkan tabel/gambar, blok teks untuk komentar, mention anggota, gunakan backlinks dan ekspor Markdown.
+5. **Kanban:** kelola kolom dan task dengan drag-and-drop atau menu Move to. Task memiliki nomor, deskripsi, prioritas, assignee, due date, labels, dan checklist. Tersedia board/list, pencarian, filter, duplikasi, urutan kolom, dan batas WIP.
+6. **Whiteboard:** gunakan pen, bentuk, garis, panah, teks, sticky note, selection, eraser, warna, dan ketebalan garis. Objek dapat dipindahkan/duplikasi, dengan pan, zoom, fit, dan ekspor SVG. Mendukung pointer, touch, dan pen.
+7. **Diagram:** tambahkan process, decision, start/end, atau note. Hubungkan handles, ubah label dan jalur konektor, resize node, gunakan grid, pan/zoom, minimap, serta ekspor SVG.
+8. Editor kanban/whiteboard/diagram menyimpan otomatis. Gunakan undo/redo, impor/ekspor JSON, dan version history untuk preview atau restore. Perubahan dari pengguna lain muncul melalui invalidation realtime. Jika revisi bertabrakan, draft dipertahankan untuk ditinjau; aplikasi tidak menggabungkan perubahan secara diam-diam. Simpan/ekspor draft sebelum meninggalkan editor.
+9. **Templates** menyediakan 10 pilihan bawaan: meeting notes, project brief, SOP, team documentation, project delivery, content pipeline, brainstorm, retrospective, review workflow, dan system architecture. Gunakan filter jenis dan pencarian untuk memilih, lalu buat item langsung dari kartu template. Workspace juga dapat menyimpan snapshot keempat jenis item. Hanya template dari sumber yang masih dapat dibaca yang ditampilkan. Owner/Admin dapat menyimpan template dari menu item.
+10. **Members** mengelola anggota, grup, role, dan akses dokumen/item tanpa approval undangan. **Settings** mengelola aturan workspace, email, aktivitas, ekspor, retensi, dan lifecycle.
+11. **Ctrl/Cmd + K** mencari judul dan isi dokumen, task kanban, teks whiteboard, serta label diagram sesuai izin. Favorites dan Recently opened berlaku untuk semua jenis item.
+12. **Ask workspace** menyediakan chatbot dengan riwayat privat yang dapat dicari/disembunyikan, pesan Markdown, salin jawaban, sumber yang bisa dibuka, input di bawah, dan auto-scroll yang menghormati posisi baca. Enter mengirim, Shift + Enter membuat baris baru. Jawaban ditampilkan setelah respons server selesai; belum menggunakan streaming token. Sumber hanya berasal dari item yang dapat dibaca; jawaban yang kehilangan akses sumber disembunyikan. AI membaca teks item, bukan menganalisis gambar/coretan.
+13. **Archive** menjaga item tetap dapat dibaca tanpa dapat diubah. Item yang dihapus masuk **Trash** dan dapat dipulihkan. Version history menyimpan maksimal 100 snapshot; restore menyimpan isi terkini terlebih dahulu.
+
+## Model dan izin konten
+
+API utama berada pada `/api/items` dan `/api/workspaces/:workspaceId/items`, dengan rute UI `/workspaces/:workspaceId/items/:id`. Jenis item ditentukan saat dibuat dan tidak dapat diganti lewat edit metadata. Dokumen memakai Yjs/WebSocket; item terstruktur memakai JSON dengan revision check dan SSE invalidation. Semua jenis memakai aturan akses item/folder yang sama. Role Viewer tidak dapat mengedit; arsip menolak penulisan. Komentar dengan anchor teks tersedia pada dokumen.
+
+Ekspor workspace menghasilkan Markdown untuk dokumen, JSON untuk item terstruktur, manifest jenis item, serta lampiran dokumen yang diizinkan. Backup operator tetap mencakup seluruh database dan file upload. Aplikasi berjalan sebagai satu instance Bun untuk koordinasi kolaborasi dan invalidation.
 
 ## Backup
 

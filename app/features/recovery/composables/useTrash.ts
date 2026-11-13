@@ -29,7 +29,7 @@ export function useTrash(workspaceId: Ref<string | null>) {
     busy.value = item.id
     try {
       await recovery.restore(item.kind, item.id)
-      await Promise.all([refresh(), refreshNuxtData([libraryKeys.personal, workspaceKeys.directory, workspaceKeys.pages(item.workspaceId), workspaceKeys.folders(item.workspaceId)])])
+      await Promise.all([refresh(), refreshNuxtData([libraryKeys.personal, workspaceKeys.directory, workspaceKeys.items(item.workspaceId), workspaceKeys.folders(item.workspaceId)])])
       toast.add({ title: 'Item restored', color: 'success' })
     } catch (cause) {
       toast.add({ title: 'Unable to restore item', description: errorMessage(cause), color: 'error' })

@@ -1,12 +1,10 @@
 import type { MemberItem } from '../kernel/member'
 import type { AccessLevel } from '../kernel/access'
 import type { WorkspaceSettings } from '../kernel/workspaceSettings'
-import type { PageItem } from './page'
-
+import type { ContentItem } from './item'
 import type { WorkspaceRole } from '../kernel/workspace'
 
 export type { WorkspaceRole, InviteRole } from '../kernel/workspace'
-
 export interface WorkspaceItem {
   id: string
   name: string
@@ -18,7 +16,6 @@ export interface WorkspaceItem {
   createdAt: string
   updatedAt: string
 }
-
 export interface FolderItem {
   accessLevel: AccessLevel
   canManageAccess: boolean
@@ -30,15 +27,12 @@ export interface FolderItem {
   createdAt: string
   updatedAt: string
 }
-
 export type WorkspaceMember = MemberItem
-
 export interface WorkspaceOverview {
   workspace: WorkspaceItem
   folders: FolderItem[]
-  pages: PageItem[]
+  items: ContentItem[]
   members: WorkspaceMember[]
 }
-
 export type WorkspaceUpdate = Partial<Pick<WorkspaceItem, 'name' | 'description' | 'icon'>>
 export type FolderUpdate = Partial<Pick<FolderItem, 'name' | 'description' | 'icon'>>

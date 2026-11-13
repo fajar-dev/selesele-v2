@@ -3,43 +3,43 @@ import DataRetry from '~/components/ui/DataRetry.vue'
 import { libraryKeys } from '~/features/library/state/libraryKeys'
 import WorkspaceFavorites from '~/features/library/components/WorkspaceFavorites.vue'
 import { useLibrarySearch } from '~/features/library/composables/useLibrarySearch'
-import { usePageDeletion } from '~/features/pages/composables/usePageDeletion'
+import { useItemDeletion } from '~/features/items/composables/useItemDeletion'
 import { useApi } from '~/core/http/useApi'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import WorkspaceSwitcher from '~/features/workspaces/components/WorkspaceSwitcher.vue'
 import WorkspaceTree from '~/features/workspaces/components/WorkspaceTree.vue'
-import { usePageCreation } from '~/features/pages/composables/usePageCreation'
+import { useItemCreation } from '~/features/items/composables/useItemCreation'
 import { useAuth } from '~/features/auth/composables/useAuth'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
-import type { PageItem } from '#shared/contracts/page'
+import type { ContentItem } from '#shared/contracts/item'
 import type { FolderItem } from '#shared/contracts/workspace'
 
 const { folders: folderApi } = useApi()
 const { workspaceId } = defineProps<{
   workspaceId: string
 }>()
-const { data: overview, loading, error, refresh, pagesLoading, foldersLoading, membersLoading, pagesError, foldersError } = useWorkspace(workspaceId)
+const { data: overview, loading, error, refresh, itemsLoading, foldersLoading, membersLoading, itemsError, foldersError } = useWorkspace(workspaceId)
 const route = useRoute()
 const { state: auth, service: authService } = useAuth()
 const toast = useToast()
 const deleteOpen = ref(false)
-const deletingPage = ref<PageItem | null>(null)
-const deletePageOpen = ref(false)
+const deletingItem = ref<ContentItem | null>(null)
+const deleteItemOpen = ref(false)
 const deletingFolder = ref<FolderItem | null>(null)
 const searchOpen = useLibrarySearch()
 const workspace = computed(() => overview.value?.workspace)
 const manager = computed(() => !!workspace.value && ['owner', 'admin'].includes(workspace.value.role))
 const home = computed(() => `/workspaces/${workspaceId}`)
-const { deletePage: removePage } = usePageDeletion(workspaceId)
-const { createPage } = usePageCreation(workspaceId)
+const { deleteItem: removeItem } = useItemDeletion(workspaceId)
+const { createItem } = useItemCreation(workspaceId)
 function deleteFolder(folder: FolderItem) {
   deletingFolder.value = folder
   deleteOpen.value = true
 }
 async function confirmDelete() {
   if (deletingFolder.value) {
-    const viewingChild = overview.value?.pages.some(page => page.folderId === deletingFolder.value!.id && page.id === route.params.id)
+    const viewingChild = overview.value?.items.some(item => item.folderId === deletingFolder.value!.id && item.id === route.params.id)
     await folderApi.delete(workspaceId, deletingFolder.value.id)
     void refreshNuxtData(libraryKeys.personal)
     if (viewingChild) {
@@ -48,16 +48,16 @@ async function confirmDelete() {
     await refreshWorkspace(workspaceId)
   }
 }
-function deletePage(page: PageItem) {
-  deletingPage.value = page
-  deletePageOpen.value = true
+function deleteItem(item: ContentItem) {
+  deletingItem.value = item
+  deleteItemOpen.value = true
 }
-async function confirmDeletePage() {
-  const page = deletingPage.value
-  if (!page) {
+async function confirmDeleteItem() {
+  const item = deletingItem.value
+  if (!item) {
     return
   }
-  await removePage(page.id)
+  await removeItem(item.id)
 }
 async function logout() {
   try {
@@ -159,19 +159,19 @@ async function logout() {
         />
       </div>
       <DataRetry
-        v-if="pagesError || foldersError"
-        :feedback-keys="[`workspaces:${workspaceId}:pages`, `workspaces:${workspaceId}:folders`]"
+        v-if="itemsError || foldersError"
+        :feedback-keys="[`workspaces:${workspaceId}:items`, `workspaces:${workspaceId}:folders`]"
         :on-retry="refresh"
       />
       <WorkspaceFavorites :workspace-id="workspaceId" />
       <WorkspaceTree
         v-if="overview"
         :overview="overview"
-        :pages-loading="pagesLoading"
+        :items-loading="itemsLoading"
         :folders-loading="foldersLoading"
-        @create-page="createPage"
+        @create-item="createItem"
         @delete-folder="deleteFolder"
-        @delete-page="deletePage"
+        @delete-item="deleteItem"
       />
     </nav>
     <div class="p-ui-md space-y-ui-md">
@@ -218,16 +218,16 @@ async function logout() {
       </div>
     </div>
     <ConfirmationDialog
-      v-model:open="deletePageOpen"
-      title="Delete page"
-      :description="`“${deletingPage?.title || 'This page'}” will be moved to Trash. You can restore it later.`"
+      v-model:open="deleteItemOpen"
+      title="Delete item"
+      :description="`“${deletingItem?.title || 'This item'}” will be moved to Trash. You can restore it later.`"
       confirm-label="Delete"
-      :on-confirm="confirmDeletePage"
+      :on-confirm="confirmDeleteItem"
     />
     <ConfirmationDialog
       v-model:open="deleteOpen"
       title="Delete folder"
-      :description="`“${deletingFolder?.name || 'This folder'}” and its pages will be moved to Trash. You can restore the folder and its contents later.`"
+      :description="`“${deletingFolder?.name || 'This folder'}” and its items will be moved to Trash. You can restore the folder and its contents later.`"
       confirm-label="Delete"
       :on-confirm="confirmDelete"
     />

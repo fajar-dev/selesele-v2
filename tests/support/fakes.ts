@@ -7,14 +7,14 @@ import type { MicrosoftIdentity } from '../../server/features/identity/domain/Mi
 import type { IdentityProvider } from '../../server/features/identity/domain/IdentityProvider'
 import type { SessionRepository } from '../../server/features/identity/domain/SessionRepository'
 import type { UserRepository } from '../../server/features/identity/domain/UserRepository'
-import type { DocumentRepository } from '../../server/features/pages/domain/DocumentRepository'
-import type { Page } from '../../server/features/pages/domain/Page'
-import type { PageRepository } from '../../server/features/pages/domain/PageRepository'
+import type { DocumentRepository } from '../../server/features/items/domain/DocumentRepository'
+import type { Item } from '../../server/features/items/domain/Item'
+import type { ItemRepository } from '../../server/features/items/domain/ItemRepository'
 import type { WorkspaceRepository } from '../../server/features/workspaces/domain/WorkspaceRepository'
 import type { FolderRepository } from '../../server/features/workspaces/domain/FolderRepository'
 import type { Folder } from '../../server/features/workspaces/domain/Folder'
 import type { Workspace } from '../../server/features/workspaces/domain/Workspace'
-import type { PageInput, PageUpdate } from '../../shared/contracts/page'
+import type { ItemInput, ItemUpdate } from '../../shared/contracts/item'
 import type { WorkspaceRole } from '../../shared/contracts/workspace'
 
 export const OWNER_ID = '019a71f3-32c1-7000-8000-000000000002'
@@ -78,8 +78,8 @@ export class MemoryFolders implements FolderRepository {
     this.rows.delete(id)
   }
 }
-export class MemoryPages implements PageRepository, DocumentRepository {
-  readonly page: Page = { id: '019a71f3-32c1-7000-8000-000000000001', workspaceId: WORKSPACE_ID, folderId: null,
+export class MemoryItems implements ItemRepository, DocumentRepository {
+  readonly item: Item = { kind: 'document', id: '019a71f3-32c1-7000-8000-000000000001', workspaceId: WORKSPACE_ID, folderId: null,
     title: 'Test', description: '', icon: null, createdBy: OWNER_ID, createdAt: new Date(), updatedAt: new Date(), deletedAt: null }
 
   markdown = '# Hello\n\nA persistent document.'
@@ -87,33 +87,33 @@ export class MemoryPages implements PageRepository, DocumentRepository {
   saves = 0
   failSave = false
   async archive(_id: string, archived: boolean) {
-    this.page.archivedAt = archived ? new Date() : null
+    this.item.archivedAt = archived ? new Date() : null
   }
 
   async list(workspaceId: string) {
-    return this.page.workspaceId === workspaceId && !this.page.deletedAt ? [this.page] : []
+    return this.item.workspaceId === workspaceId && !this.item.deletedAt ? [this.item] : []
   }
 
   async find(id: string) {
-    return id === this.page.id && !this.page.deletedAt ? this.page : null
+    return id === this.item.id && !this.item.deletedAt ? this.item : null
   }
 
-  async create(inputWorkspace: string, input: PageInput, userId: string, content = '') {
+  async create(inputWorkspace: string, input: ItemInput, userId: string, content = '') {
     this.markdown = content
-    Object.assign(this.page, input, { workspaceId: inputWorkspace, createdBy: userId })
-    return this.page
+    Object.assign(this.item, input, { workspaceId: inputWorkspace, createdBy: userId })
+    return this.item
   }
 
-  async update(_id: string, input: PageUpdate) {
-    Object.assign(this.page, input)
+  async update(_id: string, input: ItemUpdate) {
+    Object.assign(this.item, input)
   }
 
   async move(_id: string, folderId: string | null) {
-    this.page.folderId = folderId
+    this.item.folderId = folderId
   }
 
   async delete() {
-    this.page.deletedAt = new Date()
+    this.item.deletedAt = new Date()
   }
 
   async readContent() {
@@ -180,8 +180,10 @@ export class MemoryAccounts implements UserRepository, SessionRepository, Identi
   }
 }
 export const silentActivity = {
-  async comment() { },
-  async mentions() { }
+  async comment() {
+  },
+  async mentions() {
+  }
 }
 export class MemoryJournal {
   readonly entries: {
@@ -196,13 +198,15 @@ export class MemoryJournal {
   }
 }
 export class MemoryResourceAccess implements ResourceAccess {
-  constructor(private readonly pages = new MemoryPages(), private readonly folders = new MemoryFolders()) { }
+  constructor(private readonly items = new MemoryItems(), private readonly folders = new MemoryFolders()) {
+  }
+
   async previewMove() {
     return { token: '', changes: [], canPreviewNames: true }
   }
 
-  async movePage(pageId: string, folderId: string | null) {
-    await this.pages.move(pageId, folderId)
+  async moveItem(itemId: string, folderId: string | null) {
+    await this.items.move(itemId, folderId)
   }
 
   async require(_kind: ResourceKind, _id: string, _userId: string, _level: AccessLevel) {
@@ -210,7 +214,7 @@ export class MemoryResourceAccess implements ResourceAccess {
   }
 
   async visible(kind: ResourceKind, workspaceId: string): Promise<MemberResourceAccess[]> {
-    const rows = kind === 'page' ? await this.pages.list(workspaceId) : await this.folders.list(workspaceId)
+    const rows = kind === 'item' ? await this.items.list(workspaceId) : await this.folders.list(workspaceId)
     return rows.map(item => ({ kind, id: item.id, title: 'name' in item ? item.name : item.title, folderId: null, mode: 'inherit', level: 'edit', source: 'owner', direct: null, parentLevel: 'edit', canManage: true }))
   }
 
@@ -218,10 +222,13 @@ export class MemoryResourceAccess implements ResourceAccess {
     throw new Error('Not used')
   }
 
-  async save() { }
+  async save() {
+  }
+
   async memberResources() {
     return []
   }
 
-  async grant() { }
+  async grant() {
+  }
 }

@@ -5,33 +5,33 @@ import * as awarenessProtocol from 'y-protocols/awareness'
 import * as encoding from 'lib0/encoding'
 import * as decoding from 'lib0/decoding'
 import type { CollaborationPeer } from './CollaborationPeer'
-import type { DocumentRepository } from '../../features/pages/domain/DocumentRepository'
+import type { DocumentRepository } from '../../features/items/domain/DocumentRepository'
 import { createDocument, documentMarkdown } from './document'
 
 const SYNC = 0
 const AWARENESS = 1
 const MAX_MESSAGE_BYTES = 2 * 1024 * 1024
-
 export interface CollaborationConnection {
   peer: CollaborationPeer
   token: string
   userId: string
   clients: Set<number>
 }
-
 export class CollaborationRoom {
   readonly connections = new Map<string, CollaborationConnection>()
   private closing: Promise<void> | undefined
   private readonly awareness: awarenessProtocol.Awareness
   private pending: Promise<void> = Promise.resolve()
   private readonly timer: ReturnType<typeof setInterval>
-
-  constructor(readonly id: string, private readonly document: Y.Doc,
-    private readonly repository: DocumentRepository, private readonly authorize: (connection: CollaborationConnection) => Promise<void>) {
+  constructor(readonly id: string, private readonly document: Y.Doc, private readonly repository: DocumentRepository, private readonly authorize: (connection: CollaborationConnection) => Promise<void>) {
     this.awareness = new awarenessProtocol.Awareness(document)
     this.awareness.setLocalState(null)
     document.on('update', (update: Uint8Array, origin: unknown) => {
-      const actorId = typeof origin === 'string' ? this.connections.get(origin)?.userId : (origin as { userId?: string } | null)?.userId
+      const actorId = typeof origin === 'string'
+        ? this.connections.get(origin)?.userId
+        : (origin as {
+            userId?: string
+          } | null)?.userId
       const state = Y.encodeStateAsUpdate(document)
       const content = documentMarkdown(document)
       const encoder = encoding.createEncoder()
@@ -50,7 +50,11 @@ export class CollaborationRoom {
         }
       })
     })
-    this.awareness.on('update', ({ added, updated, removed }: { added: number[], updated: number[], removed: number[] }, origin: unknown) => {
+    this.awareness.on('update', ({ added, updated, removed }: {
+      added: number[]
+      updated: number[]
+      removed: number[]
+    }, origin: unknown) => {
       const connection = typeof origin === 'string' ? this.connections.get(origin) : undefined
       for (const id of [...added, ...updated]) {
         connection?.clients.add(id)

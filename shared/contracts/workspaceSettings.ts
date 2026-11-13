@@ -7,13 +7,13 @@ export interface WorkspaceSettingsOverview {
   archivedAt: string | null
 }
 export interface WorkspaceUsage {
-  pages: number
+  items: number
   folders: number
   members: number
   documentBytes: number
   attachmentBytes: number
 }
-export interface WorkspaceActivityPage {
+export interface WorkspaceActivityItem {
   items: WorkspaceActivity[]
   nextCursor: string | null
 }

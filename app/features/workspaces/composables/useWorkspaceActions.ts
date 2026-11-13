@@ -4,14 +4,12 @@ import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
 import { useApi } from '~/core/http/useApi'
 import { workspaceKeys } from '../state/workspaceKeys'
 import { useWorkspaceState } from '../state/useWorkspaceState'
-
 /** Workspace mutations keep detail and directory caches consistent. */
 export function useWorkspaceActions(workspaceId: string) {
   const { workspaces } = useApi()
   const cache = useWorkspaceState(workspaceId)
   const { data: directory } = useNuxtData<WorkspaceItem[]>(workspaceKeys.directory)
   const writes = new SerialTaskQueue()
-
   function save(input: WorkspaceUpdate): Promise<void> {
     return writes.run(async () => {
       const { data } = await workspaces.update(workspaceId, input)
@@ -19,7 +17,6 @@ export function useWorkspaceActions(workspaceId: string) {
       directory.value = directory.value?.map(item => item.id === data.id ? data : item)
     })
   }
-
   async function remove(): Promise<void> {
     await workspaces.delete(workspaceId)
     void refreshNuxtData(libraryKeys.personal)
@@ -27,9 +24,8 @@ export function useWorkspaceActions(workspaceId: string) {
     await navigateTo('/')
     clearNuxtData([
       workspaceKeys.detail(workspaceId), workspaceKeys.folders(workspaceId),
-      workspaceKeys.pages(workspaceId), workspaceKeys.members(workspaceId)
+      workspaceKeys.items(workspaceId), workspaceKeys.members(workspaceId)
     ])
   }
-
   return { save, remove }
 }

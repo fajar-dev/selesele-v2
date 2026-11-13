@@ -1,13 +1,16 @@
+import type { CanvasEditor } from '../../canvases/domain/CanvasRepository'
 import type { WorkspaceJournal } from '../../settings/domain/WorkspaceJournal'
 import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
 import type { RecoveryRepository } from '../domain/RecoveryRepository'
-import type { PageAccess } from '../../pages/domain/PageAccess'
-import type { DocumentEditor } from '../../pages/domain/DocumentEditor'
+import type { ItemAccess } from '../../items/domain/ItemAccess'
+import type { DocumentEditor } from '../../items/domain/DocumentEditor'
 import type { TrashKind } from '../../../../shared/contracts/recovery'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class RecoveryService {
-  constructor(private readonly repository: RecoveryRepository, private readonly pages: PageAccess, private readonly editor: DocumentEditor, private readonly access: WorkspaceAuthorization, private readonly journal: WorkspaceJournal) {}
+  constructor(private readonly repository: RecoveryRepository, private readonly items: ItemAccess, private readonly editor: DocumentEditor, private readonly access: WorkspaceAuthorization, private readonly journal: WorkspaceJournal, private readonly canvases?: CanvasEditor) {
+  }
+
   trash(userId: string) {
     return this.repository.trash(userId)
   }
@@ -29,7 +32,7 @@ export class RecoveryService {
       throw new ApplicationError('forbidden', 'Edit access is required to restore this document')
     }
     await this.repository.restore(kind, id)
-    await this.journal.record(item.workspaceId, userId, 'content.restored', item.title, { pageId: kind === 'page' ? id : undefined, folderId: kind === 'folder' ? id : undefined })
+    await this.journal.record(item.workspaceId, userId, 'content.restored', item.title, { itemId: kind === 'item' ? id : undefined, folderId: kind === 'folder' ? id : undefined })
   }
 
   async purge(userId: string, kind: TrashKind, id: string) {
@@ -44,33 +47,39 @@ export class RecoveryService {
       throw new ApplicationError('conflict', 'This item was already restored or removed')
     }
     if (kind !== 'workspace') {
-      await this.journal.record(item.workspaceId, userId, 'content.purged', item.title, { pageId: kind === 'page' ? id : undefined, folderId: kind === 'folder' ? id : undefined })
+      await this.journal.record(item.workspaceId, userId, 'content.purged', item.title, { itemId: kind === 'item' ? id : undefined, folderId: kind === 'folder' ? id : undefined })
     }
   }
 
-  async versions(userId: string, pageId: string) {
-    await this.pages.get(pageId, userId)
-    return this.repository.versions(pageId)
+  async versions(userId: string, itemId: string) {
+    await this.items.get(itemId, userId)
+    return this.repository.versions(itemId)
   }
 
-  async version(userId: string, pageId: string, id: string) {
-    await this.pages.get(pageId, userId)
-    const content = await this.repository.version(pageId, id)
+  async version(userId: string, itemId: string, id: string) {
+    await this.items.get(itemId, userId)
+    const content = await this.repository.version(itemId, id)
     if (content === null) {
       throw new ApplicationError('not_found', 'Version not found')
     }
     return { content }
   }
 
-  async checkpoint(userId: string, pageId: string) {
-    await this.pages.writable(pageId, userId)
-    await this.repository.checkpoint(pageId, userId)
+  async checkpoint(userId: string, itemId: string) {
+    await this.items.writable(itemId, userId)
+    await this.repository.checkpoint(itemId, userId)
   }
 
-  async restoreVersion(userId: string, pageId: string, id: string) {
-    const page = await this.pages.writable(pageId, userId)
-    const { content } = await this.version(userId, pageId, id)
-    await this.editor.replaceMarkdown(pageId, content, userId)
-    await this.journal.record(page.workspaceId, userId, 'content.restored', `${page.title} (version)`, { pageId })
+  async restoreVersion(userId: string, itemId: string, id: string) {
+    const item = await this.items.writable(itemId, userId)
+    const { content } = await this.version(userId, itemId, id)
+    if (item.kind === 'document') {
+      await this.editor.replaceMarkdown(itemId, content, userId)
+    } else if (this.canvases) {
+      await this.canvases.replace(itemId, content, userId)
+    } else {
+      throw new ApplicationError('unavailable', 'Structured content recovery is unavailable')
+    }
+    await this.journal.record(item.workspaceId, userId, 'content.restored', `${item.title} (version)`, { itemId })
   }
 }

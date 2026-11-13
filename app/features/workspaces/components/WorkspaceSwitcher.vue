@@ -28,7 +28,7 @@ const items = computed<WorkspaceMenuItem[][]>(() => [
     })),
     ...(error.value ? [{ label: 'Unable to load workspaces. Retry', icon: 'i-lucide-refresh-cw', onSelect: () => refresh() }] : [])
   ],
-  [{ label: 'Templates', icon: 'i-lucide-layout-template', to: `/workspaces/${route.params.workspaceId}/templates` }, { label: 'Archived pages', icon: 'i-lucide-archive', to: `/workspaces/${route.params.workspaceId}/archive` }],
+  [{ label: 'Templates', icon: 'i-lucide-layout-template', to: `/workspaces/${route.params.workspaceId}/templates` }, { label: 'Archived items', icon: 'i-lucide-archive', to: `/workspaces/${route.params.workspaceId}/archive` }],
   [{ label: 'All workspaces', icon: 'i-lucide-layout-grid', to: '/' }]
 ])
 function opened(open: boolean) {

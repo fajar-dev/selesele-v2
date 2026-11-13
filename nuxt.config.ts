@@ -32,6 +32,8 @@ export default defineNuxtConfig({
     },
     optimizeDeps: {
       include: [
+        '@vue-flow/core', '@vue-flow/background', '@vue-flow/controls',
+        '@vue-flow/minimap', '@vue-flow/node-resizer', 'perfect-freehand', 'zod', 'micromark',
         'yjs', 'y-websocket', '@ai-sdk/vue', 'tiptap-extension-code-block-shiki',
         '@tiptap/core', '@tiptap/vue-3', '@tiptap/vue-3/menus', '@tiptap/y-tiptap',
         '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-caret',

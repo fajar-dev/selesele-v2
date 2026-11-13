@@ -1,41 +1,43 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import type { Database, DatabaseTransaction } from '../../../platform/database/client'
-import { folders, memberGroups, pages, resourceGrants, workspaceMembers, workspaces, groupMembers } from '../../../platform/database/schema'
+import { folders, memberGroups, items, resourceGrants, workspaceMembers, workspaces, groupMembers } from '../../../platform/database/schema'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 import { accessRank } from '../../../../shared/kernel/access'
 import type { AccessLevel, ResourceKind, ResourcePolicy } from '../../../../shared/kernel/access'
 import type { ResourceAccess } from '../domain/ResourceAccess'
 import { loadResourceScope } from './resourceScope'
 import { appendWorkspaceActivities } from '../../settings/infrastructure/MySqlWorkspaceJournal'
-import { pageMoveImpact } from './pageMovement'
+import { itemMoveImpact } from './itemMovement'
 
 export class MySqlResourceAccess implements ResourceAccess {
-  constructor(private readonly db: Database) { }
-  async previewMove(pageId: string, folderId: string | null, userId: string) {
-    const impact = await pageMoveImpact(this.db, pageId, folderId, userId)
+  constructor(private readonly db: Database) {
+  }
+
+  async previewMove(itemId: string, folderId: string | null, userId: string) {
+    const impact = await itemMoveImpact(this.db, itemId, folderId, userId)
     return impact.canPreviewNames ? impact : { ...impact, changes: impact.changes.map((change, index) => ({ ...change, memberId: `affected-${index}`, name: '' })) }
   }
 
-  async movePage(pageId: string, folderId: string | null, userId: string, acknowledgement?: string) {
-    const workspaceId = await this.locate('page', pageId)
+  async moveItem(itemId: string, folderId: string | null, userId: string, acknowledgement?: string) {
+    const workspaceId = await this.locate('item', itemId)
     await this.db.transaction(async (tx) => {
       const [workspace] = await tx.select().from(workspaces).where(eq(workspaces.id, workspaceId)).for('update')
       if (!workspace || workspace.deletedAt || workspace.archivedAt) {
         throw new ApplicationError('forbidden', 'Workspace is unavailable or archived')
       }
-      const impact = await pageMoveImpact(tx, pageId, folderId, userId)
+      const impact = await itemMoveImpact(tx, itemId, folderId, userId)
       if (impact.changes.length && acknowledgement !== impact.token) {
-        throw new ApplicationError('conflict', 'Moving this page changes access. Review the current access impact before confirming.')
+        throw new ApplicationError('conflict', 'Moving this item changes access. Review the current access impact before confirming.')
       }
-      await tx.update(pages).set({ folderId, updatedAt: new Date() }).where(eq(pages.id, pageId))
-      const [page] = await tx.select({ title: pages.title }).from(pages).where(eq(pages.id, pageId))
-      await appendWorkspaceActivities(tx, workspaceId, userId, [{ action: 'page.moved', target: page!.title, context: { pageId } }])
+      await tx.update(items).set({ folderId, updatedAt: new Date() }).where(eq(items.id, itemId))
+      const [item] = await tx.select({ title: items.title }).from(items).where(eq(items.id, itemId))
+      await appendWorkspaceActivities(tx, workspaceId, userId, [{ action: 'item.moved', target: item!.title, context: { itemId } }])
     })
   }
 
   private async locate(kind: ResourceKind, id: string, db: Database | DatabaseTransaction = this.db) {
-    const [row] = kind === 'page'
-      ? await db.select({ workspaceId: pages.workspaceId, deletedAt: pages.deletedAt }).from(pages).where(eq(pages.id, id))
+    const [row] = kind === 'item'
+      ? await db.select({ workspaceId: items.workspaceId, deletedAt: items.deletedAt }).from(items).where(eq(items.id, id))
       : await db.select({ workspaceId: folders.workspaceId, deletedAt: folders.deletedAt }).from(folders).where(eq(folders.id, id))
     if (!row || row.deletedAt) {
       throw new ApplicationError('not_found', 'Resource not found')
@@ -75,7 +77,7 @@ export class MySqlResourceAccess implements ResourceAccess {
     if (!result?.canManage) {
       throw new ApplicationError('forbidden', 'Only the owner or an admin with edit access can manage document access')
     }
-    return { kind, id, workspaceId, title: result.title, mode: result.mode, grants: scope.grants.filter(grant => kind === 'page' ? grant.pageId === id : grant.folderId === id).map(grant => ({ id: grant.id, memberId: grant.memberId, groupId: grant.groupId, level: grant.level, expiresAt: grant.expiresAt?.toISOString() ?? null })) }
+    return { kind, id, workspaceId, title: result.title, mode: result.mode, grants: scope.grants.filter(grant => kind === 'item' ? grant.itemId === id : grant.folderId === id).map(grant => ({ id: grant.id, memberId: grant.memberId, groupId: grant.groupId, level: grant.level, expiresAt: grant.expiresAt?.toISOString() ?? null })) }
   }
 
   async save(kind: ResourceKind, id: string, userId: string, input: Parameters<ResourceAccess['save']>[3]) {
@@ -107,19 +109,19 @@ export class MySqlResourceAccess implements ResourceAccess {
         }
         seen.add(key)
       }
-      if (kind === 'page') {
-        await tx.update(pages).set({ accessMode: input.mode }).where(eq(pages.id, id))
+      if (kind === 'item') {
+        await tx.update(items).set({ accessMode: input.mode }).where(eq(items.id, id))
       } else {
         await tx.update(folders).set({ accessMode: input.mode }).where(eq(folders.id, id))
       }
-      await tx.delete(resourceGrants).where(kind === 'page' ? eq(resourceGrants.pageId, id) : eq(resourceGrants.folderId, id))
+      await tx.delete(resourceGrants).where(kind === 'item' ? eq(resourceGrants.itemId, id) : eq(resourceGrants.folderId, id))
       if (input.grants.length) {
-        await tx.insert(resourceGrants).values(input.grants.map(grant => ({ ...grant, expiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null, workspaceId: policy.workspaceId, pageId: kind === 'page' ? id : null, folderId: kind === 'folder' ? id : null })))
+        await tx.insert(resourceGrants).values(input.grants.map(grant => ({ ...grant, expiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null, workspaceId: policy.workspaceId, itemId: kind === 'item' ? id : null, folderId: kind === 'folder' ? id : null })))
       }
       const groupIds = [...new Set([...policy.grants, ...input.grants].map(grant => grant.groupId).filter((id): id is string => !!id))]
       const affected = groupIds.length ? await tx.select({ memberId: groupMembers.memberId }).from(groupMembers).where(inArray(groupMembers.groupId, groupIds)) : []
       const memberIds = new Set([...affected.map(row => row.memberId), ...[...policy.grants, ...input.grants].map(grant => grant.memberId).filter((id): id is string => !!id)])
-      const context = { pageId: kind === 'page' ? id : undefined, folderId: kind === 'folder' ? id : undefined }
+      const context = { itemId: kind === 'item' ? id : undefined, folderId: kind === 'folder' ? id : undefined }
       await appendWorkspaceActivities(tx, policy.workspaceId, userId, [
         ...[...memberIds].map(memberId => ({ action: 'resource.access_changed' as const, target: policy.title, context: { ...context, memberId } })),
         { action: 'resource.access_changed', target: policy.title, context }
@@ -136,8 +138,8 @@ export class MySqlResourceAccess implements ResourceAccess {
     if (!subject.memberships.length) {
       throw new ApplicationError('not_found', 'Member not found')
     }
-    const visible = new Set([...actor.allowed('folder'), ...actor.allowed('page')])
-    const overrides = new Map(subject.grants.filter(grant => grant.memberId === memberId).map(grant => [grant.pageId || grant.folderId!, grant]))
+    const visible = new Set([...actor.allowed('folder'), ...actor.allowed('item')])
+    const overrides = new Map(subject.grants.filter(grant => grant.memberId === memberId).map(grant => [grant.itemId || grant.folderId!, grant]))
     return [...subject.resolved.values()].filter(item => visible.has(item.id)).map((item) => {
       const direct = overrides.get(item.id)
       return { ...item, canManage: actor.resolved.get(item.id)?.canManage ?? false, direct: direct ? { id: direct.id, memberId: direct.memberId, groupId: direct.groupId, level: direct.level, expiresAt: direct.expiresAt?.toISOString() ?? null } : null }

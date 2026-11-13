@@ -10,11 +10,10 @@ declare module '@tiptap/core' {
     }
   }
 }
-
 export const ImageUpload = Node.create({
   name: 'imageUpload',
   addOptions() {
-    return { pageId: '' }
+    return { itemId: '' }
   },
   group: 'block',
   atom: true,

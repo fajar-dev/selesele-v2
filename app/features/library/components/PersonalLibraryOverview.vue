@@ -4,7 +4,10 @@ import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { usePersonalLibrary } from '../composables/usePersonalLibrary'
 import type { WorkspaceItem } from '#shared/contracts/workspace'
 
-const props = withDefaults(defineProps<{ workspaces: WorkspaceItem[], workspacesLoading?: boolean }>(), { workspacesLoading: false })
+const props = withDefaults(defineProps<{
+  workspaces: WorkspaceItem[]
+  workspacesLoading?: boolean
+}>(), { workspacesLoading: false })
 const { data, status, error, refresh } = usePersonalLibrary()
 const view = ref<'recent' | 'favorites'>('recent')
 const expanded = ref(false)
@@ -21,11 +24,11 @@ watch(view, () => {
 <template>
   <section
     class="personal-overview"
-    aria-label="Your pages"
+    aria-label="Your items"
     :aria-busy="loading"
   >
     <header class="personal-heading">
-      <h2>Your pages</h2>
+      <h2>Your items</h2>
       <UIcon
         name="i-lucide-history"
         class="size-ui-lg text-dimmed"
@@ -33,7 +36,7 @@ watch(view, () => {
     </header>
     <div
       role="group"
-      aria-label="Filter your pages"
+      aria-label="Filter your items"
       class="personal-tabs"
     >
       <UButton
@@ -51,7 +54,7 @@ watch(view, () => {
     </div>
     <DataSkeleton
       v-if="loading && !items.length"
-      label="Loading your pages"
+      label="Loading your items"
       :rows="3"
       class="pt-ui-lg"
     />
@@ -65,9 +68,9 @@ watch(view, () => {
         v-for="item in visible"
         :key="item.id"
         :to="libraryPath(item)"
-        class="personal-page group"
+        class="personal-item group"
       >
-        <span class="personal-page-icon">{{ item.icon || '📄' }}</span>
+        <span class="personal-item-icon">{{ item.icon || '📄' }}</span>
         <div class="min-w-ui-zero flex-1">
           <p class="truncate text-xs font-medium text-highlighted">
             {{ item.title }}
@@ -100,7 +103,7 @@ watch(view, () => {
         {{ view === 'favorites' ? 'Keep your best ideas close' : 'Ready when you are' }}
       </p>
       <p class="text-xs text-muted leading-normal mt-ui-xs">
-        {{ view === 'favorites' ? 'Star a page to find it here.' : 'Pages you open will appear here for quick access.' }}
+        {{ view === 'favorites' ? 'Star an item to find it here.' : 'Items you open will appear here for quick access.' }}
       </p>
     </div>
     <UButton
@@ -125,10 +128,10 @@ watch(view, () => {
 .personal-tabs { display: flex; gap: var(--spacing-ui-xs); padding-block: var(--spacing-ui-xs); min-height: var(--spacing-ui-5xl); border-bottom: var(--app-border-thin) solid var(--ui-border-muted); }
 .personal-tab { padding-inline: var(--spacing-ui-md); color: var(--ui-text-muted); }
 .personal-tab.is-selected { color: var(--ui-text-highlighted); background: var(--app-selected); }
-.personal-page { min-width: 0; display: flex; align-items: center; gap: var(--spacing-ui-sm); padding: var(--spacing-ui-lg) var(--spacing-ui-xs); border-bottom: var(--app-border-thin) solid var(--ui-border-muted); transition: background var(--app-duration-normal); }
-.personal-page:hover { background: var(--app-hover); }
-.personal-page:focus-visible { outline: var(--spacing-ui-2xs) solid var(--ui-primary); outline-offset: var(--spacing-ui-2xs); }
-.personal-page-icon { width: var(--spacing-ui-3xl); height: var(--spacing-ui-4xl); flex-shrink: 0; display: grid; place-items: center; font-size: var(--text-xl); }
+.personal-item { min-width: 0; display: flex; align-items: center; gap: var(--spacing-ui-sm); padding: var(--spacing-ui-lg) var(--spacing-ui-xs); border-bottom: var(--app-border-thin) solid var(--ui-border-muted); transition: background var(--app-duration-normal); }
+.personal-item:hover { background: var(--app-hover); }
+.personal-item:focus-visible { outline: var(--spacing-ui-2xs) solid var(--ui-primary); outline-offset: var(--spacing-ui-2xs); }
+.personal-item-icon { width: var(--spacing-ui-3xl); height: var(--spacing-ui-4xl); flex-shrink: 0; display: grid; place-items: center; font-size: var(--text-xl); }
 .personal-empty { padding: var(--spacing-ui-3xl) var(--spacing-ui-xs); }
 @variant lg { .personal-overview { padding-left: var(--spacing-ui-3xl); border-left: var(--app-border-thin) solid var(--ui-border-muted); } }
 </style>

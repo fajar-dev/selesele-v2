@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
-import PageSection from '~/components/ui/PageSection.vue'
+import ScreenSection from '~/components/ui/ScreenSection.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
-import type { WorkspaceActivityPage } from '#shared/contracts/workspaceSettings'
+import type { WorkspaceActivityItem } from '#shared/contracts/workspaceSettings'
 
 const props = defineProps<{
   workspaceId: string
-  activity: WorkspaceActivityPage
+  activity: WorkspaceActivityItem
   loading: boolean
   error: string | null
   busy: boolean
@@ -15,12 +15,11 @@ const props = defineProps<{
   onRetry: () => Promise<unknown>
 }>()
 const actionLabel = (value: string) => value.replaceAll('.', ' ').replaceAll('_', ' ')
-
 useFeedbackToast(() => props.error, { key: `workspace-activity:${props.workspaceId}`, title: 'Unable to load activity', recovered: () => !props.loading && !props.error, retry: () => props.onRetry() })
 </script>
 
 <template>
-  <PageSection
+  <ScreenSection
     title="Activity log"
     description="A history of changes to workspace content, membership, and settings. New activity appears here after reopening this section."
   >
@@ -69,5 +68,5 @@ useFeedbackToast(() => props.error, { key: `workspace-activity:${props.workspace
       :loading="busy"
       @click="onMore"
     />
-  </PageSection>
+  </ScreenSection>
 </template>

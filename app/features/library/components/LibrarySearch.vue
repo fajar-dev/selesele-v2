@@ -2,7 +2,6 @@
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { libraryKeys } from '~/features/library/state/libraryKeys'
 import DataRetry from '~/components/ui/DataRetry.vue'
-
 import { useDebounce } from '@vueuse/core'
 import { useApi } from '~/core/http/useApi'
 import { useLibrarySearch } from '../composables/useLibrarySearch'
@@ -19,7 +18,7 @@ const searchInput = { 'aria-label': 'Search all content', 'placeholder': 'Search
 const closeButton = { 'size': 'xs' as const, 'aria-label': 'Close search' }
 const query = useDebounce(search, 200)
 const { data, status, error, refresh } = useLazyAsyncData(libraryKeys.search, async () => open.value && query.value.trim() ? (await library.search(query.value)).data : [], { server: false, default: () => [], watch: [query, open] })
-const icons = { page: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace: 'i-lucide-panels-top-left' }
+const icons = { item: 'i-lucide-file-text', folder: 'i-lucide-folder', workspace: 'i-lucide-panels-top-left' }
 const group = (id: string, label: string, entries: LibraryEntry[]) => ({ id, label, ignoreFilter: true, items: entries.map(item => ({ id: `${item.kind}:${item.id}`, label: item.title, description: plainTextSnippet(item.snippet), emoji: item.icon, icon: icons[item.kind], to: libraryPath(item), onSelect: () => {
   open.value = false
 } })) })
@@ -29,7 +28,7 @@ const groups = computed(() => {
     return []
   }
   return query.value.trim()
-    ? [group('pages', 'Pages', data.value.filter(item => item.kind === 'page')), group('folders', 'Folders', data.value.filter(item => item.kind === 'folder')), group('workspaces', 'Workspaces', data.value.filter(item => item.kind === 'workspace'))].filter(item => item.items.length)
+    ? [group('items', 'Items', data.value.filter(item => item.kind === 'item')), group('folders', 'Folders', data.value.filter(item => item.kind === 'folder')), group('workspaces', 'Workspaces', data.value.filter(item => item.kind === 'workspace'))].filter(item => item.items.length)
     : [group('recent', 'Recently opened', personal.data.value.recent.slice(0, 6))]
 })
 watch(open, (value) => {
@@ -45,7 +44,6 @@ function shortcut(event: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', shortcut))
 onBeforeUnmount(() => window.removeEventListener('keydown', shortcut))
-
 useFeedbackToast(error, { key: libraryKeys.search, title: 'Unable to search content', recovered: () => status.value === 'success', retry: () => refresh() })
 </script>
 
@@ -53,7 +51,7 @@ useFeedbackToast(error, { key: libraryKeys.search, title: 'Unable to search cont
   <UModal
     v-model:open="open"
     title="Search your workspaces"
-    description="Search the titles and contents of your pages, folders, and workspaces."
+    description="Search the titles and contents of your items, folders, and workspaces."
     :ui="{ overlay: 'bg-black/25 dark:bg-black/45', content: 'sm:max-w-search rounded-lg sm:top-command sm:translate-y-0', header: 'sr-only', body: 'p-ui-zero sm:p-ui-zero' }"
   >
     <template #body>
@@ -116,9 +114,9 @@ useFeedbackToast(error, { key: libraryKeys.search, title: 'Unable to search cont
               name="i-lucide-search"
               class="size-ui-2xl mb-ui-xs text-dimmed"
             /><p class="text-sm font-medium text-toned">
-              {{ search ? 'No results found' : 'Find the page you need' }}
+              {{ search ? 'No results found' : 'Find the item you need' }}
             </p><p class="text-xs text-muted">
-              {{ search ? 'Try a different word or a page title.' : 'Search by title or anything written inside a page.' }}
+              {{ search ? 'Try a different word or an item title.' : 'Search by title or anything written inside an item.' }}
             </p>
           </div>
         </template>

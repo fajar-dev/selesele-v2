@@ -2,7 +2,7 @@ import type { AccessGrant, AccessLevel, ResourceMode } from '../../../../shared/
 import type { PolicySubject } from './accessPolicy'
 import { resolveResourceAccess } from './accessPolicy'
 
-export function movedPageAccess(subject: PolicySubject, page: {
+export function movedItemAccess(subject: PolicySubject, item: {
   mode: ResourceMode
   grants: AccessGrant[]
 }, folder: {
@@ -10,5 +10,5 @@ export function movedPageAccess(subject: PolicySubject, page: {
   grants: AccessGrant[]
 } | null, now: Date): AccessLevel {
   const parent = folder ? resolveResourceAccess(subject, folder.mode, folder.grants, 'edit', now).level : 'edit'
-  return resolveResourceAccess(subject, page.mode, page.grants, parent, now).level
+  return resolveResourceAccess(subject, item.mode, item.grants, parent, now).level
 }

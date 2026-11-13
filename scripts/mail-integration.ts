@@ -7,14 +7,13 @@ import { migrate } from 'drizzle-orm/mysql2/migrator'
 import { createConnection } from 'mysql2/promise'
 import { createDatabase } from '../server/platform/database/client'
 import { databaseConfig } from '../server/platform/database/config'
-import { documents, emailDeliveries, folders, pages, sessions, users, workspaceMembers, workspaces } from '../server/platform/database/schema'
+import { documents, emailDeliveries, folders, items, sessions, users, workspaceMembers, workspaces } from '../server/platform/database/schema'
 import { MySqlNotificationRepository } from '../server/features/notifications/infrastructure/MySqlNotificationRepository'
 import { MySqlEmailOutbox } from '../server/features/mail/infrastructure/MySqlEmailOutbox'
 import { SmtpEmailSender } from '../server/features/mail/infrastructure/SmtpEmailSender'
 import { EmailDeliveryService } from '../server/features/mail/application/EmailDeliveryService'
 import { CryptographicTokens } from '../server/features/identity/infrastructure/CryptographicTokens'
 import { deliveryPolicy } from '../server/features/mail/domain/deliveryPolicy'
-
 // Own both the database and SMTP listener: no configured relay or real recipient is used.
 const databaseName = `sele_mail_test_${randomUUID().replaceAll('-', '')}`
 const admin = await createConnection({ ...databaseConfig(), database: undefined, timezone: 'Z' })
@@ -26,7 +25,8 @@ let rejectDelivery = false
 const smtp = createServer((socket) => {
   sockets.add(socket)
   socket.on('close', () => sockets.delete(socket))
-  socket.on('error', () => {})
+  socket.on('error', () => {
+  })
   socket.write('220 localhost test SMTP\r\n')
   let buffer = ''
   let data = false
@@ -89,15 +89,13 @@ async function stopServer() {
     server = undefined
   }
 }
-
 async function until(check: () => Promise<boolean>, label: string) {
-  const deadline = Date.now() + 15_000
+  const deadline = Date.now() + 15000
   while (!await check()) {
     assert.ok(Date.now() < deadline, `Timed out: ${label}`)
     await Bun.sleep(25)
   }
 }
-
 try {
   await admin.query(`CREATE DATABASE \`${databaseName}\``)
   await admin.changeUser({ database: databaseName })
@@ -108,7 +106,7 @@ try {
   const owner = randomUUID()
   const member = randomUUID()
   const workspaceId = randomUUID()
-  const pageId = randomUUID()
+  const itemId = randomUUID()
   const folderId = randomUUID()
   await db.insert(users).values([
     { id: owner, email: 'owner@example.invalid', name: 'Alex Morgan', microsoftSubject: randomUUID() },
@@ -117,13 +115,13 @@ try {
   await db.insert(workspaces).values({ id: workspaceId, name: 'Email workspace', description: 'Shared plans and team documentation.' })
   await db.insert(workspaceMembers).values([{ workspaceId, userId: owner, email: 'owner@example.invalid', role: 'owner' }, { workspaceId, userId: member, email: 'member@example.invalid' }])
   await db.insert(folders).values({ id: folderId, workspaceId, name: 'Plans' })
-  await db.insert(pages).values({ id: pageId, workspaceId, folderId, title: 'Launch', createdBy: owner })
+  await db.insert(items).values({ id: itemId, workspaceId, folderId, title: 'Launch', createdBy: owner })
   const tokens = new CryptographicTokens()
   const ownerToken = tokens.generate()
   const memberToken = tokens.generate()
   await db.insert(sessions).values([
-    { tokenHash: tokens.digest(ownerToken), userId: owner, expiresAt: new Date(Date.now() + 3_600_000) },
-    { tokenHash: tokens.digest(memberToken), userId: member, expiresAt: new Date(Date.now() + 3_600_000) }
+    { tokenHash: tokens.digest(ownerToken), userId: owner, expiresAt: new Date(Date.now() + 3600000) },
+    { tokenHash: tokens.digest(memberToken), userId: member, expiresAt: new Date(Date.now() + 3600000) }
   ])
   const origin = `http://127.0.0.1:${Number(process.env.MAIL_TEST_PORT || 13811)}`
   assert.ok(!await fetch(`${origin}/api/health`).then(() => true, () => false), 'Email integration port is already in use')
@@ -141,7 +139,11 @@ try {
       method: 'POST', headers: { 'Cookie': `sele_session=${token}`, 'Origin': origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(2000)
     })
     assert.equal(response.status, 201, path)
-    return await response.json() as { data: { id: string } }
+    return await response.json() as {
+      data: {
+        id: string
+      }
+    }
   }
   await request(ownerToken, `/workspaces/${workspaceId}/members`, { emails: ['guest@example.invalid'], role: 'member' })
   const [guest] = await db.select().from(workspaceMembers).where(eq(workspaceMembers.email, 'guest@example.invalid'))
@@ -152,7 +154,7 @@ try {
   await until(async () => !!acknowledge, 'SMTP receives invitation while acknowledgement is held')
   const start = Date.now()
   const anchor = { from: { type: { client: 1, clock: 1 }, item: { client: 1, clock: 2 }, assoc: 0 }, to: { type: { client: 1, clock: 1 }, item: { client: 1, clock: 8 }, assoc: 0 } }
-  const thread = await request(memberToken, `/pages/${pageId}/comments`, { quote: 'launch', body: 'Review this', anchor })
+  const thread = await request(memberToken, `/items/${itemId}/comments`, { quote: 'launch', body: 'Review this', anchor })
   const threadId = thread.data.id
   assert.ok(Date.now() - start < 2000, 'Enqueue finishes while the SMTP server remains blocked')
   const queued = await db.select().from(emailDeliveries)
@@ -165,10 +167,10 @@ try {
   assert.ok(invitation.includes('Content-Type: multipart/alternative'), 'Real SMTP transport serializes plain text and HTML')
   assert.ok(invitation.includes(origin))
   assert.ok(invitation.includes('Message-ID: <'))
-  await request(ownerToken, `/pages/${pageId}/comments/${threadId}/replies`, { body: 'Reviewed' })
-  await request(ownerToken, `/pages/${pageId}/comments/${threadId}/replies`, { body: '@member@example.invalid please check' })
-  await db.insert(documents).values({ pageId, markdown: '# Launch\n\n@Jamie Lee please confirm the launch checklist.' })
-  await notifications.mentions(pageId, [owner, member], owner)
+  await request(ownerToken, `/items/${itemId}/comments/${threadId}/replies`, { body: 'Reviewed' })
+  await request(ownerToken, `/items/${itemId}/comments/${threadId}/replies`, { body: '@member@example.invalid please check' })
+  await db.insert(documents).values({ itemId, markdown: '# Launch\n\n@Jamie Lee please confirm the launch checklist.' })
+  await notifications.mentions(itemId, [owner, member], owner)
   await until(async () => (await db.select().from(emailDeliveries)).every(row => row.state === 'sent'), 'Replies and mentions')
   const delivered = await db.select().from(emailDeliveries)
   assert.equal(delivered.length, 5, 'One invitation, comment, reply, comment mention and document mention; no self-notification or duplicate reply')
@@ -183,12 +185,11 @@ try {
   assert.ok(delivered.some(row => row.kind === 'mention' && row.activity?.body === '@Jamie Lee please confirm the launch checklist.'))
   assert.ok(received.some(message => message.includes('Review this')), 'SMTP message contains the actual comment content')
   await stopServer()
-
   // Manual future clock isolates lease/retry cases from any runtime timer.
-  const future = new Date(Date.now() + 3_600_000)
+  const future = new Date(Date.now() + 3600000)
   const add = async (key: string) => {
     const id = randomUUID()
-    await db.insert(emailDeliveries).values({ id, deduplicationKey: key, recipient: 'member@example.invalid', recipientUserId: member, workspaceId, pageId, kind: 'mention', title: 'Test mention', availableAt: future })
+    await db.insert(emailDeliveries).values({ id, deduplicationKey: key, recipient: 'member@example.invalid', recipientUserId: member, workspaceId, itemId, kind: 'mention', title: 'Test mention', availableAt: future })
     return id
   }
   const firstId = await add('lease-first')
@@ -216,10 +217,9 @@ try {
   assert.equal(failed!.lastError, 'EMESSAGE')
   assert.equal(failed!.attempts, 1)
   rejectDelivery = false
-  clock.now = () => new Date(later.getTime() + 30_001)
+  clock.now = () => new Date(later.getTime() + 30001)
   await processor.deliverNext()
   assert.equal((await db.select().from(emailDeliveries).where(eq(emailDeliveries.id, failedId)))[0]!.state, 'sent', 'SMTP failure retries successfully')
-
   const beforeSkip = received.length
   const revokedId = await add('revoked-member')
   await db.delete(workspaceMembers).where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, member)))

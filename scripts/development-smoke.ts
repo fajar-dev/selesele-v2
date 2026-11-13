@@ -19,14 +19,18 @@ try {
   const headers = { 'Cookie': `sele_session=${identity.token}`, 'Origin': origin.origin, 'Content-Type': 'application/json' }
   const created = await fetch(new URL('/api/workspaces', origin), { method: 'POST', headers, body: JSON.stringify({ name: 'Development UI fixture' }), signal: AbortSignal.timeout(60000) })
   assert.equal(created.status, 201)
-  workspaceId = ((await created.json()) as { data: { id: string } }).data.id
-  const screens = { members: 'People, groups', settings: 'Workspace identity', ask: 'Find answers in your documents', archive: 'Completed documents', templates: 'Reusable starting points' }
+  workspaceId = ((await created.json()) as {
+    data: {
+      id: string
+    }
+  }).data.id
+  const screens = { members: 'People, groups', settings: 'Workspace identity', ask: 'What would you like to explore?', archive: 'Completed items', templates: 'A head start for your next idea' }
   for (const [section, expected] of Object.entries(screens)) {
     const response = await fetch(new URL(`/workspaces/${workspaceId}/${section}`, origin), { headers, redirect: 'manual', signal: AbortSignal.timeout(60000) })
     const html = await response.text()
     assert.equal(response.status, 200, `${section}: authenticated development SSR must succeed`)
     assert.ok(!html.includes('Server Error') && !html.includes('__vite_ssr_import_0__.z.enum'), `${section}: schema imports must evaluate`)
-    assert.ok(html.includes(expected), `Expected ${section} page markup`)
+    assert.ok(html.includes(expected), `Expected ${section} item markup`)
   }
   console.log('Development SSR passed: Members, Settings, Ask, Archive and Templates render with authenticated fixtures; no email is sent')
 } finally {

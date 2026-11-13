@@ -1,8 +1,8 @@
-import type { PageTemplate } from '../../../../shared/kernel/library'
+import type { ItemTemplate } from '../../../../shared/kernel/library'
 
-export interface WorkspaceTemplate extends PageTemplate {
+export interface WorkspaceTemplate extends ItemTemplate {
   workspaceId: string
-  sourcePageId: string
+  sourceItemId: string
 }
 export interface WorkspaceTemplateRepository {
   list(workspaceId: string): Promise<WorkspaceTemplate[]>

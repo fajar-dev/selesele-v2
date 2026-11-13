@@ -3,7 +3,7 @@ import { getContainer } from '../../../../bootstrap/container'
 import { apiHandler, success } from '../../../../platform/http/response'
 import { currentUser } from '../../../../platform/http/session'
 import { idSchema } from '../../../../../shared/validation/workspace'
-import { templateSaveSchema } from '../../../../../shared/validation/improvements'
+import { templateSaveSchema } from '../../../../../shared/validation/knowledge'
 
 export default apiHandler(async (event) => {
   const container = getContainer()

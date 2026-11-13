@@ -13,7 +13,9 @@ import { enqueueEmail } from '../../mail/infrastructure/enqueueEmail'
 import { emailExcerpt } from '../../mail/domain/EmailActivity'
 
 export class MySqlMemberRepository implements MemberRepository {
-  constructor(private readonly db: Database, private readonly emailEnabled: boolean) { }
+  constructor(private readonly db: Database, private readonly emailEnabled: boolean) {
+  }
+
   private async gate(tx: DatabaseTransaction, id: string, userId: string) {
     const [workspace] = await tx.select().from(workspaces).where(and(eq(workspaces.id, id), isNull(workspaces.deletedAt))).for('update')
     const [actor] = await tx.select().from(workspaceMembers).where(and(eq(workspaceMembers.workspaceId, id), eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt))).for('update')
@@ -93,7 +95,7 @@ export class MySqlMemberRepository implements MemberRepository {
             await tx.insert(groupMembers).values(groups.map(group => ({ groupId: group.id, memberId })))
           }
           if (input.grants.length) {
-            await tx.insert(resourceGrants).values(input.grants.map(grant => ({ workspaceId: id, pageId: grant.kind === 'page' ? grant.resourceId : null, folderId: grant.kind === 'folder' ? grant.resourceId : null, memberId, level: grant.level, expiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null })))
+            await tx.insert(resourceGrants).values(input.grants.map(grant => ({ workspaceId: id, itemId: grant.kind === 'item' ? grant.resourceId : null, folderId: grant.kind === 'folder' ? grant.resourceId : null, memberId, level: grant.level, expiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null })))
           }
           const title = `You’ve been added to ${workspace.name}`
           if (user) {

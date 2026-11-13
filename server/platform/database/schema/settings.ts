@@ -8,7 +8,7 @@ export const workspaceActivity = mysqlTable('workspace_activity', {
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   actorName: varchar('actor_name', { length: 255 }).notNull(),
   subjectMemberId: varchar('subject_member_id', { length: 36 }),
-  pageId: varchar('page_id', { length: 36 }),
+  itemId: varchar('item_id', { length: 36 }),
   folderId: varchar('folder_id', { length: 36 }),
   action: varchar('action', { length: 40 }).notNull().$type<WorkspaceActivityAction>(),
   target: varchar('target', { length: 320 }).notNull(),

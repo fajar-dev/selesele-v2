@@ -8,8 +8,8 @@ const content = {
     actorAction: 'added you to this workspace', actionLabel: 'Open workspace'
   },
   comment: {
-    category: 'New comment', headline: 'Your page has a new comment.',
-    introduction: 'Someone left a comment on a page you are involved in. Take a look, share your thoughts, and keep the work moving.',
+    category: 'New comment', headline: 'Your item has a new comment.',
+    introduction: 'Someone left a comment on an item you are involved in. Take a look, share your thoughts, and keep the work moving.',
     actorAction: 'left a comment', actionLabel: 'Read comment'
   },
   reply: {
@@ -19,7 +19,7 @@ const content = {
   },
   mention: {
     category: 'You were mentioned', headline: 'You were mentioned.',
-    introduction: 'You were mentioned on a workspace page. Open it to see the context and add your perspective.',
+    introduction: 'You were mentioned on a workspace item. Open it to see the context and add your perspective.',
     actorAction: 'mentioned you', actionLabel: 'View mention'
   }
 } satisfies Record<EmailDelivery['kind'], {
@@ -32,9 +32,9 @@ const content = {
 export function notificationEmail(delivery: EmailDelivery, origin: string): EmailMessage {
   const activity = delivery.activity
   const invitation = delivery.kind === 'invitation'
-  const path = invitation || !delivery.pageId ? '/' : `/workspaces/${delivery.workspaceId}/pages/${delivery.pageId}`
+  const path = invitation || !delivery.itemId ? '/' : `/workspaces/${delivery.workspaceId}/items/${delivery.itemId}`
   const target = new URL(path, origin)
-  if (!invitation && delivery.pageId) {
+  if (!invitation && delivery.itemId) {
     if (activity?.threadId) {
       target.searchParams.set('comment', activity.threadId)
     } else if (delivery.kind === 'mention') {
@@ -44,7 +44,7 @@ export function notificationEmail(delivery: EmailDelivery, origin: string): Emai
   const url = target.href
   const title = delivery.title.replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ').trim()
   const copy = content[delivery.kind]
-  const context = activity?.pageTitle || activity?.workspaceName || title
+  const context = activity?.itemTitle || activity?.workspaceName || title
   const details = [
     activity?.workspaceName,
     context !== activity?.workspaceName ? context : undefined,

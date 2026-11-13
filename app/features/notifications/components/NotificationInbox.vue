@@ -40,9 +40,9 @@ function refreshActiveWorkspace() {
   const keys: string[] = [workspaceKeys.directory, libraryKeys.personal]
   if (id) {
     notifyWorkspaceRefresh(id)
-    keys.push(workspaceKeys.detail(id), workspaceKeys.folders(id), workspaceKeys.pages(id), workspaceKeys.members(id))
+    keys.push(workspaceKeys.detail(id), workspaceKeys.folders(id), workspaceKeys.items(id), workspaceKeys.members(id))
     if (typeof route.params.id === 'string') {
-      keys.push(`pages:${route.params.id}`)
+      keys.push(`items:${route.params.id}`)
     }
   }
   void refreshNuxtData(keys)
@@ -66,7 +66,7 @@ async function read(item?: NotificationItem) {
     await refresh()
     if (item) {
       open.value = false
-      await navigateTo(item.pageId ? { path: `/workspaces/${item.workspaceId}/pages/${item.pageId}`, query: item.threadId ? { comment: item.threadId } : item.kind === 'mention' ? { mention: '1' } : {} } : '/')
+      await navigateTo(item.itemId ? { path: `/workspaces/${item.workspaceId}/items/${item.itemId}`, query: item.threadId ? { comment: item.threadId } : item.kind === 'mention' ? { mention: '1' } : {} } : '/')
     }
   } catch (cause) {
     toast.add({ title: 'Unable to update notifications', description: errorMessage(cause), color: 'error' })

@@ -7,15 +7,16 @@ import type { Database } from '../../../platform/database/client'
 import { comments, commentThreads, users } from '../../../platform/database/schema'
 
 export class MySqlCommentRepository implements CommentRepository {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db: Database) {
+  }
 
-  async list(pageId: string): Promise<CommentThread[]> {
-    const rows = await this.db.select().from(commentThreads).where(eq(commentThreads.pageId, pageId)).orderBy(asc(commentThreads.createdAt), asc(commentThreads.id))
+  async list(itemId: string): Promise<CommentThread[]> {
+    const rows = await this.db.select().from(commentThreads).where(eq(commentThreads.itemId, itemId)).orderBy(asc(commentThreads.createdAt), asc(commentThreads.id))
     return this.withMessages(rows)
   }
 
-  async find(pageId: string, threadId: string): Promise<CommentThread | null> {
-    const rows = await this.db.select().from(commentThreads).where(and(eq(commentThreads.id, threadId), eq(commentThreads.pageId, pageId))).limit(1)
+  async find(itemId: string, threadId: string): Promise<CommentThread | null> {
+    const rows = await this.db.select().from(commentThreads).where(and(eq(commentThreads.id, threadId), eq(commentThreads.itemId, itemId))).limit(1)
     return (await this.withMessages(rows))[0] || null
   }
 
@@ -37,10 +38,10 @@ export class MySqlCommentRepository implements CommentRepository {
     return rows.map(row => ({ ...row, messages: grouped.get(row.id) || [] }))
   }
 
-  async create(pageId: string, input: CommentThreadInput, userId: string): Promise<string> {
+  async create(itemId: string, input: CommentThreadInput, userId: string): Promise<string> {
     const id = uuidv7()
     await this.db.transaction(async (transaction) => {
-      await transaction.insert(commentThreads).values({ id, pageId, quote: input.quote, anchor: input.anchor, createdBy: userId })
+      await transaction.insert(commentThreads).values({ id, itemId, quote: input.quote, anchor: input.anchor, createdBy: userId })
       await transaction.insert(comments).values({ threadId: id, body: input.body, authorId: userId })
     })
     return id

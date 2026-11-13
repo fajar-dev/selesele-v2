@@ -5,7 +5,9 @@ import type { WorkspaceQuestionService } from '../../writing/application/Workspa
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class ConversationService {
-  constructor(private readonly repository: ConversationRepository, private readonly access: WorkspaceAuthorization, private readonly resources: ResourceAccess, private readonly questions: WorkspaceQuestionService) { }
+  constructor(private readonly repository: ConversationRepository, private readonly access: WorkspaceAuthorization, private readonly resources: ResourceAccess, private readonly questions: WorkspaceQuestionService) {
+  }
+
   async list(workspaceId: string, userId: string) {
     await this.access.requireMember(workspaceId, userId)
     return this.repository.list(workspaceId, userId)
@@ -22,10 +24,10 @@ export class ConversationService {
     if (!conversation) {
       throw new ApplicationError('not_found', 'Conversation not found')
     }
-    const visible = new Map((await this.resources.visible('page', workspaceId, userId)).map(item => [item.id, item]))
+    const visible = new Map((await this.resources.visible('item', workspaceId, userId)).map(item => [item.id, item]))
     return { ...conversation, messages: conversation.messages.map((message) => {
       if (message.role === 'assistant' && message.sources.some(source => !visible.has(source.id))) {
-        return { ...message, content: 'This answer is unavailable because access to one or more source pages changed.', sources: [], unavailable: true }
+        return { ...message, content: 'This answer is unavailable because access to one or more source items changed.', sources: [], unavailable: true }
       }
       return { ...message, sources: message.sources.map(source => ({ ...source, title: visible.get(source.id)?.title || source.title })) }
     }) }
@@ -56,7 +58,7 @@ export class ConversationService {
     // Retain that provenance so later source revocation redacts dependent answers too.
     answer.sources = [...new Map([...answer.sources, ...history.flatMap(message => message.sources)].map(source => [source.id, source])).values()]
     await this.access.requireMember(workspaceId, userId)
-    const allowed = new Set((await this.resources.visible('page', workspaceId, userId)).map(item => item.id))
+    const allowed = new Set((await this.resources.visible('item', workspaceId, userId)).map(item => item.id))
     if (answer.sources.some(source => !allowed.has(source.id))) {
       throw new ApplicationError('forbidden', 'Source access changed while preparing this answer')
     }

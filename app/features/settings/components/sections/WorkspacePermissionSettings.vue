@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PageSection from '~/components/ui/PageSection.vue'
+import ScreenSection from '~/components/ui/ScreenSection.vue'
 import type { WorkspaceCapability, WorkspaceSettings } from '#shared/kernel/workspaceSettings'
 
 defineProps<{
@@ -14,17 +14,17 @@ const capabilities: {
   description: string
 }[] = [
   { key: 'inviteMembers', title: 'Add people', description: 'Choose who can add Members or Viewers. Only the Owner can appoint Admins.' },
-  { key: 'createPages', title: 'Create pages', description: 'Choose who can add pages and use templates.' },
+  { key: 'createItems', title: 'Create items', description: 'Choose who can add items and use templates.' },
   { key: 'createFolders', title: 'Create folders', description: 'Choose who can organize new folders.' },
-  { key: 'deleteContent', title: 'Delete content', description: 'Controls moving pages and folders to Trash.' }
+  { key: 'deleteContent', title: 'Delete content', description: 'Controls moving items and folders to Trash.' }
 ]
 const audiences = [{ label: 'Owners and admins', value: 'managers' }, { label: 'Owners, admins and members', value: 'members' }]
 </script>
 
 <template>
-  <PageSection
+  <ScreenSection
     title="Workspace rules"
-    description="Choose who can create content and add people. Individual and group document access is managed in Members; these rules never bypass restricted documents."
+    description="Choose who can create content and add people. Individual and group item access is managed in Members; these rules never bypass restricted items."
   >
     <div
       v-for="capability in capabilities"
@@ -52,5 +52,5 @@ const audiences = [{ label: 'Owners and admins', value: 'managers' }, { label: '
       :loading="busy"
       @click="onSave"
     />
-  </PageSection>
+  </ScreenSection>
 </template>

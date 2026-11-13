@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
-import WorkspaceManagementPage from '~/features/workspaces/components/WorkspaceManagementPage.vue'
+import WorkspaceManagementScreen from '~/features/workspaces/components/WorkspaceManagementScreen.vue'
 import SectionNavigation from '~/components/ui/SectionNavigation.vue'
 import { useMemberDirectory } from '../composables/useMemberDirectory'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
@@ -10,20 +10,21 @@ import MemberDetails from './MemberDetails.vue'
 import MemberGroups from './MemberGroups.vue'
 import AddMembers from './AddMembers.vue'
 
-const { workspaceId } = defineProps<{ workspaceId: string }>()
+const { workspaceId } = defineProps<{
+  workspaceId: string
+}>()
 const { overview, workspaceLoading, workspaceError, refreshOverview, manager, writable, owner, canAdd, section, sections, query, role, status, group, directory, loadStatus, loadError, groups, groupsStatus, groupsError, selected, adding, detail, busy, error, results, bulkRole, roles, pendingRemoval, manageable, toggle, reload, bulk, more } = useMemberDirectory(workspaceId)
-
 useFeedbackToast(error, { key: `member-action:${workspaceId}`, title: 'Unable to complete member changes' })
 useFeedbackToast(loadError, { key: `member-directory:${workspaceId}`, title: 'Unable to load members', recovered: () => loadStatus.value === 'success', retry: reload })
 useFeedbackToast(() => section.value === 'groups' ? groupsError.value : null, { key: `member-groups:${workspaceId}`, title: 'Unable to load groups', recovered: () => groupsStatus.value === 'success', retry: reload })
 </script>
 
 <template>
-  <WorkspaceManagementPage
+  <WorkspaceManagementScreen
     :workspace-id="workspaceId"
     :workspace="overview?.workspace"
     title="Members"
-    description="People, groups, and their document access."
+    description="People, groups, and their item access."
     icon="i-lucide-users"
     :loading="workspaceLoading"
     :error="workspaceError ? errorMessage(workspaceError) : null"
@@ -41,7 +42,7 @@ useFeedbackToast(() => section.value === 'groups' ? groupsError.value : null, { 
         <h2 class="text-base font-semibold">
           {{ section === 'people' ? 'Workspace members' : 'Member groups' }}
         </h2><p class="text-sm text-muted mt-ui-xs">
-          {{ section === 'people' ? 'Manage membership, roles, and individual access here.' : 'Organize people to grant document access together.' }}
+          {{ section === 'people' ? 'Manage membership, roles, and individual access here.' : 'Organize people to grant item access together.' }}
         </p>
       </div><UButton
         v-if="canAdd && section === 'people'"
@@ -264,9 +265,9 @@ useFeedbackToast(() => section.value === 'groups' ? groupsError.value : null, { 
     <ConfirmationDialog
       v-model:open="pendingRemoval"
       title="Remove selected members?"
-      description="These people will immediately lose access to this workspace and its documents."
+      description="These people will immediately lose access to this workspace and its items."
       confirm-label="Remove members"
       :on-confirm="() => bulk('remove')"
     />
-  </WorkspaceManagementPage>
+  </WorkspaceManagementScreen>
 </template>

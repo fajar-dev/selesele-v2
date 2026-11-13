@@ -76,8 +76,7 @@ async function save() {
     busy.value = false
   }
 }
-
-useFeedbackToast(loadError, { key: `resource-policy:${kind}:${resourceId}`, title: 'Unable to load document access', recovered: () => status.value === 'success', retry: () => refreshPolicy() })
+useFeedbackToast(loadError, { key: `resource-policy:${kind}:${resourceId}`, title: 'Unable to load item access', recovered: () => status.value === 'success', retry: () => refreshPolicy() })
 useFeedbackToast(error, { key: `resource-policy:${kind}:${resourceId}:save`, title: 'Unable to update access' })
 useFeedbackToast(groupsError, { key: `member-groups:${workspaceId}`, title: 'Unable to load groups', recovered: () => groupsStatus.value === 'success', retry: () => refreshGroups() })
 </script>
@@ -106,7 +105,7 @@ useFeedbackToast(groupsError, { key: `member-groups:${workspaceId}`, title: 'Una
             <h2 class="text-base font-semibold break-words">
               {{ policy.title }}
             </h2><p class="text-sm text-muted mt-ui-sm">
-              The owner always has full access. Individual overrides take priority over groups. Page access cannot exceed its parent folder.
+              The owner always has full access. Individual overrides take priority over groups. Item access cannot exceed its parent folder.
             </p>
           </div>
 

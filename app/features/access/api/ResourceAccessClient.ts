@@ -3,9 +3,11 @@ import type { ApiResponse } from '#shared/contracts/api'
 import type { ResourceKind, ResourcePolicy } from '#shared/kernel/access'
 
 export class ResourceAccessClient {
-  constructor(private readonly http: ApiTransport) { }
+  constructor(private readonly http: ApiTransport) {
+  }
+
   private path(workspaceId: string, kind: ResourceKind, id: string) {
-    return kind === 'page' ? `/pages/${id}/access` : `/workspaces/${workspaceId}/folders/${id}/access`
+    return kind === 'item' ? `/items/${id}/access` : `/workspaces/${workspaceId}/folders/${id}/access`
   }
 
   get(workspaceId: string, kind: ResourceKind, id: string) {

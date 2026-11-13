@@ -1,3 +1,4 @@
+import { CanvasClient } from '~/features/canvases/api/CanvasClient'
 import { WorkspaceSettingsClient } from '~/features/settings/api/WorkspaceSettingsClient'
 import { ConversationClient } from '~/features/conversations/api/ConversationClient'
 import { LibraryClient } from '~/features/library/api/LibraryClient'
@@ -7,7 +8,7 @@ import { MediaClient } from '~/features/editor/api/MediaClient'
 import { NuxtApiTransport } from '~/core/http/ApiTransport'
 import { AuthClient } from '~/features/auth/api/AuthClient'
 import { CommentClient } from '~/features/comments/api/CommentClient'
-import { PageClient } from '~/features/pages/api/PageClient'
+import { ItemClient } from '~/features/items/api/ItemClient'
 import { WorkspaceClient } from '~/features/workspaces/api/WorkspaceClient'
 import { FolderClient } from '~/features/workspaces/api/FolderClient'
 import { MemberClient } from '~/features/members/api/MemberClient'
@@ -25,7 +26,8 @@ export default defineNuxtPlugin(() => {
         notifications: new NotificationClient(http),
         media: new MediaClient(http),
         comments: new CommentClient(http),
-        pages: new PageClient(http),
+        items: new ItemClient(http),
+        canvases: new CanvasClient(http),
         workspaces: new WorkspaceClient(http),
         workspaceSettings: new WorkspaceSettingsClient(http),
         folders: new FolderClient(http),

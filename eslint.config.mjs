@@ -8,6 +8,7 @@ export default withNuxt(
   {
     rules: {
       'curly': ['error', 'all'],
+      'no-self-compare': 'error',
       '@stylistic/brace-style': ['error', '1tbs', { allowSingleLine: false }]
     }
   },

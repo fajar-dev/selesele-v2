@@ -1,20 +1,23 @@
 import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { and, desc, eq, isNotNull, isNull, or, sql, inArray } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
-import { documents, folders, pageActivity, pageLinks, pages, workspaceMembers, workspaces } from '../../../platform/database/schema'
-import { pageVisibility } from '../../../platform/database/pageVisibility'
+import { canvases, documents, folders, itemActivity, itemLinks, items, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { itemVisibility } from '../../../platform/database/itemVisibility'
 import type { LibraryRepository } from '../domain/LibraryRepository'
 import type { LibraryEntry } from '../../../../shared/contracts/library'
 
-const columns = { id: pages.id, kind: sql<'page'>`'page'`, workspaceId: pages.workspaceId, title: pages.title, icon: pages.icon, snippet: sql<string>`substring(${documents.markdown}, 1, 240)` }
+const body = sql<string>`coalesce(${documents.markdown}, ${canvases.summary}, '')`
+const columns = { id: items.id, kind: sql<'item'>`'item'`, workspaceId: items.workspaceId, title: items.title, icon: items.icon, snippet: sql<string>`substring(${body}, 1, 240)` }
 const pattern = (value: string) => `%${value.replaceAll('=', '==').replaceAll('%', '=%').replaceAll('_', '=_')}%`
-const contains = (column: typeof pages.title | typeof documents.markdown, value: string) => sql`${column} LIKE ${pattern(value)} ESCAPE '='`
+const contains = (column: typeof items.title | typeof documents.markdown | typeof body, value: string) => sql`${column} LIKE ${pattern(value)} ESCAPE '='`
 export class MySqlLibraryRepository implements LibraryRepository {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db: Database) {
+  }
+
   private readable(userId: string) {
-    return this.db.select(columns).from(pages).innerJoin(documents, eq(documents.pageId, pages.id))
-      .innerJoin(workspaces, eq(workspaces.id, pages.workspaceId)).innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id))
-      .leftJoin(folders, eq(folders.id, pages.folderId)).where(pageVisibility(userId)).$dynamic()
+    return this.db.select(columns).from(items).leftJoin(documents, eq(documents.itemId, items.id)).leftJoin(canvases, eq(canvases.itemId, items.id))
+      .innerJoin(workspaces, eq(workspaces.id, items.workspaceId)).innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id))
+      .leftJoin(folders, eq(folders.id, items.folderId)).where(itemVisibility(userId)).$dynamic()
   }
 
   async search(userId: string, query: string, workspaceId?: string): Promise<LibraryEntry[]> {
@@ -22,58 +25,55 @@ export class MySqlLibraryRepository implements LibraryRepository {
       return []
     }
     const scope = await loadResourceScope(this.db, userId, workspaceId)
-    const pageIds = scope.allowed('page')
+    const itemIds = scope.allowed('item')
     const folderIds = scope.allowed('folder')
-    const pageRows = pageIds.length
-      ? await this.readable(userId).where(and(inArray(pages.id, pageIds), pageVisibility(userId), workspaceId ? eq(pages.workspaceId, workspaceId) : undefined,
-          or(contains(pages.title, query), contains(documents.markdown, query)))).orderBy(desc(pages.updatedAt)).limit(30)
+    const itemRows = itemIds.length
+      ? await this.readable(userId).where(and(inArray(items.id, itemIds), itemVisibility(userId), workspaceId ? eq(items.workspaceId, workspaceId) : undefined, or(contains(items.title, query), contains(body, query)))).orderBy(desc(items.updatedAt)).limit(30)
       : []
     const workspaceRows = await this.db.select({ id: workspaces.id, workspaceId: workspaces.id, title: workspaces.name, icon: workspaces.icon, snippet: workspaces.description }).from(workspaces)
-      .innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).where(and(eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt),
-        workspaceId ? eq(workspaces.id, workspaceId) : undefined, sql`${workspaces.name} LIKE ${pattern(query)} ESCAPE '='`)).limit(10)
+      .innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).where(and(eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt), workspaceId ? eq(workspaces.id, workspaceId) : undefined, sql`${workspaces.name} LIKE ${pattern(query)} ESCAPE '='`)).limit(10)
     const folderRows = folderIds.length
       ? await this.db.select({ id: folders.id, workspaceId: folders.workspaceId, title: folders.name, icon: folders.icon, snippet: folders.description }).from(folders)
           .innerJoin(workspaces, eq(workspaces.id, folders.workspaceId)).innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id))
-          .where(and(inArray(folders.id, folderIds), eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt), isNull(folders.deletedAt), workspaceId ? eq(workspaces.id, workspaceId) : undefined,
-            sql`${folders.name} LIKE ${pattern(query)} ESCAPE '='`)).limit(10)
+          .where(and(inArray(folders.id, folderIds), eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt), isNull(folders.deletedAt), workspaceId ? eq(workspaces.id, workspaceId) : undefined, sql`${folders.name} LIKE ${pattern(query)} ESCAPE '='`)).limit(10)
       : []
-    return [...pageRows, ...folderRows.map(row => ({ ...row, kind: 'folder' as const })), ...workspaceRows.map(row => ({ ...row, kind: 'workspace' as const }))]
+    return [...itemRows, ...folderRows.map(row => ({ ...row, kind: 'folder' as const })), ...workspaceRows.map(row => ({ ...row, kind: 'workspace' as const }))]
   }
 
   async personal(userId: string) {
-    const ids = (await loadResourceScope(this.db, userId)).allowed('page')
+    const ids = (await loadResourceScope(this.db, userId)).allowed('item')
     if (!ids.length) {
       return { favorites: [], recent: [] }
     }
-    const query = () => this.readable(userId).innerJoin(pageActivity, and(eq(pageActivity.pageId, pages.id), eq(pageActivity.userId, userId)))
+    const query = () => this.readable(userId).innerJoin(itemActivity, and(eq(itemActivity.itemId, items.id), eq(itemActivity.userId, userId)))
     const [favorites, recent] = await Promise.all([
-      query().where(and(inArray(pages.id, ids), pageVisibility(userId), isNotNull(pageActivity.favoriteAt))).orderBy(desc(pageActivity.favoriteAt)).limit(100),
-      query().where(and(inArray(pages.id, ids), pageVisibility(userId), isNotNull(pageActivity.visitedAt))).orderBy(desc(pageActivity.visitedAt)).limit(20)
+      query().where(and(inArray(items.id, ids), itemVisibility(userId), isNotNull(itemActivity.favoriteAt))).orderBy(desc(itemActivity.favoriteAt)).limit(100),
+      query().where(and(inArray(items.id, ids), itemVisibility(userId), isNotNull(itemActivity.visitedAt))).orderBy(desc(itemActivity.visitedAt)).limit(20)
     ])
     return { favorites, recent }
   }
 
-  async favorite(userId: string, pageId: string, favorite: boolean) {
+  async favorite(userId: string, itemId: string, favorite: boolean) {
     const favoriteAt = favorite ? new Date() : null
-    await this.db.insert(pageActivity).values({ userId, pageId, favoriteAt }).onDuplicateKeyUpdate({ set: { favoriteAt } })
+    await this.db.insert(itemActivity).values({ userId, itemId, favoriteAt }).onDuplicateKeyUpdate({ set: { favoriteAt } })
   }
 
-  async visit(userId: string, pageId: string) {
+  async visit(userId: string, itemId: string) {
     const visitedAt = new Date()
-    await this.db.insert(pageActivity).values({ userId, pageId, visitedAt }).onDuplicateKeyUpdate({ set: { visitedAt } })
+    await this.db.insert(itemActivity).values({ userId, itemId, visitedAt }).onDuplicateKeyUpdate({ set: { visitedAt } })
   }
 
-  async backlinks(userId: string, pageId: string) {
-    const ids = (await loadResourceScope(this.db, userId)).allowed('page')
+  async backlinks(userId: string, itemId: string) {
+    const ids = (await loadResourceScope(this.db, userId)).allowed('item')
     if (!ids.length) {
       return []
     }
-    return this.readable(userId).innerJoin(pageLinks, eq(pageLinks.sourceId, pages.id))
-      .where(and(inArray(pages.id, ids), pageVisibility(userId), eq(pageLinks.targetId, pageId))).orderBy(desc(pages.updatedAt)).limit(100)
+    return this.readable(userId).innerJoin(itemLinks, eq(itemLinks.sourceId, items.id))
+      .where(and(inArray(items.id, ids), itemVisibility(userId), eq(itemLinks.targetId, itemId))).orderBy(desc(items.updatedAt)).limit(100)
   }
 
   async context(userId: string, question: string, workspaceId: string) {
-    const ids = (await loadResourceScope(this.db, userId, workspaceId)).allowed('page')
+    const ids = (await loadResourceScope(this.db, userId, workspaceId)).allowed('item')
     if (!ids.length) {
       return []
     }
@@ -82,12 +82,12 @@ export class MySqlLibraryRepository implements LibraryRepository {
     if (!words.length) {
       return []
     }
-    const matches = words.map(word => or(contains(pages.title, word), contains(documents.markdown, word)))
-    const rank = sql<number>`(${sql.join(words.map(word => sql`CASE WHEN ${contains(pages.title, word)} THEN 3 WHEN ${contains(documents.markdown, word)} THEN 1 ELSE 0 END`), sql` + `)})`
-    const rows = await this.db.select({ id: pages.id, workspaceId: pages.workspaceId, title: pages.title, content: sql<string>`substring(${documents.markdown}, 1, 10000)` }).from(pages)
-      .innerJoin(documents, eq(documents.pageId, pages.id)).innerJoin(workspaces, eq(workspaces.id, pages.workspaceId))
-      .innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).leftJoin(folders, eq(folders.id, pages.folderId))
-      .where(and(inArray(pages.id, ids), pageVisibility(userId), eq(pages.workspaceId, workspaceId), or(...matches))).orderBy(desc(rank), desc(pages.updatedAt)).limit(5)
+    const matches = words.map(word => or(contains(items.title, word), contains(body, word)))
+    const rank = sql<number>`(${sql.join(words.map(word => sql`CASE WHEN ${contains(items.title, word)} THEN 3 WHEN ${contains(body, word)} THEN 1 ELSE 0 END`), sql` + `)})`
+    const rows = await this.db.select({ id: items.id, workspaceId: items.workspaceId, title: items.title, content: sql<string>`substring(${body}, 1, 10000)` }).from(items)
+      .leftJoin(documents, eq(documents.itemId, items.id)).leftJoin(canvases, eq(canvases.itemId, items.id)).innerJoin(workspaces, eq(workspaces.id, items.workspaceId))
+      .innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).leftJoin(folders, eq(folders.id, items.folderId))
+      .where(and(inArray(items.id, ids), itemVisibility(userId), eq(items.workspaceId, workspaceId), or(...matches))).orderBy(desc(rank), desc(items.updatedAt)).limit(5)
     return rows
   }
 }

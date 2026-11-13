@@ -3,7 +3,7 @@ import type { InviteRole } from '../../../../shared/kernel/workspace'
 export interface EmailActivity {
   actorName: string
   workspaceName: string
-  pageTitle?: string
+  itemTitle?: string
   threadId?: string
   body?: string
   quote?: string

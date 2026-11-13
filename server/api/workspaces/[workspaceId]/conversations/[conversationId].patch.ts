@@ -3,7 +3,7 @@ import { getContainer } from '../../../../bootstrap/container'
 import { apiHandler, success } from '../../../../platform/http/response'
 import { currentUser } from '../../../../platform/http/session'
 import { idSchema } from '../../../../../shared/validation/workspace'
-import { conversationTitleSchema } from '../../../../../shared/validation/improvements'
+import { conversationTitleSchema } from '../../../../../shared/validation/knowledge'
 
 export default apiHandler(async (event) => {
   const container = getContainer()

@@ -1,4 +1,4 @@
-import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryPages, MemoryWorkspaces, MemoryFolders, WORKSPACE_ID } from '../support/fakes'
+import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryItems, MemoryWorkspaces, MemoryFolders, WORKSPACE_ID } from '../support/fakes'
 import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
 import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
@@ -10,14 +10,16 @@ import * as encoding from 'lib0/encoding'
 import * as decoding from 'lib0/decoding'
 import { AuthService } from '../../server/features/identity/application/AuthService'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
-import { PageService } from '../../server/features/pages/application/PageService'
+import { ItemService } from '../../server/features/items/application/ItemService'
 import { CollaborationHub } from '../../server/platform/collaboration/CollaborationHub'
 import { createDocument, documentMarkdown } from '../../server/platform/collaboration/document'
 
 class TestPeer {
   messages: Uint8Array[] = []
   closed: number | undefined
-  constructor(readonly id: string) {}
+  constructor(readonly id: string) {
+  }
+
   send(data: Uint8Array) {
     this.messages.push(data.slice())
   }
@@ -30,14 +32,12 @@ class TestPeer {
     return this
   }
 }
-
 function syncRequest(document: Y.Doc) {
   const encoder = encoding.createEncoder()
   encoding.writeVarUint(encoder, 0)
   sync.writeSyncStep1(encoder, document)
   return encoding.toUint8Array(encoder)
 }
-
 function applyMessages(peer: TestPeer, document: Y.Doc) {
   for (const data of peer.messages.splice(0)) {
     const decoder = decoding.createDecoder(data)
@@ -48,19 +48,17 @@ function applyMessages(peer: TestPeer, document: Y.Doc) {
     sync.readSyncMessage(decoder, encoder, document, 'server')
   }
 }
-
 async function fixture() {
   const accounts = new MemoryAccounts()
   const auth = new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock())
   const { token } = await auth.login(await accounts.verify(), null)
-  const pages = new MemoryPages()
+  const items = new MemoryItems()
   const memberships = new MemoryWorkspaces()
   const access = new WorkspaceAccessPolicy(memberships)
   const folders = new FolderService(new MemoryFolders(), access, new MemoryJournal(), new MemoryResourceAccess())
-  const hub = new CollaborationHub(new PageService(pages, access, folders, new MemoryJournal(), new MemoryResourceAccess(pages)), auth, pages)
-  return { accounts, auth, token, pages, hub, memberships, id: pages.page.id }
+  const hub = new CollaborationHub(new ItemService(items, access, folders, new MemoryJournal(), new MemoryResourceAccess(items)), auth, items)
+  return { accounts, auth, token, items, hub, memberships, id: items.item.id }
 }
-
 describe('persistent collaboration', () => {
   test('Markdown round-trips through a Yjs document including tables and lists', () => {
     const content = '# Heading\n\n**Bold** and _italic_.\n\n- One\n- Two\n\n| A | B |\n| --- | --- |\n| 1 | 2 |'
@@ -73,15 +71,14 @@ describe('persistent collaboration', () => {
     document.destroy()
     restored.destroy()
   })
-
   test('seeds once, synchronizes two clients, and persists updates across reconnects', async () => {
-    const { hub, pages, token, id } = await fixture()
+    const { hub, items, token, id } = await fixture()
     const first = new TestPeer('first')
     const second = new TestPeer('second')
     const client = new Y.Doc()
     try {
       await Promise.all([hub.connect(first.asPeer(), id, token), hub.connect(second.asPeer(), id, token)])
-      expect(pages.saves).toBe(1)
+      expect(items.saves).toBe(1)
       await hub.message(first.asPeer(), syncRequest(client))
       applyMessages(first, client)
       expect(documentMarkdown(client)).toContain('# Hello')
@@ -93,7 +90,7 @@ describe('persistent collaboration', () => {
       encoding.writeVarUint(encoder, 0)
       sync.writeUpdate(encoder, Y.encodeStateAsUpdate(client, before))
       await hub.message(first.asPeer(), encoding.toUint8Array(encoder))
-      expect(pages.markdown).toContain('Hello from client')
+      expect(items.markdown).toContain('Hello from client')
       const other = new Y.Doc()
       await hub.message(second.asPeer(), syncRequest(other))
       applyMessages(second, other)
@@ -102,7 +99,7 @@ describe('persistent collaboration', () => {
       await Promise.all([hub.disconnect(first.asPeer()), hub.disconnect(second.asPeer())])
       const third = new TestPeer('third')
       await hub.connect(third.asPeer(), id, token)
-      const restored = createDocument('', pages.state)
+      const restored = createDocument('', items.state)
       expect(documentMarkdown(restored)).toContain('Hello from client')
       restored.destroy()
     } finally {
@@ -110,7 +107,6 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-
   test('revokes connected users and rejects an expired session', async () => {
     const { hub, auth, token, id } = await fixture()
     const peer = new TestPeer('owner')
@@ -124,7 +120,6 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-
   test('workspace revalidation keeps authorized editors connected and closes revoked members', async () => {
     const { hub, token, id, accounts, memberships } = await fixture()
     const peer = new TestPeer('revoked-member')
@@ -140,9 +135,8 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-
   test('pushes comment changes only to authorized viewers in the matching room without modifying the document', async () => {
-    const { hub, token, id, pages, auth } = await fixture()
+    const { hub, token, id, items, auth } = await fixture()
     const first = new TestPeer('comments-first')
     const second = new TestPeer('comments-second')
     const eventType = (message: Uint8Array) => decoding.readVarUint(decoding.createDecoder(message))
@@ -150,14 +144,14 @@ describe('persistent collaboration', () => {
       await Promise.all([hub.connect(first, id, token), hub.connect(second, id, token)])
       first.messages = []
       second.messages = []
-      const saves = pages.saves
-      await hub.commentsChanged('unrelated-page')
+      const saves = items.saves
+      await hub.commentsChanged('unrelated-item')
       expect(first.messages).toHaveLength(0)
       await hub.commentsChanged(id)
       expect(first.messages.map(eventType)).toEqual([COMMENTS_CHANGED])
       expect(second.messages.map(eventType)).toEqual([COMMENTS_CHANGED])
       expect(first.messages[0]?.length).toBe(1)
-      expect(pages.saves).toBe(saves)
+      expect(items.saves).toBe(saves)
       first.messages = []
       second.messages = []
       await auth.logout(token)
@@ -169,7 +163,6 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-
   test('clients cannot forge comment invalidation messages', async () => {
     const { hub, token, id } = await fixture()
     const sender = new TestPeer('forger')
@@ -186,31 +179,29 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-
   test('replaces Markdown in a live room and persists the matching document state', async () => {
-    const { hub, pages, token, id } = await fixture()
+    const { hub, items, token, id } = await fixture()
     const peer = new TestPeer('editor')
     try {
       await hub.connect(peer.asPeer(), id, token)
       await hub.replaceMarkdown(id, '# Replacement\n\nA new **document**.')
-      const restored = createDocument('', pages.state)
+      const restored = createDocument('', items.state)
       expect(documentMarkdown(restored)).toContain('# Replacement')
-      expect(pages.markdown).toContain('**document**')
+      expect(items.markdown).toContain('**document**')
       restored.destroy()
     } finally {
       await hub.close()
     }
   })
-
   test('replaces an offline document through the same writer and retains it on reconnect', async () => {
-    const { hub, pages, token, id } = await fixture()
+    const { hub, items, token, id } = await fixture()
     const peer = new TestPeer('reconnecting-editor')
     try {
       await hub.replaceMarkdown(id, '# Offline replacement\n\n**Preserved formatting**')
-      expect(pages.state).not.toBeNull()
-      const before = pages.markdown
+      expect(items.state).not.toBeNull()
+      const before = items.markdown
       await hub.connect(peer, id, token)
-      const restored = createDocument('', pages.state)
+      const restored = createDocument('', items.state)
       try {
         expect(documentMarkdown(restored)).toBe(before)
         expect(before).toContain('**Preserved formatting**')
@@ -221,15 +212,14 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-
   test('concurrent replacements leave Markdown and Yjs state in agreement', async () => {
-    const { hub, pages, id } = await fixture()
+    const { hub, items, id } = await fixture()
     try {
       await Promise.all([hub.replaceMarkdown(id, '# First'), hub.replaceMarkdown(id, '# Second')])
-      const restored = createDocument('', pages.state)
+      const restored = createDocument('', items.state)
       try {
-        expect(pages.markdown).toBe('# Second')
-        expect(documentMarkdown(restored)).toBe(pages.markdown)
+        expect(items.markdown).toBe('# Second')
+        expect(documentMarkdown(restored)).toBe(items.markdown)
       } finally {
         restored.destroy()
       }
@@ -237,16 +227,15 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-
   test('offline replacement reports persistence failures and can retry with a new room', async () => {
-    const { hub, pages, id } = await fixture()
+    const { hub, items, id } = await fixture()
     try {
-      pages.failSave = true
+      items.failSave = true
       await expect(hub.replaceMarkdown(id, '# Unavailable')).rejects.toThrow('Disk unavailable')
-      pages.failSave = false
+      items.failSave = false
       await hub.replaceMarkdown(id, '# Retried')
-      expect(pages.markdown).toBe('# Retried')
-      expect(pages.state).not.toBeNull()
+      expect(items.markdown).toBe('# Retried')
+      expect(items.state).not.toBeNull()
     } finally {
       await hub.close()
     }

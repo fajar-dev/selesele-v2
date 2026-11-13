@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import ArchivedPagesScreen from '~/features/pages/components/ArchivedPagesScreen.vue'
+import ArchivedItemsScreen from '~/features/items/components/ArchivedItemsScreen.vue'
 
 definePageMeta({ layout: 'workspace' })
 const route = useRoute()
 </script>
 
 <template>
-  <ArchivedPagesScreen :workspace-id="String(route.params.workspaceId)" />
+  <ArchivedItemsScreen :workspace-id="String(route.params.workspaceId)" />
 </template>

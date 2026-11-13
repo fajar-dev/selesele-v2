@@ -1,10 +1,10 @@
 import type { Editor } from '@tiptap/core'
-import type { usePageComments } from '~/features/comments/composables/usePageComments'
+import type { useItemComments } from '~/features/comments/composables/useItemComments'
 import { useAuth } from '~/features/auth/composables/useAuth'
 
 export function useNotificationTarget(editorRef: Ref<{
   editor: Editor | undefined
-} | null | undefined>, comments: ReturnType<typeof usePageComments>) {
+} | null | undefined>, comments: ReturnType<typeof useItemComments>) {
   const route = useRoute()
   const { state: auth } = useAuth()
   const toast = useToast()
@@ -41,7 +41,7 @@ export function useNotificationTarget(editorRef: Ref<{
     if (range) {
       editor.chain().focus().setTextSelection(range).scrollIntoView().run()
     } else {
-      toast.add({ title: 'Mention is no longer in this page', description: 'The document may have changed since the notification was sent.', color: 'neutral' })
+      toast.add({ title: 'Mention is no longer in this item', description: 'The document may have changed since the notification was sent.', color: 'neutral' })
     }
   }, { immediate: true, flush: 'post' })
 }

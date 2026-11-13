@@ -2,7 +2,7 @@ import { index, int, json, mysqlTable, timestamp, uniqueIndex, varchar } from 'd
 import type { EmailActivity } from '../../../features/mail/domain/EmailActivity'
 import { uuidv7 } from 'uuidv7'
 import { workspaces, workspaceMembers } from './workspaces'
-import { pages } from './pages'
+import { items } from './items'
 import { users } from './identity'
 import type { NotificationItem } from '../../../../shared/kernel/notification'
 
@@ -12,7 +12,7 @@ export const emailDeliveries = mysqlTable('email_deliveries', {
   recipient: varchar('recipient', { length: 255 }).notNull(),
   recipientUserId: varchar('recipient_user_id', { length: 36 }).references(() => users.id, { onDelete: 'cascade' }),
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-  pageId: varchar('page_id', { length: 36 }).references(() => pages.id, { onDelete: 'cascade' }),
+  itemId: varchar('item_id', { length: 36 }).references(() => items.id, { onDelete: 'cascade' }),
   memberId: varchar('member_id', { length: 36 }).references(() => workspaceMembers.id, { onDelete: 'cascade' }),
   kind: varchar('kind', { length: 20 }).notNull().$type<NotificationItem['kind']>(),
   title: varchar('title', { length: 320 }).notNull(),

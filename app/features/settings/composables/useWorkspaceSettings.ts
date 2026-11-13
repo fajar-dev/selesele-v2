@@ -5,7 +5,7 @@ import { useApi } from '~/core/http/useApi'
 import { defaultNotificationPreferences, defaultWorkspaceSettings } from '#shared/kernel/workspaceSettings'
 import { refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
-import type { WorkspaceActivityPage } from '#shared/contracts/workspaceSettings'
+import type { WorkspaceActivityItem } from '#shared/contracts/workspaceSettings'
 
 export function useWorkspaceSettings(workspaceId: string, manager: Ref<boolean>, section: Ref<string>) {
   const { workspaceSettings: api } = useApi()
@@ -41,7 +41,7 @@ export function useWorkspaceSettings(workspaceId: string, manager: Ref<boolean>,
       busy.value = false
     }
   }
-  const activity = useLazyAsyncData(`workspace-activity:${workspaceId}`, async () => manager.value ? (await api.activity(workspaceId)).data : { items: [], nextCursor: null }, { server: false, immediate: false, default: (): WorkspaceActivityPage => ({ items: [], nextCursor: null }) })
+  const activity = useLazyAsyncData(`workspace-activity:${workspaceId}`, async () => manager.value ? (await api.activity(workspaceId)).data : { items: [], nextCursor: null }, { server: false, immediate: false, default: (): WorkspaceActivityItem => ({ items: [], nextCursor: null }) })
   const usage = useLazyAsyncData(`workspace-usage:${workspaceId}`, async () => manager.value ? (await api.usage(workspaceId)).data : null, { server: false, immediate: false })
   watch([manager, section], ([allowed, active]) => {
     if (!allowed) {
