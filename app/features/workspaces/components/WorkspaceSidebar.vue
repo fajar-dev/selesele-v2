@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataRetry from '~/components/ui/DataRetry.vue'
 import { libraryKeys } from '~/features/library/state/libraryKeys'
 
 import WorkspaceFavorites from '~/features/library/components/WorkspaceFavorites.vue'
@@ -27,9 +28,8 @@ const deletingPage = ref<PageItem | null>(null)
 const deletePageOpen = ref(false)
 const deletingFolder = ref<FolderItem | null>(null)
 const searchOpen = useLibrarySearch()
-const questionsOpen = useState('workspace-questions-open', () => false)
 const workspace = computed(() => overview.value?.workspace)
-const manager = computed(() => !!workspace.value && workspace.value.role !== 'member')
+const manager = computed(() => !!workspace.value && ['owner', 'admin'].includes(workspace.value.role))
 const home = computed(() => `/workspaces/${workspaceId}`)
 const { deletePage: removePage } = usePageDeletion(workspaceId)
 const { createPage } = usePageCreation(workspaceId)
@@ -80,11 +80,10 @@ async function logout() {
         label="Loading workspace switcher"
         :rows="1"
       />
-      <UAlert
+      <DataRetry
         v-else-if="error"
-        title="Unable to load workspace"
-        color="error"
-        :actions="[{ label: 'Retry', onClick: refresh }]"
+        :feedback-keys="[`workspaces:${workspaceId}`]"
+        :on-retry="refresh"
       />
       <UButton
         label="Search"
@@ -108,7 +107,7 @@ async function logout() {
         <UButton
           label="Workspace home"
           icon="i-lucide-house"
-          :to="home"
+          :to="`${home}?overview=1`"
           color="neutral"
           variant="ghost"
           class="sidebar-link"
@@ -122,7 +121,8 @@ async function logout() {
           variant="ghost"
           class="sidebar-link"
           :ui="{ leadingIcon: 'size-ui-lg' }"
-          @click="questionsOpen = true"
+          :to="`${home}/ask`"
+          :class="{ 'is-active': route.path === `${home}/ask` }"
         />
         <UButton
           label="Members"
@@ -158,11 +158,10 @@ async function logout() {
           :ui="{ leadingIcon: 'size-ui-lg' }"
         />
       </div>
-      <UAlert
+      <DataRetry
         v-if="pagesError || foldersError"
-        title="Unable to load navigation"
-        color="error"
-        :actions="[{ label: 'Retry', onClick: refresh }]"
+        :feedback-keys="[`workspaces:${workspaceId}:pages`, `workspaces:${workspaceId}:folders`]"
+        :on-retry="refresh"
       />
       <WorkspaceFavorites :workspace-id="workspaceId" />
       <WorkspaceTree

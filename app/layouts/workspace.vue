@@ -4,12 +4,6 @@ import WorkspaceSidebar from '~/features/workspaces/components/WorkspaceSidebar.
 const route = useRoute()
 const workspaceId = computed(() => String(route.params.workspaceId || ''))
 const mobileOpen = ref(false)
-const questionsOpen = useState('workspace-questions-open', () => false)
-watch(questionsOpen, (value) => {
-  if (value) {
-    mobileOpen.value = false
-  }
-})
 watch(() => route.fullPath, () => {
   mobileOpen.value = false
 })

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import WorkspaceQuestions from '~/features/library/components/WorkspaceQuestions.vue'
 import LibrarySearch from '~/features/library/components/LibrarySearch.vue'
 import { useAuth } from '~/features/auth/composables/useAuth'
 
@@ -35,11 +34,6 @@ useSeoMeta({
 <template>
   <UApp :toaster="toaster">
     <LibrarySearch v-if="auth.authenticated" />
-    <WorkspaceQuestions
-      v-if="auth.authenticated && route.params.workspaceId"
-      :key="layoutKey"
-      :workspace-id="String(route.params.workspaceId)"
-    />
     <NuxtLayout :key="layoutKey">
       <NuxtPage />
     </NuxtLayout>
