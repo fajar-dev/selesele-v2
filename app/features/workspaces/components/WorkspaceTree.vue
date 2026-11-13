@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
+import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
 import { usePageTemplates } from '~/features/library/composables/usePageTemplates'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
@@ -14,6 +16,11 @@ const emit = defineEmits<{
   deleteFolder: [folder: FolderItem]
   deletePage: [page: PageItem]
 }>()
+const writable = computed(() => !props.overview.workspace.archivedAt)
+const canPage = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'createPages'))
+const canFolder = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'createFolders'))
+const canDelete = computed(() => writable.value && allowsWorkspaceAction(props.overview.workspace.role, props.overview.workspace.settings, 'deleteContent'))
+const accessFolder = ref<FolderItem | null>(null)
 const creatingFromMenu = ref(false)
 const { createFolder, creatingFolder } = useWorkspaceFolders(props.overview.workspace.id)
 function beginFolder() {
@@ -43,9 +50,8 @@ const dropTarget = ref<string | null>(null)
 const pageDragType = 'application/x-sele-page'
 const rootTarget = 'workspace-root'
 const addItems = computed(() => [
-  { label: 'Page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(null) },
-  { label: 'Folder', icon: 'i-lucide-folder-plus', onSelect: beginFolder },
-  templates.items(null)
+  ...(canPage.value ? [{ label: 'Page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(null) }, templates.items(null)] : []),
+  ...(canFolder.value ? [{ label: 'Folder', icon: 'i-lucide-folder-plus', onSelect: beginFolder }] : [])
 ])
 
 function folderPages(folder: FolderItem) {
@@ -53,9 +59,13 @@ function folderPages(folder: FolderItem) {
 }
 function folderItems(folder: FolderItem) {
   return [
-    { label: 'New page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(folder.id) },
-    templates.items(folder.id),
-    { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: () => emit('deleteFolder', folder) }
+    ...(canPage.value && folder.accessLevel === 'edit' ? [{ label: 'New page', icon: 'i-lucide-file-plus', onSelect: () => beginPage(folder.id) }, templates.items(folder.id)] : []),
+    ...(folder.canManageAccess
+      ? [{ label: 'Manage access', icon: 'i-lucide-shield-check', onSelect: () => {
+          accessFolder.value = folder
+        } }]
+      : []),
+    ...(canDelete.value && folder.accessLevel === 'edit' ? [{ label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: () => emit('deleteFolder', folder) }] : [])
   ]
 }
 function toggleFolder(folderId: string) {
@@ -66,7 +76,7 @@ function toggleFolder(folderId: string) {
   }
 }
 function startDrag(event: DragEvent, page: PageItem) {
-  if (!event.dataTransfer || movingPageId.value) {
+  if (!event.dataTransfer || movingPageId.value || page.accessLevel !== 'edit') {
     event.preventDefault()
     return
   }
@@ -79,7 +89,7 @@ function endDrag() {
   dropTarget.value = null
 }
 function canDrop(folderId: string | null) {
-  return !!draggedPage.value && !movingPageId.value && draggedPage.value.folderId !== folderId
+  return (!folderId || props.overview.folders.some(folder => folder.id === folderId && folder.accessLevel === 'edit')) && !!draggedPage.value && !movingPageId.value && draggedPage.value.folderId !== folderId
 }
 function dragOver(event: DragEvent, folderId: string | null) {
   if (!draggedPage.value) {
@@ -148,6 +158,7 @@ watch(() => props.overview.workspace.id, () => {
         class="ml-auto text-xs text-muted"
       >Drop here to move out</span>
       <UDropdownMenu
+        v-if="addItems.length"
         :items="addItems"
         :content="{ align: 'start', onCloseAutoFocus: preserveCreationFocus }"
         @update:open="templates.load"
@@ -201,6 +212,7 @@ watch(() => props.overview.workspace.id, () => {
             >{{ folder.name }}</span>
           </NuxtLink>
           <UDropdownMenu
+            v-if="folderItems(folder).length"
             :items="folderItems(folder)"
             :content="{ align: 'start', onCloseAutoFocus: preserveCreationFocus }"
             @update:open="templates.load"
@@ -225,11 +237,12 @@ watch(() => props.overview.workspace.id, () => {
             :data-page-id="page.id"
           >
             <WorkspacePageLink
+              :can-delete="canDelete && page.accessLevel === 'edit'"
               :page="page"
               :home="home"
               :active="route.params.id === page.id"
               :moving="movingPageId === page.id"
-              :disabled="!!movingPageId"
+              :disabled="!!movingPageId || !writable"
               @drag-page="startDrag"
               @end-drag="endDrag"
               @delete-page="emit('deletePage', $event)"
@@ -249,11 +262,12 @@ watch(() => props.overview.workspace.id, () => {
         :data-page-id="page.id"
       >
         <WorkspacePageLink
+          :can-delete="canDelete && page.accessLevel === 'edit'"
           :page="page"
           :home="home"
           :active="route.params.id === page.id"
           :moving="movingPageId === page.id"
-          :disabled="!!movingPageId"
+          :disabled="!!movingPageId || !writable"
           @drag-page="startDrag"
           @end-drag="endDrag"
           @delete-page="emit('deletePage', $event)"
@@ -274,4 +288,11 @@ watch(() => props.overview.workspace.id, () => {
       {{ announcement }}
     </p>
   </section>
+  <ResourceAccessPanel
+    v-if="accessFolder"
+    :workspace-id="overview.workspace.id"
+    kind="folder"
+    :resource-id="accessFolder.id"
+    @close="accessFolder = null"
+  />
 </template>

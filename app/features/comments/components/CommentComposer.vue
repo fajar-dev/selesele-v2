@@ -10,7 +10,7 @@ const props = withDefaults(defineProps<{ label: string, submitLabel?: string, au
 const emit = defineEmits<{ cancel: [] }>()
 const body = defineModel<string>({ default: '' })
 const busy = ref(false)
-const error = ref('')
+const toast = useToast()
 const input = useTemplateRef('input')
 onMounted(() => {
   if (props.autofocus) {
@@ -28,12 +28,11 @@ async function submit() {
     return
   }
   busy.value = true
-  error.value = ''
   try {
     await props.onSubmit(body.value.trim())
     body.value = ''
   } catch (cause) {
-    error.value = errorMessage(cause)
+    toast.add({ title: 'Unable to send comment', description: errorMessage(cause), color: 'error' })
   } finally {
     busy.value = false
   }
@@ -60,13 +59,6 @@ async function submit() {
       :ui="{ base: 'resize-none rounded-none border-0 bg-transparent px-ui-md pt-ui-sm pb-ui-xs text-xs leading-normal ring-0 shadow-none focus-visible:ring-0 focus-visible:outline-none placeholder:text-dimmed' }"
       @keydown="keydown"
     />
-    <p
-      v-if="error"
-      role="alert"
-      class="px-ui-md py-ui-xs text-xs text-error"
-    >
-      {{ error }}
-    </p>
     <div class="flex justify-between items-center gap-ui-sm px-ui-sm pb-ui-sm">
       <div class="flex items-center gap-ui-xs">
         <UDropdownMenu :items="mentions">

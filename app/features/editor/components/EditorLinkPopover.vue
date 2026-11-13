@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useDebounce } from '@vueuse/core'
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { useApi } from '~/core/http/useApi'
 import type { Editor } from '@tiptap/vue-3'
 
@@ -14,7 +15,8 @@ const { library } = useApi()
 const route = useRoute()
 const search = ref('')
 const query = useDebounce(search, 200)
-const { data: pages } = useLazyAsyncData('page-link-picker', async () => open.value && query.value.trim() ? (await library.search(query.value, String(route.params.workspaceId))).data.filter(item => item.kind === 'page') : [], { server: false, default: () => [], watch: [query, open] })
+const { data: pages, error, status, refresh } = useLazyAsyncData('page-link-picker', async () => open.value && query.value.trim() ? (await library.search(query.value, String(route.params.workspaceId))).data.filter(item => item.kind === 'page') : [], { server: false, default: () => [], watch: [query, open] })
+useFeedbackToast(error, { key: 'page-link-picker', title: 'Unable to find pages', recovered: () => status.value === 'success', retry: () => refresh() })
 function linkPage(item: { id: string, title: string, workspaceId: string }) {
   const href = `/workspaces/${item.workspaceId}/pages/${item.id}`
   if (props.editor.state.selection.empty) {

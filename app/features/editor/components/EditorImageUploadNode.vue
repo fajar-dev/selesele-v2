@@ -8,7 +8,7 @@ const props = defineProps<NodeViewProps>()
 
 const fileUploadRef = useTemplateRef('fileUploadRef')
 
-const error = ref<string | null>(null)
+const toast = useToast()
 const loading = ref(false)
 
 async function onFileChange() {
@@ -18,14 +18,13 @@ async function onFileChange() {
   }
 
   loading.value = true
-  error.value = null
 
   try {
     const file = target.files?.[0]
     if (!file) {
       return
     }
-    const result = await media.upload(file)
+    const result = await media.upload(file, props.extension.options.pageId)
 
     const pos = props.getPos()
     if (typeof pos !== 'number') {
@@ -39,9 +38,10 @@ async function onFileChange() {
       .setImage({ src: result.url })
       .run()
   } catch (e) {
-    error.value = errorMessage(e)
+    toast.add({ title: 'Unable to upload image', description: errorMessage(e), color: 'error' })
   } finally {
     loading.value = false
+    target.value = ''
   }
 }
 </script>
@@ -49,20 +49,20 @@ async function onFileChange() {
 <template>
   <NodeViewWrapper>
     <UFileUpload
+      v-if="editor.isEditable"
       ref="fileUploadRef"
       accept="image/*"
       label="Upload an image"
-      :description="error || 'PNG, JPG, WebP or GIF (max. 2MB)'"
+      description="PNG, JPG, WebP or GIF (max. 2MB)"
       :preview="false"
       class="min-h-ui-14xl rounded-md bg-muted/50"
-      :ui="{ description: error ? 'text-error' : '' }"
       @update:model-value="onFileChange"
     >
       <template #leading>
         <UAvatar
-          :icon="error ? 'i-lucide-alert-circle' : loading ? 'i-lucide-loader-circle' : 'i-lucide-image'"
+          :icon="loading ? 'i-lucide-loader-circle' : 'i-lucide-image'"
           size="xl"
-          :ui="{ icon: [loading && 'animate-spin', error && 'text-error'] }"
+          :ui="{ icon: [loading && 'animate-spin'] }"
         />
       </template>
     </UFileUpload>

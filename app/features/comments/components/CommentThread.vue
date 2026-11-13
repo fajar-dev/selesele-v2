@@ -5,6 +5,7 @@ import type { CommentThreadItem } from '#shared/contracts/comment'
 const props = defineProps<{
   thread: CommentThreadItem
   active: boolean
+  canComment?: boolean
   canDelete: boolean
   onReply: (id: string, body: string) => Promise<void>
   onResolve: (id: string, resolved: boolean) => Promise<void>
@@ -13,17 +14,16 @@ const emit = defineEmits<{ select: [], jump: [], delete: [] }>()
 const firstMessage = computed(() => props.thread.messages[0])
 const replies = computed(() => props.thread.messages.slice(1))
 const busy = ref(false)
-const error = ref('')
+const toast = useToast()
 async function resolve() {
   if (busy.value) {
     return
   }
   busy.value = true
-  error.value = ''
   try {
     await props.onResolve(props.thread.id, !props.thread.resolvedAt)
   } catch (cause) {
-    error.value = errorMessage(cause)
+    toast.add({ title: 'Unable to update discussion', description: errorMessage(cause), color: 'error' })
   } finally {
     busy.value = false
   }
@@ -66,7 +66,10 @@ async function resolve() {
             :title="new Date(firstMessage.createdAt).toLocaleString()"
             class="shrink-0 ml-ui-xs mr-auto text-xs text-dimmed"
           >{{ formatRelativeTime(firstMessage.createdAt) }}</time>
-          <UTooltip :text="thread.resolvedAt ? 'Reopen discussion' : 'Resolve discussion'">
+          <UTooltip
+            v-if="canComment !== false"
+            :text="thread.resolvedAt ? 'Reopen discussion' : 'Resolve discussion'"
+          >
             <UButton
               :icon="thread.resolvedAt ? 'i-lucide-rotate-ccw' : 'i-lucide-check'"
               :aria-label="thread.resolvedAt ? 'Reopen discussion' : 'Resolve discussion'"
@@ -97,13 +100,6 @@ async function resolve() {
         </p>
       </div>
     </div>
-    <p
-      v-if="error"
-      role="alert"
-      class="ml-ui-4xl mt-ui-sm text-xs text-error"
-    >
-      {{ error }}
-    </p>
     <div
       v-if="replies.length"
       class="ml-ui-md mt-ui-lg border-l border-muted pl-ui-xl space-y-ui-lg"
@@ -140,7 +136,7 @@ async function resolve() {
       class="ml-ui-4xl mt-ui-lg"
     >
       <CommentComposer
-        v-if="active"
+        v-if="active && canComment !== false"
         :key="thread.id"
         label="Write a reply…"
         submit-label="Reply"

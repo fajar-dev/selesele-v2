@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataRetry from '~/components/ui/DataRetry.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import CommentComposer from '~/features/comments/components/CommentComposer.vue'
@@ -7,7 +8,7 @@ import { useAuth } from '~/features/auth/composables/useAuth'
 import type { CommentThreadItem } from '#shared/contracts/comment'
 import type { usePageComments } from '~/features/comments/composables/usePageComments'
 
-const props = defineProps<{ comments: ReturnType<typeof usePageComments>, userId: string, manager: boolean }>()
+const props = defineProps<{ comments: ReturnType<typeof usePageComments>, userId: string, manager: boolean, canComment?: boolean }>()
 const { open, threads, filter, activeId, draft, draftBody, loading, loadError } = props.comments
 const { state: auth } = useAuth()
 const openCount = computed(() => threads.value.filter(thread => !thread.resolvedAt).length)
@@ -92,12 +93,11 @@ watch(activeId, async (id) => {
           </template>
         </UButton>
       </nav>
-      <UAlert
+      <DataRetry
         v-if="loadError"
-        title="Unable to sync comments"
-        :description="loadError"
-        color="error"
-        class="m-ui-xl"
+        :feedback-keys="[`comments:${comments.pageId}`]"
+        :on-retry="comments.synchronize"
+        class="px-ui-xl"
       />
       <section
         v-if="draft"
@@ -134,7 +134,7 @@ watch(activeId, async (id) => {
         :rows="4"
       />
       <div
-        v-else-if="!filtered.length && !draft"
+        v-else-if="!filtered.length && !draft && !loadError"
         class="px-ui-4xl pt-ui-8xl pb-ui-5xl flex flex-col items-center text-center"
       >
         <UIcon
@@ -153,7 +153,8 @@ watch(activeId, async (id) => {
         :key="thread.id"
         :thread="thread"
         :active="activeId === thread.id"
-        :can-delete="manager || thread.createdBy === userId"
+        :can-delete="canComment !== false && (manager || thread.createdBy === userId)"
+        :can-comment="canComment"
         :on-reply="comments.reply"
         :on-resolve="comments.resolve"
         @select="comments.select(thread.id)"

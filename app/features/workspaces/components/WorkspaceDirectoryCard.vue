@@ -31,14 +31,14 @@ defineProps<{ workspace: WorkspaceItem, layout: 'list' | 'grid' }>()
       <span
         v-if="layout === 'grid'"
         class="directory-workspace-role"
-      >{{ workspace.role }}</span>
+      >{{ workspace.archivedAt ? 'Archived' : workspace.role }}</span>
       <UBadge
         v-if="layout === 'list'"
         color="neutral"
         variant="soft"
         size="sm"
         class="capitalize justify-self-start"
-      >{{ workspace.role }}</UBadge>
+      >{{ workspace.archivedAt ? 'Archived' : workspace.role }}</UBadge>
       <span class="directory-workspace-arrow"><UIcon
         name="i-lucide-arrow-up-right"
         class="size-ui-lg"

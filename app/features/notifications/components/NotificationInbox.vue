@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
+import DataRetry from '~/components/ui/DataRetry.vue'
+import { notifyWorkspaceRefresh } from '~/features/workspaces/composables/useWorkspaceEvents'
+import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
+import { libraryKeys } from '~/features/library/state/libraryKeys'
 import { useApi } from '~/core/http/useApi'
 import type { NotificationItem } from '#shared/contracts/notification'
 
 const { notifications } = useApi()
+const route = useRoute()
 const open = ref(false)
 const onlyUnread = ref(false)
 const toast = useToast()
@@ -10,7 +16,7 @@ const { data, error, status, refresh } = useLazyAsyncData('notifications', async
 const unread = computed(() => data.value.filter(item => !item.readAt).length)
 const visible = computed(() => data.value.filter(item => !onlyUnread.value || !item.readAt))
 const icons = { comment: 'i-lucide-message-square-plus', invitation: 'i-lucide-user-plus', mention: 'i-lucide-at-sign', reply: 'i-lucide-message-square' }
-const labels = { comment: 'New comment', invitation: 'Workspace invitation', mention: 'Mention', reply: 'Comment reply' }
+const labels = { comment: 'New comment', invitation: 'Workspace access', mention: 'Mention', reply: 'Comment reply' }
 let events: EventSource | undefined
 let fetching = false
 let again = false
@@ -29,10 +35,23 @@ async function synchronize() {
     fetching = false
   }
 }
+function refreshActiveWorkspace() {
+  const id = typeof route.params.workspaceId === 'string' ? route.params.workspaceId : null
+  const keys: string[] = [workspaceKeys.directory, libraryKeys.personal]
+  if (id) {
+    notifyWorkspaceRefresh(id)
+    keys.push(workspaceKeys.detail(id), workspaceKeys.folders(id), workspaceKeys.pages(id), workspaceKeys.members(id))
+    if (typeof route.params.id === 'string') {
+      keys.push(`pages:${route.params.id}`)
+    }
+  }
+  void refreshNuxtData(keys)
+}
 onMounted(() => {
   events = new EventSource('/api/notifications/events')
   events.onmessage = () => {
     void synchronize()
+    refreshActiveWorkspace()
   }
 })
 onBeforeUnmount(() => events?.close())
@@ -53,6 +72,8 @@ async function read(item?: NotificationItem) {
     toast.add({ title: 'Unable to update notifications', description: errorMessage(cause), color: 'error' })
   }
 }
+
+useFeedbackToast(error, { key: 'notifications', title: 'Unable to load notifications', recovered: () => status.value === 'success', retry: synchronize })
 </script>
 
 <template>
@@ -141,12 +162,11 @@ async function read(item?: NotificationItem) {
               </div>
             </div>
           </div>
-          <UAlert
+          <DataRetry
             v-else-if="error"
-            title="Unable to load notifications"
-            color="error"
-            :actions="[{ label: 'Retry', onClick: synchronize }]"
-            class="m-ui-sm"
+            :feedback-keys="['notifications']"
+            :on-retry="synchronize"
+            class="px-ui-sm"
           />
           <div
             v-else-if="!visible.length"
@@ -158,7 +178,7 @@ async function read(item?: NotificationItem) {
             /><p class="text-sm font-medium text-toned">
               {{ onlyUnread ? 'All caught up' : 'A quiet moment' }}
             </p><p class="text-xs text-muted leading-relaxed mt-ui-sm">
-              {{ onlyUnread ? 'You’ve read all your notifications.' : 'Mentions, replies, and workspace invitations will appear here.' }}
+              {{ onlyUnread ? 'You’ve read all your notifications.' : 'Mentions, replies, and workspace updates will appear here.' }}
             </p>
           </div>
           <button

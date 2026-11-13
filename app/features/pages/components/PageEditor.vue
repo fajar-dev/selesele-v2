@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
+import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
+import type { WorkspaceItem, WorkspaceMember, FolderItem } from '#shared/contracts/workspace'
+import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
 import PageHistory from '~/features/recovery/components/PageHistory.vue'
 import PageBacklinks from '~/features/library/components/PageBacklinks.vue'
 import { usePersonalLibrary } from '~/features/library/composables/usePersonalLibrary'
@@ -20,7 +25,6 @@ import { useAuth } from '~/features/auth/composables/useAuth'
 import { usePageComments } from '~/features/comments/composables/usePageComments'
 import type { DropdownMenuItem, EditorDragHandleProps } from '@nuxt/ui'
 import { useFullscreen } from '@vueuse/core'
-import type { WorkspaceMember, FolderItem } from '#shared/contracts/workspace'
 import type { PageItem } from '#shared/contracts/page'
 import { showImageToolbar, showTableToolbar, showTextToolbar } from '~/features/editor/utils/editorSelection'
 
@@ -38,6 +42,7 @@ onMounted(async () => {
   } catch { /* Visits must not block document editing. */ }
 })
 const deleteOpen = ref(false)
+const accessOpen = ref(false)
 const editorRef = useTemplateRef('editorRef')
 const comments = usePageComments(props.page.id, editorRef)
 const commentOpen = comments.open
@@ -61,23 +66,25 @@ const dragHandleOptions: EditorDragHandleProps['options'] = {
     alignmentAxis: rects.reference.height > 40 ? 0 : (rects.reference.height - rects.floating.height) / 2
   })
 }
-const pagesItems: DropdownMenuItem[] = [
-  { label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: openDeleteDialog }
-]
+const { data: workspace } = useNuxtData<WorkspaceItem>(workspaceKeys.detail(props.page.workspaceId))
+const pagesItems = computed<DropdownMenuItem[]>(() => [
+  ...(props.page.canManageAccess
+    ? [{ label: 'Manage access', icon: 'i-lucide-shield-check', onSelect: () => {
+        accessOpen.value = true
+      } }]
+    : []),
+  ...(workspace.value && allowsWorkspaceAction(workspace.value.role, workspace.value.settings, 'deleteContent') ? [{ label: 'Delete', color: 'error' as const, icon: 'i-lucide-trash', onSelect: openDeleteDialog }] : [])
+])
 
 function openDeleteDialog(): void {
   deleteOpen.value = true
 }
+
+useFeedbackToast(collaborationError, { key: `page-collaboration:${props.page.id}`, title: 'Collaboration unavailable', color: 'warning' })
 </script>
 
 <template>
   <div>
-    <UAlert
-      v-if="collaborationError"
-      title="Collaboration unavailable"
-      :description="collaborationError"
-      color="warning"
-    />
     <AppHeader>
       <template #right>
         <UTooltip :text="collaborationConnected ? 'Changes sync automatically with your workspace' : 'Trying to restore the live connection'">
@@ -196,6 +203,7 @@ function openDeleteDialog(): void {
               />
             </UTooltip>
             <UDropdownMenu
+              v-if="pagesItems.length"
               :items="pagesItems"
               size="sm"
               :content="{
@@ -307,10 +315,17 @@ function openDeleteDialog(): void {
         :items="suggestionItems"
       />
     </UEditor>
+    <ResourceAccessPanel
+      v-if="accessOpen"
+      :workspace-id="page.workspaceId"
+      kind="page"
+      :resource-id="page.id"
+      @close="accessOpen = false"
+    />
     <CommentPanel
       :comments="comments"
       :user-id="auth.user?.id || ''"
-      :manager="members.some(member => member.userId === auth.user?.id && member.role !== 'member')"
+      :manager="members.some(member => member.userId === auth.user?.id && ['owner', 'admin'].includes(member.role))"
     />
   </div>
 </template>

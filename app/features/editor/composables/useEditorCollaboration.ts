@@ -84,6 +84,8 @@ export function useEditorCollaboration({ room, user, onCommentsChanged }: Collab
       if (event?.code !== 1008) {
         return
       }
+      ready.value = false
+      void refreshNuxtData()
       connectionError.value = 'Access expired or was revoked. Return home and sign in again.'
       provider?.disconnect()
     })

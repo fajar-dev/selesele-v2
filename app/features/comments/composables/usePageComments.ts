@@ -1,10 +1,11 @@
 import { useApi } from '~/core/http/useApi'
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import type { Editor } from '@tiptap/core'
 import type { CommentThreadItem } from '#shared/contracts/comment'
 import { CommentSynchronization } from '~/features/comments/synchronization/CommentSynchronization'
 import { captureCommentSelection, CommentHighlights, commentHighlightKey, commentRange } from '~/features/comments/editor/CommentHighlights'
 
-export function usePageComments(pageId: string, editorRef: Ref<{ editor: Editor | undefined } | null | undefined>) {
+export function usePageComments(pageId: string, editorRef: Ref<{ editor: Editor | undefined } | null | undefined>, readOnly = false, onContentChanged?: () => void) {
   const { comments: commentApi } = useApi()
   const threads = ref<CommentThreadItem[]>([])
   const loading = ref(true)
@@ -35,6 +36,7 @@ export function usePageComments(pageId: string, editorRef: Ref<{ editor: Editor 
     }
   )
   const synchronize = () => synchronization.invalidate()
+  useFeedbackToast(loadError, { key: `comments:${pageId}`, title: 'Unable to sync comments', retry: synchronize })
   function upsert(thread: CommentThreadItem) {
     const existing = threads.value.some(item => item.id === thread.id)
     threads.value = existing ? threads.value.map(item => item.id === thread.id ? thread : item) : [...threads.value, thread]
@@ -119,8 +121,22 @@ export function usePageComments(pageId: string, editorRef: Ref<{ editor: Editor 
       activeId.value = null
     }
   })
-  onMounted(synchronize)
+  let events: EventSource | undefined
+  onMounted(() => {
+    synchronize()
+    if (readOnly) {
+      events = new EventSource(`/api/pages/${pageId}/comments/events`)
+      events.onerror = () => {
+        void refreshNuxtData(`pages:${pageId}`)
+      }
+      events.onmessage = () => {
+        synchronize()
+        onContentChanged?.()
+      }
+    }
+  })
+  onScopeDispose(() => events?.close())
   onScopeDispose(() => synchronization.dispose())
   const openCount = computed(() => threads.value.filter(thread => !thread.resolvedAt).length)
-  return { threads, openCount, loading, loadError, open, activeId, draft, draftBody, filter, extension, synchronize, start, select, jump, create, reply, resolve, remove }
+  return { pageId, threads, openCount, loading, loadError, open, activeId, draft, draftBody, filter, extension, synchronize, start, select, jump, create, reply, resolve, remove }
 }

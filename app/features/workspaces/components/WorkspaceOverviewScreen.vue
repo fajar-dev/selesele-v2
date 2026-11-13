@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import DataRetry from '~/components/ui/DataRetry.vue'
+import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
+import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
 import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
 import LayoutToggle from '~/components/ui/LayoutToggle.vue'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
@@ -21,8 +24,11 @@ const route = useRoute()
 const { workspaceId } = defineProps<{ workspaceId: string }>()
 const { data, loading, error, refresh, pagesLoading, foldersLoading, membersLoading, pagesError, foldersError } = useWorkspace(workspaceId)
 const { save: updateWorkspace } = useWorkspaceActions(workspaceId)
-const manager = computed(() => data.value?.workspace.role === 'owner' || data.value?.workspace.role === 'admin')
+const manager = computed(() => !data.value?.workspace.archivedAt && (data.value?.workspace.role === 'owner' || data.value?.workspace.role === 'admin'))
+const canCreate = computed(() => (!folder.value || folder.value.accessLevel === 'edit') && !!data.value && !data.value.workspace.archivedAt && allowsWorkspaceAction(data.value.workspace.role, data.value.workspace.settings, 'createPages'))
 const folder = computed(() => data.value?.folders.find(item => item.id === route.query.folder))
+const accessOpen = ref(false)
+const canEditFolder = computed(() => folder.value?.accessLevel === 'edit' && !data.value?.workspace.archivedAt)
 const search = ref('')
 const view = ref<'list' | 'grid'>('list')
 const selectedFolderId = computed(() => typeof route.query.folder === 'string' ? route.query.folder : null)
@@ -35,6 +41,12 @@ const breadcrumbs = computed(() => [
   { label: data.value?.workspace.name || 'Workspace', emoji: data.value?.workspace.icon, icon: 'i-lucide-panels-top-left', to: `/workspaces/${workspaceId}` },
   ...(folder.value ? [{ label: folder.value.name, emoji: folder.value.icon || DEFAULT_FOLDER_ICON }] : [])
 ])
+watchEffect(() => {
+  const home = data.value?.workspace.settings.homePageId
+  if (home && !route.query.folder && !route.query.overview && data.value?.pages.some(page => page.id === home)) {
+    void navigateTo(`/workspaces/${workspaceId}/pages/${home}`, { replace: true })
+  }
+})
 </script>
 
 <template>
@@ -52,12 +64,10 @@ const breadcrumbs = computed(() => [
         kind="heading"
         label="Loading workspace heading"
       />
-      <UAlert
+      <DataRetry
         v-else-if="error"
-        title="Unable to load workspace"
-        :description="errorMessage(error)"
-        color="error"
-        :actions="[{ label: 'Retry', onClick: refresh }]"
+        :feedback-keys="[`workspaces:${workspaceId}`]"
+        :on-retry="refresh"
       />
       <PageHeading
         v-else-if="data"
@@ -69,12 +79,12 @@ const breadcrumbs = computed(() => [
             :value="folder ? folder.icon || DEFAULT_FOLDER_ICON : data.workspace.icon"
             :label="folder ? 'Choose folder icon' : 'Choose workspace icon'"
             :fallback="folder ? undefined : 'i-lucide-panels-top-left'"
-            :readonly="!folder && !manager"
+            :readonly="!!data.workspace.archivedAt || (folder ? !canEditFolder : !manager)"
             :on-save="icon => folder ? updateFolder(folder.id, { icon }) : updateWorkspace({ icon })"
           />
         </template>
         <template
-          v-if="folder || manager"
+          v-if="folder ? canEditFolder : manager"
           #title
         >
           <InlineTextField
@@ -89,7 +99,7 @@ const breadcrumbs = computed(() => [
         </template>
         <template #description>
           <InlineTextField
-            v-if="folder || manager"
+            v-if="folder ? canEditFolder : manager"
             :key="`description:${folder?.id || workspaceId}`"
             :value="folder?.description ?? data.workspace.description"
             :label="folder ? 'Folder description' : 'Workspace description'"
@@ -114,7 +124,7 @@ const breadcrumbs = computed(() => [
           >
             <UAvatar
               v-for="member in data.members"
-              :key="member.userId"
+              :key="member.id"
               :alt="member.name || member.email"
               :src="member.avatar || undefined"
               class="bg-primary/10 text-primary ring-default"
@@ -135,6 +145,15 @@ const breadcrumbs = computed(() => [
         </template>
         <template #actions>
           <UButton
+            v-if="folder?.canManageAccess"
+            label="Manage access"
+            icon="i-lucide-shield-check"
+            variant="ghost"
+            color="neutral"
+            @click="accessOpen = true"
+          />
+          <UButton
+            v-if="canCreate"
             label="New page"
             icon="i-lucide-plus"
             color="primary"
@@ -161,11 +180,10 @@ const breadcrumbs = computed(() => [
           label="Loading workspace folders"
           :rows="2"
         />
-        <UAlert
+        <DataRetry
           v-else-if="foldersError"
-          title="Unable to load folders"
-          color="error"
-          :actions="[{ label: 'Retry', onClick: refresh }]"
+          :feedback-keys="[`workspaces:${workspaceId}:folders`]"
+          :on-retry="refresh"
         />
         <div
           v-else
@@ -238,11 +256,10 @@ const breadcrumbs = computed(() => [
           v-if="pagesLoading"
           label="Loading workspace pages"
         />
-        <UAlert
+        <DataRetry
           v-else-if="pagesError"
-          title="Unable to load pages"
-          color="error"
-          :actions="[{ label: 'Retry', onClick: refresh }]"
+          :feedback-keys="[`workspaces:${workspaceId}:pages`]"
+          :on-retry="refresh"
         />
         <UTable
           v-else-if="pages.length && view === 'list'"
@@ -315,7 +332,7 @@ const breadcrumbs = computed(() => [
               variant="soft"
               @click="search = ''"
             /><UButton
-              v-else
+              v-else-if="canCreate"
               label="Create a page"
               icon="i-lucide-plus"
               color="primary"
@@ -327,4 +344,11 @@ const breadcrumbs = computed(() => [
       </section>
     </PageContent>
   </div>
+  <ResourceAccessPanel
+    v-if="accessOpen && folder"
+    :workspace-id="workspaceId"
+    kind="folder"
+    :resource-id="folder.id"
+    @close="accessOpen = false"
+  />
 </template>

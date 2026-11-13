@@ -27,7 +27,7 @@ export function useWorkspaceActions(workspaceId: string) {
     await navigateTo('/')
     clearNuxtData([
       workspaceKeys.detail(workspaceId), workspaceKeys.folders(workspaceId),
-      workspaceKeys.pages(workspaceId), workspaceKeys.members(workspaceId), workspaceKeys.invitations(workspaceId)
+      workspaceKeys.pages(workspaceId), workspaceKeys.members(workspaceId)
     ])
   }
 

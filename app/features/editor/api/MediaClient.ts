@@ -3,9 +3,10 @@ import type { ApiTransport } from '~/core/http/ApiTransport'
 export class MediaClient {
   constructor(private readonly http: ApiTransport) {}
 
-  upload(file: File) {
+  upload(file: File, pageId: string) {
     const body = new FormData()
     body.append('file', file)
+    body.append('pageId', pageId)
     return this.http.request<{ url: string }>('/upload', { method: 'POST', body })
   }
 }

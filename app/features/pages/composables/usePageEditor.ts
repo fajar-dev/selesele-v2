@@ -56,7 +56,7 @@ export function usePageEditor(room: string, members: () => WorkspaceMember[], ed
     ...aiHandlers
   } satisfies EditorCustomHandlers
 
-  const mentionableUsers = computed(() => members().map(member => ({
+  const mentionableUsers = computed(() => members().filter((member): member is WorkspaceMember & { userId: string } => !!member.userId && !member.suspendedAt).map(member => ({
     id: member.userId,
     name: member.name || member.email,
     color: collaborationColor(member.email),
@@ -72,7 +72,7 @@ export function usePageEditor(room: string, members: () => WorkspaceMember[], ed
       defaultTheme: 'material-theme',
       themes: { light: 'material-theme-lighter', dark: 'material-theme-palenight' }
     }),
-    options.annotationExtension, completion, CustomMention, Emoji, ImageUpload, TableKit, TaskList, TaskItem, BlockDragDrop,
+    options.annotationExtension, completion, CustomMention, Emoji, ImageUpload.configure({ pageId: room }), TableKit, TaskList, TaskItem, BlockDragDrop,
     ...collaborationExtensions.value
   ])
 

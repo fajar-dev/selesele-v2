@@ -2,7 +2,7 @@
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import type { PageItem } from '#shared/contracts/page'
 
-const props = defineProps<{ page: PageItem, home: string, active: boolean, moving: boolean, disabled: boolean }>()
+const props = defineProps<{ page: PageItem, home: string, active: boolean, moving: boolean, disabled: boolean, canDelete: boolean }>()
 const emit = defineEmits<{
   dragPage: [event: DragEvent, page: PageItem]
   endDrag: []
@@ -24,7 +24,7 @@ const actions = computed(() => [{
   >
     <UButton
       :to="`${home}/pages/${page.id}`"
-      :draggable="!disabled"
+      :draggable="!disabled && page.accessLevel === 'edit'"
       color="neutral"
       variant="ghost"
       class="sidebar-link min-w-ui-zero flex-1 overflow-hidden"
@@ -49,6 +49,7 @@ const actions = computed(() => [{
       </template><span class="min-w-ui-zero flex-1 truncate text-left">{{ page.title }}</span>
     </UButton>
     <UDropdownMenu
+      v-if="canDelete"
       :items="actions"
       :content="{ align: 'start' }"
     >

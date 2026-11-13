@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
+import PageReader from '~/features/pages/components/PageReader.vue'
 import PageEditor from '~/features/pages/components/PageEditor.vue'
 import { usePageDocument } from '~/features/pages/composables/usePageDocument'
 
@@ -7,11 +9,19 @@ definePageMeta({ layout: 'workspace', key: route => String(route.params.id) })
 const route = useRoute()
 const workspaceId = String(route.params.workspaceId)
 const { page, overview, error, updated, loading, refresh } = usePageDocument(workspaceId, String(route.params.id))
+
+useFeedbackToast(() => !loading.value && !page.value ? error.value || 'This page is unavailable or you no longer have access.' : null, { key: `page-open:${String(route.params.id)}`, title: 'Unable to open page', retry: refresh })
 </script>
 
 <template>
+  <PageReader
+    v-if="page && overview && (overview.workspace.archivedAt || page.accessLevel !== 'edit')"
+    :page="page"
+    :workspace-name="overview.workspace.name"
+    :archived="!!overview.workspace.archivedAt"
+  />
   <PageEditor
-    v-if="page"
+    v-else-if="page && overview"
     :page="page"
     :members="overview?.members || []"
     :folders="overview?.folders || []"
@@ -36,11 +46,6 @@ const { page, overview, error, updated, loading, refresh } = usePageDocument(wor
     v-else
     class="p-ui-4xl space-y-ui-lg"
   >
-    <UAlert
-      title="Unable to open page"
-      :description="error ? errorMessage(error) : 'Page not found'"
-      color="error"
-    />
     <UButton
       label="Retry"
       color="neutral"

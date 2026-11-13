@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import WorkspaceMembersScreen from '~/features/workspaces/components/WorkspaceMembersScreen.vue'
+import WorkspaceMembersScreen from '~/features/members/components/WorkspaceMembersScreen.vue'
 
 definePageMeta({ layout: 'workspace' })
 const route = useRoute()

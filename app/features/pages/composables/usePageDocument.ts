@@ -22,9 +22,18 @@ export function usePageDocument(workspaceId: string, pageId: string) {
       page.value = current
     }
   })
+  watch(() => workspaceQuery.pagesLoading.value, (loading) => {
+    if (!loading && !workspaceQuery.pagesError.value && !overview.value?.pages.some(item => item.id === pageId)) {
+      page.value = undefined
+    }
+  })
   function updated(current: PageItem) {
     page.value = current
     upsertPage(current)
   }
-  return { page, overview, error: pageQuery.error, updated, refresh: () => pageQuery.refresh(), loading: computed(() => pageQuery.status.value === 'idle' || pageQuery.status.value === 'pending') }
+  return {
+    page, overview, error: computed(() => pageQuery.error.value || workspaceQuery.error.value), updated,
+    refresh: () => Promise.all([pageQuery.refresh(), workspaceQuery.refresh()]),
+    loading: computed(() => workspaceQuery.loading.value || pageQuery.status.value === 'idle' || pageQuery.status.value === 'pending')
+  }
 }

@@ -29,6 +29,10 @@ export class PageClient {
     return this.http.request<ApiResponse<PageItem>>(this.path(id, '/location'), { method: 'PATCH', body: { folderId } })
   }
 
+  state(id: string) {
+    return this.http.request<ApiResponse<string | null>>(this.path(id, '/state'))
+  }
+
   downloadMarkdown(id: string) {
     return this.http.download(this.path(id, '/md'))
   }
