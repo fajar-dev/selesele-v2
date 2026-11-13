@@ -19,6 +19,18 @@ COPY --from=build --chown=bun:bun /app/drizzle ./drizzle
 USER bun
 CMD ["bun", "migrate.mjs"]
 
+# Optional backup worker: official MySQL client tools plus Bun, tar and gzip.
+FROM mysql:8.4 AS backup
+COPY --from=base /usr/local/bin/bun /usr/local/bin/bun
+RUN command -v tar && command -v gzip && command -v mysqldump
+WORKDIR /backup-app
+COPY scripts/backup.ts ./scripts/backup.ts
+COPY scripts/backup ./scripts/backup
+ENV BACKUP_DIR=/backups UPLOAD_DIR=/uploads RESTORE_UID=1000 RESTORE_GID=1000
+ENTRYPOINT ["bun", "scripts/backup.ts"]
+CMD ["schedule"]
+
+
 FROM base AS runtime
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 UPLOAD_DIR=/app/uploads
 COPY --from=build --chown=bun:bun /app/.output ./.output

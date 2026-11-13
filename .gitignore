@@ -16,3 +16,6 @@ logs
 !.env.example
 !.env.docker.example
 caddy-local-root.crt
+
+# Optional persistent backup storage
+/backups/

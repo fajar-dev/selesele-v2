@@ -40,3 +40,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run db:migrate
       - run: bun run verify
+        env:
+          BACKUP_MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+          BACKUP_MYSQL_HOST: 127.0.0.1

@@ -81,6 +81,30 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
 
+  backup:
+    profiles: [backup]
+    image: selesele-backup:local
+    build:
+      context: .
+      target: backup
+    restart: unless-stopped
+    environment:
+      <<: *database-environment
+      BACKUP_HOUR_UTC: ${BACKUP_HOUR_UTC:-18}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - uploads:/uploads:ro
+      - ./backups:/backups
+    depends_on:
+      mysql:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    cap_add: [DAC_READ_SEARCH]
+    security_opt: [no-new-privileges:true]
+
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped

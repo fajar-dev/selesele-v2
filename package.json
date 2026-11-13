@@ -20,7 +20,7 @@
     "db:reset": "bun scripts/reset-database.ts",
     "test:integration": "bun scripts/integration.ts",
     "test:knowledge": "bun scripts/knowledge-integration.ts",
-    "verify": "bun run db:check && bun run audit:code && bun run audit:styles && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration && bun run test:knowledge && bun run test:mail && bun run test:settings && bun run test:improvements",
+    "verify": "bun run db:check && bun run audit:code && bun run audit:styles && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration && bun run test:knowledge && bun run test:mail && bun run test:settings && bun run test:improvements && bun run test:backup",
     "db:check": "bun --bun drizzle-kit check",
     "audit:code": "bun --bun knip",
     "audit:styles": "bun scripts/check-styles.ts",
@@ -28,6 +28,11 @@
     "test:mail": "bun scripts/mail-integration.ts",
     "test:settings": "bun scripts/settings-integration.ts",
     "test:development": "bun scripts/development-smoke.ts",
+    "backup:create": "bun scripts/backup.ts create",
+    "backup:verify": "bun scripts/backup.ts verify",
+    "backup:restore": "bun scripts/backup.ts restore",
+    "backup:schedule": "bun scripts/backup.ts schedule",
+    "test:backup": "bun scripts/backup-integration.ts",
     "test:improvements": "bun scripts/improvements-integration.ts"
   },
   "dependencies": {
