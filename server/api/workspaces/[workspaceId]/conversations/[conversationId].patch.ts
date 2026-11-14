@@ -11,6 +11,11 @@ export default apiHandler(async (event) => {
   const workspaceId = idSchema.parse(getRouterParam(event, 'workspaceId'))
   const conversationId = idSchema.parse(getRouterParam(event, 'conversationId'))
   const input = conversationTitleSchema.parse(await readBody(event))
-  const result = await container.conversations.rename(workspaceId, userId, conversationId, input.title)
-  return success(result ?? null)
+  if (input.title !== undefined) {
+    await container.conversations.rename(workspaceId, userId, conversationId, input.title)
+  }
+  if (input.pinned !== undefined) {
+    await container.conversations.pin(workspaceId, userId, conversationId, input.pinned)
+  }
+  return success(null)
 })

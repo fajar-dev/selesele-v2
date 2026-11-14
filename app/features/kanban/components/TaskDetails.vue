@@ -4,13 +4,15 @@ import type { KanbanTask, KanbanContent } from '#shared/kernel/content'
 import type { WorkspaceMember } from '#shared/contracts/workspace'
 import DetailPanel from '~/components/ui/DetailPanel.vue'
 
-const { task, columns, members, readonly = false, onSave } = defineProps<{
+const { task, columns, members, readonly = false, canComment = false, onSave } = defineProps<{
   task: KanbanTask
   columns: KanbanContent['columns']
   members: WorkspaceMember[]
+  canComment?: boolean
   readonly?: boolean
   onSave: (task: KanbanTask) => void
 }>()
+const emit = defineEmits<{ comment: [id: string, title: string] }>()
 const open = defineModel<boolean>('open', { default: false })
 const draft = ref<KanbanTask>(JSON.parse(canonicalJson(task)))
 const source = ref(canonicalJson(task))
@@ -21,6 +23,13 @@ watch(() => task.id, () => {
   draft.value = JSON.parse(canonicalJson(task))
   labels.value = task.labels.join(', ')
 })
+function comment() {
+  const id = task.id, title = draft.value.title.trim() || task.title
+  if (!readonly && !save()) {
+    return
+  }
+  emit('comment', id, title)
+}
 function addEntry() {
   if (!entry.value.trim() || draft.value.checklist.length >= 100) {
     return
@@ -31,13 +40,14 @@ function addEntry() {
 function save() {
   if (stale.value) {
     toast.add({ title: 'This task has changed', description: 'Your draft is preserved. Review the latest task before saving.', color: 'warning' })
-    return
+    return false
   }
   if (!draft.value.title.trim()) {
-    return
+    return false
   }
   onSave({ ...draft.value, title: draft.value.title.trim(), labels: [...new Set(labels.value.split(',').map(label => label.trim()).filter(Boolean))] })
   open.value = false
+  return true
 }
 </script>
 
@@ -172,6 +182,14 @@ function save() {
           />
         </section>
         <div class="flex justify-end gap-ui-sm">
+          <UButton
+            v-if="canComment"
+            label="Comment"
+            icon="i-lucide-message-square"
+            color="neutral"
+            variant="ghost"
+            @click="comment"
+          />
           <UButton
             label="Close"
             color="neutral"

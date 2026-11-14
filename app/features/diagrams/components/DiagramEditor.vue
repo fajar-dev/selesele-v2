@@ -15,11 +15,13 @@ import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 import '@vue-flow/node-resizer/dist/style.css'
 
-const { content, readonly = false } = defineProps<{
+const { content, readonly = false, canComment = false } = defineProps<{
   content: DiagramContent
+  canComment?: boolean
   readonly?: boolean
 }>()
 const emit = defineEmits<{
+  comment: [id: string, type: 'node' | 'edge', label: string]
   change: [
         content: DiagramContent
   ]
@@ -30,6 +32,17 @@ const nodes = shallowRef<Node<DiagramNode['data']>[]>([]), edges = shallowRef<Ed
 const selectedNode = ref<string | null>(null), selectedEdge = ref<string | null>(null), minimap = ref(false)
 const node = computed(() => content.nodes.find(node => node.id === selectedNode.value))
 const edge = computed(() => content.edges.find(edge => edge.id === selectedEdge.value))
+defineExpose({ selectObject: (id: string) => {
+  const targetNode = content.nodes.find(entry => entry.id === id)
+  const targetEdge = content.edges.find(entry => entry.id === id)
+  if (!targetNode && !targetEdge) {
+    return false
+  }
+  selectedNode.value = targetNode ? id : null
+  selectedEdge.value = targetEdge ? id : null
+  void nextTick(() => fitView({ nodes: targetNode ? [id] : [targetEdge!.source, targetEdge!.target], padding: 0.5 }))
+  return true
+} })
 const surface = useTemplateRef<HTMLDivElement>('surface')
 watch(() => content, () => {
   nodes.value = content.nodes.map(node => ({ ...JSON.parse(JSON.stringify(node)), selected: selectedNode.value === node.id, style: { width: `${node.data.width}px`, height: `${node.data.height}px` } }))
@@ -99,6 +112,22 @@ const shapes = [{ value: 'rectangle', label: 'Process', icon: 'i-lucide-square' 
     aria-label="Diagram editor"
   >
     <div class="editor-tools">
+      <UButton
+        v-if="edge && canComment"
+        label="Comment"
+        icon="i-lucide-message-square"
+        color="neutral"
+        variant="ghost"
+        @click="emit('comment', edge.id, 'edge', edge.label || 'Connector')"
+      />
+      <UButton
+        v-if="node && canComment"
+        label="Comment"
+        icon="i-lucide-message-square"
+        color="neutral"
+        variant="ghost"
+        @click="emit('comment', node.id, 'node', node.data.label)"
+      />
       <template v-if="!readonly">
         <UButton
           v-for="shape in shapes"

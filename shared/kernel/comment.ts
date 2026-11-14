@@ -4,8 +4,15 @@ export interface RelativeTextPosition {
   item?: { client: number, clock: number }
   assoc?: number
 }
-export interface CommentAnchor {
+interface TextCommentAnchor {
   from: RelativeTextPosition
   to: RelativeTextPosition
 }
 export type { IdentityProfile as CommentAuthor } from './identity'
+
+interface ObjectCommentAnchor {
+  kind: 'object'
+  objectType: 'task' | 'element' | 'node' | 'edge'
+  objectId: string
+}
+export type CommentAnchor = TextCommentAnchor | ObjectCommentAnchor

@@ -12,7 +12,7 @@ interface GatewayCompletionConfig {
 export class GatewayCompletionProvider implements CompletionProvider {
   constructor(private readonly config: GatewayCompletionConfig) {}
 
-  stream(prompt: string, system: string): ReadableStream<string> {
+  stream(prompt: string, system: string, signal?: AbortSignal): ReadableStream<string> {
     const baseURL = this.config.baseURL.trim()
     const apiKey = this.config.apiKey.trim()
     const model = this.config.model.trim()
@@ -26,6 +26,7 @@ export class GatewayCompletionProvider implements CompletionProvider {
       system,
       prompt,
       maxOutputTokens: 4096,
+      abortSignal: signal,
       onError: () => {
         console.error('AI gateway request failed')
       }

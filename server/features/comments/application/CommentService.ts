@@ -1,3 +1,4 @@
+import type { CanvasRepository } from '../../canvases/domain/CanvasRepository'
 import type { ActivityPublisher } from '../../notifications/domain/ActivityPublisher'
 import type { CommentEvents } from '../domain/CommentEvents'
 import type { CommentRepository } from '../domain/CommentRepository'
@@ -8,7 +9,7 @@ import type { CommentThreadInput, CommentThreadItem } from '../../../../shared/c
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class CommentService {
-  constructor(private readonly comments: CommentRepository, private readonly items: ItemAccess, private readonly access: WorkspaceAuthorization, private readonly events: CommentEvents, private readonly activity: ActivityPublisher) {
+  constructor(private readonly comments: CommentRepository, private readonly items: ItemAccess, private readonly access: WorkspaceAuthorization, private readonly events: CommentEvents, private readonly activity: ActivityPublisher, private readonly canvases?: CanvasRepository) {
   }
 
   async list(itemId: string, userId: string): Promise<CommentThreadItem[]> {
@@ -17,7 +18,24 @@ export class CommentService {
   }
 
   async create(itemId: string, input: CommentThreadInput, userId: string): Promise<CommentThreadItem> {
-    await this.items.commentable(itemId, userId)
+    const item = await this.items.commentable(itemId, userId)
+    if ('kind' in input.anchor) {
+      const anchor = input.anchor
+      const state = await this.canvases?.find(itemId)
+      const content = state?.content
+      const targets = content?.kind === 'kanban' && anchor.objectType === 'task'
+        ? content.tasks
+        : content?.kind === 'whiteboard' && anchor.objectType === 'element'
+          ? content.elements
+          : content?.kind === 'diagram' && anchor.objectType === 'node'
+            ? content.nodes
+            : content?.kind === 'diagram' && anchor.objectType === 'edge' ? content.edges : []
+      if (item.kind === 'document' || !targets.some(target => target.id === anchor.objectId)) {
+        throw new ApplicationError('not_found', 'The discussion target is no longer available. Save the item before commenting.')
+      }
+    } else if (item.kind !== 'document') {
+      throw new ApplicationError('invalid_input', 'Select an object to start a discussion')
+    }
     const id = await this.comments.create(itemId, input, userId)
     const thread = this.present(await this.requireThread(itemId, id))
     await this.events.commentsChanged(itemId)

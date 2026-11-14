@@ -38,7 +38,7 @@ async function resolve() {
   >
     <button
       type="button"
-      aria-label="Go to commented text"
+      aria-label="Go to discussion target"
       class="block w-editor-menu ml-ui-4xl mb-ui-lg text-left border-l-2 border-comment/50 pl-ui-md text-xs text-muted leading-relaxed line-clamp-2 hover:text-highlighted transition-colors"
       @click="emit('jump')"
     >

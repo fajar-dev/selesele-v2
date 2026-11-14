@@ -43,18 +43,24 @@ class MemoryComments implements CommentRepository {
     this.rows.delete(id)
   }
 }
-function fixture() {
+function fixture(structured = false) {
   const items = new MemoryItems()
   const repositoryAccess = new MemoryWorkspaces()
   const access = new WorkspaceAccessPolicy(repositoryAccess)
   const members = repositoryAccess
   const itemService = new ItemService(items, access, new FolderService(new MemoryFolders(), access, new MemoryJournal(), new MemoryResourceAccess()), new MemoryJournal(), new MemoryResourceAccess(items))
+  const shapeId = uuidv7()
+  const snapshot = { content: { kind: 'whiteboard' as const, elements: [{ id: shapeId, type: 'text' as const, text: 'Discuss me', x: 0, y: 0, width: 100, height: 100, color: '#18181b', size: 2, points: [] }] }, revision: 0, updatedAt: '' }
+  if (structured) {
+    items.item.kind = 'whiteboard'
+  }
+  const canvases = { find: async () => snapshot, save: async () => snapshot }
   const repository = new MemoryComments()
   const published: string[] = []
   const events = { async commentsChanged(id: string) {
     published.push(id)
   } }
-  return { published, service: new CommentService(repository, itemService, access, events, silentActivity), repository, items, members, itemId: items.item.id }
+  return { shapeId, snapshot, published, service: new CommentService(repository, itemService, access, events, silentActivity, canvases), repository, items, members, itemId: items.item.id }
 }
 describe('text comment discussions', () => {
   test('members create, reply, resolve and reopen with public author information', async () => {
@@ -134,4 +140,17 @@ describe('comment request validation', () => {
     }
     expect(commentResolutionSchema.safeParse({ resolved: true, resolvedBy: OWNER_ID }).success).toBe(false)
   })
+})
+
+test('structured discussions validate persisted targets and preserve replies after target deletion', async () => {
+  const { service, itemId, shapeId, snapshot, repository } = fixture(true)
+  const objectInput = { body: 'Review the shape', quote: 'Discuss me', anchor: { kind: 'object' as const, objectType: 'element' as const, objectId: shapeId } }
+  const thread = await service.create(itemId, objectInput, OWNER_ID)
+  expect(thread.anchor).toEqual(objectInput.anchor)
+  await expect(service.create(itemId, input, OWNER_ID)).rejects.toMatchObject({ code: 'invalid_input' })
+  await expect(service.create(itemId, { ...objectInput, anchor: { ...objectInput.anchor, objectType: 'task' } }, OWNER_ID)).rejects.toMatchObject({ code: 'not_found' })
+  snapshot.content.elements = []
+  await expect(service.create(itemId, objectInput, OWNER_ID)).rejects.toMatchObject({ code: 'not_found' })
+  expect(repository.rows.size).toBe(1)
+  expect((await service.reply(itemId, thread.id, 'Keep this discussion', EDITOR_ID)).messages).toHaveLength(2)
 })

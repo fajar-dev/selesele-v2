@@ -14,7 +14,7 @@ import { useConversations } from '~/features/conversations/composables/useConver
 
 const { workspaceId } = defineProps<{ workspaceId: string }>()
 const { data: overview } = useWorkspace(workspaceId)
-const { selected, list, current, loading, busy, question, pendingQuestion, inspect, create, ask, rename, remove } = useConversations(workspaceId)
+const { search, streamedAnswer, retryQuestion, stop, pin, selected, list, current, loading, busy, question, pendingQuestion, inspect, create, ask, rename, remove } = useConversations(workspaceId)
 const deleting = ref<string | null>(null)
 const viewport = useTemplateRef<HTMLDivElement>('viewport')
 const atBottom = ref(true)
@@ -34,8 +34,8 @@ function scrollToLatest() {
   }
   atBottom.value = true
 }
-watch([() => current.value?.messages.length, busy, loading, selected], async (_value, previous) => {
-  const follow = atBottom.value || selected.value !== previous[3] || busy.value
+watch([() => current.value?.messages.length, busy, loading, selected, streamedAnswer], async (_value, previous) => {
+  const follow = atBottom.value || selected.value !== previous[3] || (busy.value && busy.value !== previous[1])
   await nextTick()
   if (follow) {
     scrollToLatest()
@@ -74,6 +74,7 @@ watch([() => current.value?.messages.length, busy, loading, selected], async (_v
       <div class="flex flex-col md:flex-row flex-1 min-h-ui-zero gap-ui-2xl border-t border-muted">
         <ConversationHistory
           id="conversation-history"
+          v-model:search="search"
           :workspace-id="workspaceId"
           :conversations="list.data.value"
           :selected="selected"
@@ -82,6 +83,7 @@ watch([() => current.value?.messages.length, busy, loading, selected], async (_v
           :busy="busy"
           :retry="() => list.refresh()"
           @remove="deleting = $event"
+          @pin="pin"
         />
         <div class="relative flex flex-col flex-1 min-w-ui-zero min-h-ui-zero">
           <div class="flex items-center gap-ui-sm border-b border-muted py-ui-md shrink-0">
@@ -197,7 +199,12 @@ watch([() => current.value?.messages.length, busy, loading, selected], async (_v
                       variant="soft"
                       :ui="{ content: 'chat-message-body text-sm' }"
                     />
+                    <WorkspaceChatMessage
+                      v-if="streamedAnswer"
+                      :message="{ id: 'streaming-answer', role: 'assistant', content: streamedAnswer, sources: [], createdAt: '' }"
+                    />
                     <div
+                      v-else
                       role="status"
                       class="flex items-center gap-ui-md py-ui-xl text-sm text-muted"
                     >
@@ -225,12 +232,27 @@ watch([() => current.value?.messages.length, busy, loading, selected], async (_v
                 @click="scrollToLatest"
               />
             </div>
+            <div
+              v-if="retryQuestion && !busy"
+              class="mx-auto max-w-conversation mb-ui-md flex items-center gap-ui-sm"
+            >
+              <span class="text-xs text-muted">Your question is ready to try again.</span>
+              <UButton
+                label="Retry answer"
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                @click="ask(retryQuestion)"
+              />
+            </div>
             <WorkspaceChatComposer
               v-model="question"
               :busy="busy"
               :disabled="loading || !!selected && !current"
               class="mx-auto max-w-conversation"
               @submit="ask()"
+              @stop="stop"
             />
           </div>
         </div>

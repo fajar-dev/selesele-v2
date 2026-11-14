@@ -12,3 +12,10 @@ test('chat answers render Markdown structure without executing HTML, unsafe link
   expect(unsafe).not.toContain('<img')
   expect(renderChatMarkdown('[Open](https://example.com)')).toContain('href="https://example.com"')
 })
+
+test('numbered citations become source links while code stays literal', () => {
+  const html = renderChatMarkdown('The plan [1]. `Keep [1] literal`', 1)
+  expect(html).toContain('href="#workspace-source-1"')
+  expect(html).toContain('<code>Keep [1] literal</code>')
+  expect(renderChatMarkdown('Unknown [2]', 1)).not.toContain('href="#workspace-source-2"')
+})

@@ -1,3 +1,4 @@
+import type { MyTask } from '#shared/contracts/task'
 import type { ApiTransport } from '~/core/http/ApiTransport'
 import type { ApiResponse } from '#shared/contracts/api'
 import type { LibraryEntry, ItemTemplate, PersonalLibrary, WorkspaceTemplateSummary } from '#shared/contracts/library'
@@ -9,6 +10,10 @@ export class LibraryClient {
 
   search(q: string, workspaceId?: string) {
     return this.http.request<ApiResponse<LibraryEntry[]>>('/library/search', { query: { q, workspaceId } })
+  }
+
+  myTasks() {
+    return this.http.request<ApiResponse<MyTask[]>>('/library/tasks')
   }
 
   personal() {

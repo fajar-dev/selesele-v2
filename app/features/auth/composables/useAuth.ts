@@ -35,6 +35,12 @@ export function useAuth() {
             throw error
           }
         }
+        if (import.meta.client && user.value) {
+          try {
+            const prefix = `sele:canvas-draft:${user.value.id}:`
+            Object.keys(localStorage).filter(key => key.startsWith(prefix)).forEach(key => localStorage.removeItem(key))
+          } catch { /* Local storage can be disabled. */ }
+        }
         user.value = null
         clearNuxtData()
         initialized.value = true

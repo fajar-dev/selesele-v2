@@ -6,17 +6,33 @@ export function useConversations(workspaceId: string) {
   const api = useApi().conversations
   const route = useRoute()
   const selected = computed(() => typeof route.query.chat === 'string' ? route.query.chat : null)
-  const list = useLazyAsyncData(`conversations:${workspaceId}`, async () => (await api.list(workspaceId)).data, { server: false, default: () => [] })
+  const search = ref('')
+  const searchQuery = ref('')
+  let searchTimer: ReturnType<typeof setTimeout> | undefined
+  watch(search, (value) => {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => {
+      searchQuery.value = value.trim()
+    }, 300)
+  })
+  const list = useLazyAsyncData(`conversations:${workspaceId}`, async () => (await api.list(workspaceId, searchQuery.value)).data, { server: false, default: () => [], watch: [searchQuery] })
   const current = shallowRef<ConversationDetail | null>(null)
   const loading = ref(false), busy = ref(false), question = ref(''), pendingQuestion = ref('')
   const toast = useToast()
+  const streamedAnswer = ref(''), retryQuestion = ref('')
+  let request: AbortController | undefined
   let revision = 0, active = true
   onScopeDispose(() => {
+    request?.abort()
+    clearTimeout(searchTimer)
     active = false
     revision++
   })
   async function inspect(id: string | null) {
-    const request = ++revision
+    request?.abort()
+    const version = ++revision
+    retryQuestion.value = ''
+    streamedAnswer.value = ''
     current.value = null
     question.value = ''
     if (!id) {
@@ -26,15 +42,15 @@ export function useConversations(workspaceId: string) {
     loading.value = true
     try {
       const value = (await api.get(workspaceId, id)).data
-      if (request === revision && active) {
+      if (version === revision && active) {
         current.value = value
       }
     } catch (cause) {
-      if (request === revision && active) {
+      if (version === revision && active) {
         toast.add({ title: 'Unable to load conversation', description: errorMessage(cause), color: 'error' })
       }
     } finally {
-      if (request === revision && active) {
+      if (version === revision && active) {
         loading.value = false
       }
     }
@@ -70,9 +86,13 @@ export function useConversations(workspaceId: string) {
     if (busy.value || loading.value || value.trim().length < 3) {
       return
     }
+    const retrying = !!retryQuestion.value
     busy.value = true
     const text = value.trim()
     pendingQuestion.value = text
+    streamedAnswer.value = ''
+    retryQuestion.value = ''
+    request = new AbortController()
     const scope = revision
     try {
       let chat = current.value
@@ -81,7 +101,16 @@ export function useConversations(workspaceId: string) {
         chat = { ...created, messages: [] }
         current.value = chat
       }
-      const response = (await api.ask(workspaceId, chat.id, text, chat.revision)).data
+      request.signal.throwIfAborted()
+      if (retrying) {
+        chat = (await api.get(workspaceId, chat.id)).data
+        current.value = chat
+      }
+      const response = await api.stream(workspaceId, chat.id, text, chat.revision, request.signal, (chunk) => {
+        if (active && revision === scope) {
+          streamedAnswer.value += chunk
+        }
+      })
       if (!active || revision !== scope) {
         return
       }
@@ -96,14 +125,29 @@ export function useConversations(workspaceId: string) {
     } catch (cause) {
       if (active && revision === scope) {
         question.value = text
-        toast.add({ title: 'Couldn’t prepare an answer', description: errorMessage(cause), color: 'error' })
+        retryQuestion.value = text
+        if (!request?.signal.aborted) {
+          toast.add({ title: 'Couldn’t prepare an answer', description: errorMessage(cause), color: 'error' })
+        }
         await list.refresh()
       }
     } finally {
       if (active) {
         busy.value = false
         pendingQuestion.value = ''
+        streamedAnswer.value = ''
       }
+    }
+  }
+  function stop() {
+    request?.abort()
+  }
+  async function pin(id: string, pinned: boolean) {
+    try {
+      await api.pin(workspaceId, id, pinned)
+      await list.refresh()
+    } catch (cause) {
+      toast.add({ title: 'Unable to update conversation', description: errorMessage(cause), color: 'error' })
     }
   }
   async function rename(title: string) {
@@ -127,5 +171,5 @@ export function useConversations(workspaceId: string) {
     await list.refresh()
   }
   useFeedbackToast(list.error, { key: `conversations:${workspaceId}`, title: 'Unable to load conversations', recovered: () => list.status.value === 'success', retry: () => list.refresh() })
-  return { selected, list, current, loading, busy, question, pendingQuestion, inspect, create, ask, rename, remove }
+  return { search, streamedAnswer, retryQuestion, stop, pin, selected, list, current, loading, busy, question, pendingQuestion, inspect, create, ask, rename, remove }
 }

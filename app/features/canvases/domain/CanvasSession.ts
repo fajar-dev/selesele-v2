@@ -14,14 +14,18 @@ const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 export class CanvasSession {
   draft: CanvasContent
   revision: number
+  draftRevision: number
   saving = false
   remote: CanvasSnapshot | null = null
   private baseline: string
+  private updatedAt: string
   private past: CanvasContent[] = []
   private future: CanvasContent[] = []
   constructor(private readonly gateway: CanvasGateway, private readonly id: string, state: CanvasSnapshot) {
     this.draft = copy(state.content)
     this.revision = state.revision
+    this.draftRevision = state.revision
+    this.updatedAt = state.updatedAt
     this.baseline = canonicalJson(state.content)
   }
 
@@ -79,11 +83,21 @@ export class CanvasSession {
 
   load(state: CanvasSnapshot) {
     this.revision = state.revision
+    this.draftRevision = state.revision
+    this.updatedAt = state.updatedAt
     this.baseline = canonicalJson(state.content)
     this.draft = copy(state.content)
     this.remote = null
     this.past = []
     this.future = []
+  }
+
+  restore(content: CanvasContent, revision: number) {
+    this.edit(content)
+    this.draftRevision = revision
+    if (revision !== this.revision) {
+      this.remote = { content: JSON.parse(this.baseline), revision: this.revision, updatedAt: this.updatedAt }
+    }
   }
 
   async save() {
@@ -98,6 +112,8 @@ export class CanvasSession {
     try {
       const { data } = await this.gateway.save(this.id, draft, this.revision)
       this.revision = data.revision
+      this.draftRevision = data.revision
+      this.updatedAt = data.updatedAt
       this.baseline = canonicalJson(data.content)
       this.acknowledge(data.revision)
     } catch (cause) {

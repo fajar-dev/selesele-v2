@@ -39,9 +39,6 @@ export class ItemService {
 
   async commentable(id: string, userId: string) {
     const item = await this.get(id, userId)
-    if (item.kind !== 'document') {
-      throw new ApplicationError('invalid_input', 'Text-anchored comments are available on documents')
-    }
     if (item.archivedAt) {
       throw new ApplicationError('forbidden', 'This item is archived and read-only')
     }

@@ -1,20 +1,20 @@
 import { useApi } from '~/core/http/useApi'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import type { Editor } from '@tiptap/core'
-import type { CommentThreadItem } from '#shared/contracts/comment'
+import type { CommentThreadItem, CommentThreadInput } from '#shared/contracts/comment'
 import { CommentSynchronization } from '~/features/comments/synchronization/CommentSynchronization'
 import { captureCommentSelection, CommentHighlights, commentHighlightKey, commentRange } from '~/features/comments/editor/CommentHighlights'
 
 export function useItemComments(itemId: string, editorRef: Ref<{
   editor: Editor | undefined
-} | null | undefined>, readOnly = false, onContentChanged?: () => void) {
+} | null | undefined>, readOnly = false, onContentChanged?: () => void, onObjectJump?: (id: string, type: string) => boolean) {
   const { comments: commentApi } = useApi()
   const threads = ref<CommentThreadItem[]>([])
   const loading = ref(true)
   const loadError = ref('')
   const open = ref(false)
   const activeId = ref<string | null>(null)
-  const draft = ref<ReturnType<typeof captureCommentSelection>>(null)
+  const draft = ref<Omit<CommentThreadInput, 'body'> | null>(null)
   const draftBody = ref('')
   const filter = ref<'open' | 'resolved'>('open')
   const toast = useToast()
@@ -64,8 +64,21 @@ export function useItemComments(itemId: string, editorRef: Ref<{
     filter.value = 'open'
     open.value = true
   }
+  function startObject(objectId: string, objectType: 'task' | 'element' | 'node' | 'edge', quote: string) {
+    draftBody.value = ''
+    draft.value = { quote: quote.slice(0, 10000) || objectType, anchor: { kind: 'object', objectType, objectId } }
+    activeId.value = 'draft'
+    filter.value = 'open'
+    open.value = true
+  }
   function jump(thread: CommentThreadItem) {
     select(thread.id)
+    if ('kind' in thread.anchor) {
+      if (!onObjectJump?.(thread.anchor.objectId, thread.anchor.objectType)) {
+        toast.add({ title: 'The original object is no longer available', description: 'This discussion is still saved here.', color: 'neutral' })
+      }
+      return
+    }
     const editor = editorRef.value?.editor
     const range = editor ? commentRange(editor.state, thread.anchor) : null
     if (editor && range) {
@@ -135,5 +148,5 @@ export function useItemComments(itemId: string, editorRef: Ref<{
   onScopeDispose(() => events?.close())
   onScopeDispose(() => synchronization.dispose())
   const openCount = computed(() => threads.value.filter(thread => !thread.resolvedAt).length)
-  return { itemId, threads, openCount, loading, loadError, open, activeId, draft, draftBody, filter, extension, synchronize, start, select, jump, create, reply, resolve, remove }
+  return { itemId, threads, openCount, loading, loadError, open, activeId, draft, draftBody, filter, extension, synchronize, start, startObject, select, jump, create, reply, resolve, remove }
 }

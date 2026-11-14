@@ -16,6 +16,9 @@ import { useItemActions } from '~/features/items/composables/useItemActions'
 import { usePersonalLibrary } from '~/features/library/composables/usePersonalLibrary'
 import { refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { useApi } from '~/core/http/useApi'
+import { useAuth } from '~/features/auth/composables/useAuth'
+import { useItemComments } from '~/features/comments/composables/useItemComments'
+import CommentPanel from '~/features/comments/components/CommentPanel.vue'
 import { useCanvas } from '../composables/useCanvas'
 
 const KanbanEditor = defineAsyncComponent(() => import('~/features/kanban/components/KanbanEditor.vue'))
@@ -31,7 +34,30 @@ const emit = defineEmits<{
   ]
 }>()
 const readonly = computed(() => item.accessLevel !== 'edit' || !!item.archivedAt || !!overview.workspace.archivedAt)
-const { session, query, failed, edit, save: saveContent, overwrite } = useCanvas(item.id, item.workspaceId, () => readonly.value)
+const { recovered, restoreDraft, discardRecovered, session, query, failed, edit, save: saveContent, overwrite } = useCanvas(item.id, item.workspaceId, () => readonly.value)
+const { state: auth } = useAuth()
+const editor = ref<{ selectObject: (id: string) => boolean } | null>(null)
+const canComment = computed(() => ['edit', 'comment'].includes(item.accessLevel) && !item.archivedAt && !overview.workspace.archivedAt && !recovered.value)
+const comments = useItemComments(item.id, ref(null), true, undefined, id => editor.value?.selectObject(id) || false)
+const route = useRoute()
+watch([() => route.query.comment, comments.threads], ([id]) => {
+  if (typeof id === 'string') {
+    comments.select(id)
+  }
+}, { immediate: true })
+async function startComment(id: string, type: 'task' | 'element' | 'node' | 'edge', label: string) {
+  if (!canComment.value) {
+    return
+  }
+  if (session.value?.dirty) {
+    await saveContent()
+  }
+  if (session.value?.dirty) {
+    toast.add({ title: 'Save your changes before commenting', color: 'warning' })
+    return
+  }
+  comments.startObject(id, type, label)
+}
 const { save: saveMetadata, remove: removeItem } = useItemActions(() => item, current => emit('updated', current))
 const personal = usePersonalLibrary()
 const favorite = computed(() => personal.data.value.favorites.some(entry => entry.id === item.id))
@@ -200,6 +226,13 @@ async function discardDraft() {
         />
         <div class="flex items-center gap-ui-xs ms-auto">
           <UButton
+            icon="i-lucide-message-square"
+            :label="`Comments (${comments.openCount.value})`"
+            color="neutral"
+            variant="ghost"
+            @click="comments.open.value = true"
+          />
+          <UButton
             v-if="!readonly"
             icon="i-lucide-undo-2"
             aria-label="Undo"
@@ -231,6 +264,30 @@ async function discardDraft() {
           </UDropdownMenu>
         </div>
       </div>
+      <div
+        v-if="recovered"
+        role="status"
+        class="rounded-md border border-muted p-ui-lg space-y-ui-md"
+      >
+        <p class="text-sm font-medium">
+          An unsaved draft is available from {{ new Date(recovered.savedAt).toLocaleString() }}.
+        </p>
+        <p class="text-xs text-muted">
+          Restore it to review your work, or discard it and keep the saved version.
+        </p>
+        <div class="flex gap-ui-sm">
+          <UButton
+            label="Restore draft"
+            @click="restoreDraft"
+          />
+          <UButton
+            label="Discard draft"
+            color="neutral"
+            variant="ghost"
+            @click="discardRecovered"
+          />
+        </div>
+      </div>
       <DataSkeleton
         v-if="!session && query.status.value !== 'error'"
         label="Loading item content"
@@ -245,21 +302,30 @@ async function discardDraft() {
       <ClientOnly v-else-if="session">
         <KanbanEditor
           v-if="session.draft.kind === 'kanban'"
+          ref="editor"
+          :can-comment="canComment"
           :content="session.draft"
           :members="overview.members"
-          :readonly="readonly"
+          :readonly="readonly || !!recovered"
+          @comment="startComment"
           @change="edit"
         />
         <WhiteboardEditor
           v-else-if="session.draft.kind === 'whiteboard'"
+          ref="editor"
+          :can-comment="canComment"
           :content="session.draft"
-          :readonly="readonly"
+          :readonly="readonly || !!recovered"
+          @comment="startComment"
           @change="edit"
         />
         <DiagramEditor
           v-else
+          ref="editor"
+          :can-comment="canComment"
           :content="session.draft"
-          :readonly="readonly"
+          :readonly="readonly || !!recovered"
+          @comment="startComment"
           @change="edit"
         />
       </ClientOnly>
@@ -272,6 +338,12 @@ async function discardDraft() {
         @change="importJson"
       >
     </div>
+    <CommentPanel
+      :comments="comments"
+      :user-id="auth.user?.id || ''"
+      :manager="['owner', 'admin'].includes(overview.workspace.role)"
+      :can-comment="canComment"
+    />
     <ResourceAccessPanel
       v-if="accessOpen"
       :workspace-id="item.workspaceId"

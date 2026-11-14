@@ -7,7 +7,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const searchOpen = useLibrarySearch()
-const navigation = [{ label: 'Workspaces', to: '/', icon: 'i-lucide-panels-top-left' }, { label: 'Trash', to: '/trash', icon: 'i-lucide-trash-2' }]
+const navigation = [{ label: 'Workspaces', to: '/', icon: 'i-lucide-panels-top-left' }, { label: 'My tasks', to: '/tasks', icon: 'i-lucide-list-checks' }, { label: 'Trash', to: '/trash', icon: 'i-lucide-trash-2' }]
 const insideWorkspace = computed(() => !!route.params.workspaceId)
 const { state: authState, service: authService } = useAuth()
 const toast = useToast()

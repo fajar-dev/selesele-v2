@@ -5,15 +5,27 @@ import { canvasPalette } from '~/features/canvases/presentation/canvasPalette'
 import { DrawingScene } from '../domain/DrawingScene'
 import DrawingShape from './DrawingShape.vue'
 
-const { content, readonly = false } = defineProps<{
+const { content, readonly = false, canComment = false } = defineProps<{
   content: WhiteboardContent
+  canComment?: boolean
   readonly?: boolean
 }>()
 const emit = defineEmits<{
+  comment: [id: string, type: 'element', label: string]
   change: [
         content: WhiteboardContent
   ]
 }>()
+defineExpose({ selectObject: (id: string) => {
+  if (!content.elements.some(entry => entry.id === id)) {
+    return false
+  }
+  selectedId.value = id
+  tool.value = 'select'
+  const element = content.elements.find(entry => entry.id === id)!
+  view.value = { x: element.x - 100 / zoom.value, y: element.y - 100 / zoom.value }
+  return true
+} })
 const surface = useTemplateRef<SVGSVGElement>('surface')
 const { width, height } = useElementSize(surface)
 const tool = ref('pen'), color = ref<string>('#18181b'), size = ref(4), zoom = ref(1), view = ref({ x: 0, y: 0 }), selectedId = ref<string | null>(null)
@@ -41,14 +53,14 @@ function down(event: PointerEvent) {
   surface.value?.focus()
   surface.value?.setPointerCapture(event.pointerId)
   origin = point(event)
-  panning = tool.value === 'hand' || event.button === 1 || readonly
+  panning = tool.value === 'hand' || event.button === 1 || (readonly && tool.value !== 'select')
   if (panning) {
     return
   }
   const id = (event.target as Element).closest('[data-element]')?.getAttribute('data-element')
   if (tool.value === 'select') {
     selectedId.value = id || null
-    initial = content.elements.find(element => element.id === id) || null
+    initial = readonly ? null : content.elements.find(element => element.id === id) || null
     return
   }
   if (tool.value === 'eraser') {
@@ -165,6 +177,14 @@ function exportSvg() {
     aria-label="Whiteboard editor"
   >
     <div class="editor-tools">
+      <UButton
+        v-if="selected && canComment"
+        label="Comment"
+        icon="i-lucide-message-square"
+        color="neutral"
+        variant="ghost"
+        @click="emit('comment', selected.id, 'element', selected.text || selected.type)"
+      />
       <div
         role="toolbar"
         aria-label="Drawing tools"

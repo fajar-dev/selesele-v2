@@ -24,7 +24,7 @@ try {
       id: string
     }
   }).data.id
-  const screens = { members: 'People, groups', settings: 'Workspace identity', ask: 'What would you like to explore?', archive: 'Completed items', templates: 'A head start for your next idea' }
+  const screens = { members: 'People, groups', settings: 'Workspace identity', ask: 'Explore your workspace', archive: 'Completed items', templates: 'A head start for your next idea' }
   for (const [section, expected] of Object.entries(screens)) {
     const response = await fetch(new URL(`/workspaces/${workspaceId}/${section}`, origin), { headers, redirect: 'manual', signal: AbortSignal.timeout(60000) })
     const html = await response.text()
@@ -32,6 +32,9 @@ try {
     assert.ok(!html.includes('Server Error') && !html.includes('__vite_ssr_import_0__.z.enum'), `${section}: schema imports must evaluate`)
     assert.ok(html.includes(expected), `Expected ${section} item markup`)
   }
+  const tasks = await fetch(new URL('/tasks', origin), { headers, signal: AbortSignal.timeout(60000) })
+  assert.equal(tasks.status, 200)
+  assert.ok((await tasks.text()).includes('Tasks assigned to you'))
   console.log('Development SSR passed: Members, Settings, Ask, Archive and Templates render with authenticated fixtures; no email is sent')
 } finally {
   if (workspaceId) {

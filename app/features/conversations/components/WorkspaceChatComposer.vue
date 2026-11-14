@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineProps<{ busy: boolean, disabled: boolean }>()
 const question = defineModel<string>({ required: true })
-const emit = defineEmits<{ submit: [] }>()
+const emit = defineEmits<{ submit: [], stop: [] }>()
 </script>
 
 <template>
@@ -26,6 +26,17 @@ const emit = defineEmits<{ submit: [] }>()
           class="size-ui-md"
         /><span>Workspace sources only</span></span>
         <UButton
+          v-if="busy"
+          type="button"
+          icon="i-lucide-square"
+          label="Stop"
+          color="neutral"
+          variant="soft"
+          class="ms-auto"
+          @click="emit('stop')"
+        />
+        <UButton
+          v-else
           type="submit"
           :icon="busy ? 'i-lucide-loader-circle' : 'i-lucide-arrow-up'"
           :loading="busy"

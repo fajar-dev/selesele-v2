@@ -45,3 +45,11 @@ Run one Bun application process. Document rooms and invalidation are coordinated
 `bun run verify` checks migration consistency, unused code, semantic styles, architecture lint, app/server types, unit tests, production build, HTTP smoke, and isolated integration suites for access, content workflows, mail, settings, and backup/restore. Real Microsoft sign-in and external AI/SMTP availability remain deployment configuration; automated suites use identity/provider/SMTP fixtures and do not send external mail.
 
 See [design-system.md](design-system.md) and [backup.md](backup.md) for visual conventions and recovery procedures.
+
+## Workspace productivity
+
+AI chat has a newline-delimited JSON streaming endpoint alongside the existing completed-response endpoint. Text chunks are released after current source/provenance access checks; request cancellation aborts the provider and prevents appending an incomplete exchange. A final committed conversation completes the stream. Source excerpts are stored with citations and removed from responses together with inaccessible answers. Chat pins are private per conversation owner; message search selects candidates in SQL and filters them again through redacted conversation presentation.
+
+Structured drafts are backed up in browser local storage per user/item, validated on recovery, and expire after 30 days. Recovery is offered only after the server grants access. A draft based on an older revision enters the existing review/replace flow. Successful saves and logout remove the local backup. These backups supplement server autosave and do not turn structured editors into CRDT editors.
+
+My Tasks aggregates kanban assignments using each workspace's membership ID, constrained by current item visibility and active workspace/item lifecycle. It opens the original board with a task deep link. Comment anchors support either Yjs text ranges or typed object IDs. Object discussion creation validates the target against persisted structured content, while replies, resolution, notifications, and realtime synchronization share the existing comment services.

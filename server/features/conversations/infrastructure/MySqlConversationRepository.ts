@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql, or } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
 import { conversations, conversationMessages } from '../../../platform/database/schema'
 import type { ConversationRepository } from '../domain/ConversationRepository'
@@ -11,14 +11,16 @@ export class MySqlConversationRepository implements ConversationRepository {
     return and(eq(conversations.workspaceId, workspaceId), eq(conversations.userId, userId), id ? eq(conversations.id, id) : undefined)
   }
 
-  async list(workspaceId: string, userId: string) {
-    return (await this.db.select().from(conversations).where(this.owner(workspaceId, userId)).orderBy(desc(conversations.updatedAt), desc(conversations.id))).map(row => ({ id: row.id, title: row.title, updatedAt: row.updatedAt.toISOString(), revision: row.revision }))
+  async list(workspaceId: string, userId: string, query = '') {
+    const pattern = `%${query.replaceAll('=', '==').replaceAll('%', '=%').replaceAll('_', '=_')}%`
+    const matches = query ? or(sql`${conversations.title} LIKE ${pattern} ESCAPE '='`, sql`EXISTS (SELECT 1 FROM ${conversationMessages} WHERE ${conversationMessages.conversationId} = ${conversations.id} AND ${conversationMessages.content} LIKE ${pattern} ESCAPE '=')`) : undefined
+    return (await this.db.select().from(conversations).where(and(this.owner(workspaceId, userId), matches)).orderBy(desc(conversations.updatedAt), desc(conversations.id))).map(row => ({ id: row.id, title: row.title, pinned: row.pinned, updatedAt: row.updatedAt.toISOString(), revision: row.revision }))
   }
 
   async create(workspaceId: string, userId: string) {
-    const row = { id: crypto.randomUUID(), workspaceId, userId, title: 'New conversation', revision: 0, updatedAt: new Date() }
+    const row = { id: crypto.randomUUID(), workspaceId, userId, title: 'New conversation', pinned: false, revision: 0, updatedAt: new Date() }
     await this.db.insert(conversations).values(row)
-    return { id: row.id, title: row.title, revision: 0, updatedAt: row.updatedAt.toISOString() }
+    return { id: row.id, title: row.title, pinned: row.pinned, revision: 0, updatedAt: row.updatedAt.toISOString() }
   }
 
   async find(workspaceId: string, userId: string, id: string) {
@@ -27,11 +29,16 @@ export class MySqlConversationRepository implements ConversationRepository {
       return null
     }
     const messages = await this.db.select().from(conversationMessages).where(eq(conversationMessages.conversationId, id)).orderBy(conversationMessages.id)
-    return { id, title: row.title, revision: row.revision, updatedAt: row.updatedAt.toISOString(), messages: messages.map(message => ({ ...message, createdAt: message.createdAt.toISOString() })) }
+    return { id, title: row.title, pinned: row.pinned, revision: row.revision, updatedAt: row.updatedAt.toISOString(), messages: messages.map(message => ({ ...message, createdAt: message.createdAt.toISOString() })) }
   }
 
   async rename(workspaceId: string, userId: string, id: string, title: string) {
     const [result] = await this.db.update(conversations).set({ title, updatedAt: new Date() }).where(this.owner(workspaceId, userId, id))
+    return result.affectedRows > 0
+  }
+
+  async pin(workspaceId: string, userId: string, id: string, pinned: boolean) {
+    const [result] = await this.db.update(conversations).set({ pinned }).where(this.owner(workspaceId, userId, id))
     return result.affectedRows > 0
   }
 

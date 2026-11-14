@@ -8,9 +8,21 @@ export class ConversationService {
   constructor(private readonly repository: ConversationRepository, private readonly access: WorkspaceAuthorization, private readonly resources: ResourceAccess, private readonly questions: WorkspaceQuestionService) {
   }
 
-  async list(workspaceId: string, userId: string) {
+  async list(workspaceId: string, userId: string, query = '') {
     await this.access.requireMember(workspaceId, userId)
-    return this.repository.list(workspaceId, userId)
+    const rows = await this.repository.list(workspaceId, userId, query.trim())
+    if (!query.trim()) {
+      return rows
+    }
+    const needle = query.trim().toLocaleLowerCase()
+    const matches = await Promise.all(rows.map(async (row) => {
+      if (row.title.toLocaleLowerCase().includes(needle)) {
+        return row
+      }
+      const chat = await this.get(workspaceId, userId, row.id)
+      return chat.messages.some(message => !message.unavailable && message.content.toLocaleLowerCase().includes(needle)) ? row : null
+    }))
+    return matches.filter(row => row !== null)
   }
 
   async create(workspaceId: string, userId: string) {
@@ -40,6 +52,13 @@ export class ConversationService {
     }
   }
 
+  async pin(workspaceId: string, userId: string, id: string, pinned: boolean) {
+    await this.access.requireMember(workspaceId, userId)
+    if (!await this.repository.pin(workspaceId, userId, id, pinned)) {
+      throw new ApplicationError('not_found', 'Conversation not found')
+    }
+  }
+
   async remove(workspaceId: string, userId: string, id: string) {
     await this.access.requireMember(workspaceId, userId)
     if (!await this.repository.remove(workspaceId, userId, id)) {
@@ -47,21 +66,35 @@ export class ConversationService {
     }
   }
 
-  async ask(workspaceId: string, userId: string, id: string, question: string, revision: number) {
+  async ask(workspaceId: string, userId: string, id: string, question: string, revision: number, onChunk?: (text: string) => Promise<void>, signal?: AbortSignal) {
     const conversation = await this.get(workspaceId, userId, id)
     if (conversation.revision !== revision) {
       throw new ApplicationError('conflict', 'Conversation changed. Reload before sending again.')
     }
     const history = conversation.messages.filter(message => !message.unavailable).slice(-8)
-    const answer = await this.questions.answer(userId, question, workspaceId, history)
+    const answer = await this.questions.answer(userId, question, workspaceId, history, onChunk, signal, async (ids) => {
+      await this.access.requireMember(workspaceId, userId)
+      const allowed = new Set((await this.resources.visible('item', workspaceId, userId)).map(item => item.id))
+      if ([...ids, ...history.flatMap(message => message.sources.map(source => source.id))].some(id => !allowed.has(id))) {
+        throw new ApplicationError('forbidden', 'Source access changed while preparing this answer')
+      }
+    })
+    signal?.throwIfAborted()
     // Follow-up output can depend on any earlier answer included in its prompt.
     // Retain that provenance so later source revocation redacts dependent answers too.
-    answer.sources = [...new Map([...answer.sources, ...history.flatMap(message => message.sources)].map(source => [source.id, source])).values()]
+    const provenance = new Map(answer.sources.map(source => [source.id, source]))
+    for (const source of history.flatMap(message => message.sources)) {
+      if (!provenance.has(source.id)) {
+        provenance.set(source.id, source)
+      }
+    }
+    answer.sources = [...provenance.values()]
     await this.access.requireMember(workspaceId, userId)
     const allowed = new Set((await this.resources.visible('item', workspaceId, userId)).map(item => item.id))
     if (answer.sources.some(source => !allowed.has(source.id))) {
       throw new ApplicationError('forbidden', 'Source access changed while preparing this answer')
     }
+    signal?.throwIfAborted()
     await this.repository.append(workspaceId, userId, id, revision, question, answer)
     return this.get(workspaceId, userId, id)
   }

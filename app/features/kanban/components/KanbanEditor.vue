@@ -5,12 +5,14 @@ import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import { KanbanBoard } from '../domain/KanbanBoard'
 import TaskDetails from './TaskDetails.vue'
 
-const { content, members, readonly = false } = defineProps<{
+const { content, members, readonly = false, canComment = false } = defineProps<{
   content: KanbanContent
   members: WorkspaceMember[]
+  canComment?: boolean
   readonly?: boolean
 }>()
 const emit = defineEmits<{
+  comment: [id: string, type: 'task', label: string]
   change: [
         content: KanbanContent
   ]
@@ -18,6 +20,19 @@ const emit = defineEmits<{
 const toast = useToast()
 const search = ref(''), assignee = ref('__all'), priority = ref('__all'), layout = ref('board'), addingColumn = ref(false), columnTitle = ref('')
 const selected = ref<string | null>(null), deletingTask = ref<string | null>(null), deletingColumn = ref<string | null>(null)
+const route = useRoute()
+watch(() => route.query.task, (value) => {
+  if (typeof value === 'string') {
+    selected.value = value
+  }
+}, { immediate: true })
+defineExpose({ selectObject: (id: string) => {
+  if (!content.tasks.some(task => task.id === id)) {
+    return false
+  }
+  selected.value = id
+  return true
+} })
 const task = computed(() => content.tasks.find(task => task.id === selected.value))
 const detailOpen = computed({ get: () => !!selected.value, set: (value) => {
   if (!value) {
@@ -310,6 +325,8 @@ function taskActions(entry: KanbanTask) {
       :members="members"
       :readonly="readonly"
       :on-save="entry => command(board => board.updateTask(entry))"
+      :can-comment="canComment"
+      @comment="(id, title) => { emit('comment', id, 'task', title); detailOpen = false }"
     />
     <ConfirmationDialog
       v-model:open="deleteTaskOpen"

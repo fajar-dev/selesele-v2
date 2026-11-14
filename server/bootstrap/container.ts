@@ -1,3 +1,4 @@
+import { MySqlTaskRepository } from '../features/kanban/infrastructure/MySqlTaskRepository'
 import { CanvasService } from '../features/canvases/application/CanvasService'
 import { MySqlCanvasRepository } from '../features/canvases/infrastructure/MySqlCanvasRepository'
 import { ZodCanvasCodec } from '../features/canvases/infrastructure/ZodCanvasCodec'
@@ -100,6 +101,7 @@ function createContainer() {
     },
     auth,
     settings: new WorkspaceSettingsService(new MySqlSettingsRepository(database.db), workspaceAccess, items, new BunWorkspaceArchive(imageStore, imageDirectory)),
+    myTasks: new MySqlTaskRepository(database.db),
     library,
     canvases,
     recovery: new RecoveryService(recoveryRepository, items, collaboration, workspaceAccess, journal, canvases),
@@ -135,7 +137,7 @@ function createContainer() {
     comments: new CommentService(new MySqlCommentRepository(database.db), items, workspaceAccess, { async commentsChanged(id) {
       commentEvents.changed(id)
       await collaboration.commentsChanged(id)
-    } }, notifications),
+    } }, notifications, canvasRepository),
     images: new ImageService(imageStore, new MySqlImageAuthorization(database.db)),
     async close(): Promise<void> {
       notificationEvents.close()

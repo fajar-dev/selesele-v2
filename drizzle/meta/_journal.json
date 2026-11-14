@@ -8,6 +8,13 @@
       "when": 1794556646746,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1794589353808,
+      "tag": "0001_conversation_pins",
+      "breakpoints": true
     }
   ]
 }

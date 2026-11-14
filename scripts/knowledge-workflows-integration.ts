@@ -16,6 +16,8 @@ import type { ConversationDetail, ConversationSummary } from '../shared/kernel/c
 import type { MoveImpact, ResourcePolicy } from '../shared/kernel/access'
 import type { ContentItem } from '../shared/contracts/item'
 import type { MemberItem } from '../shared/kernel/member'
+import type { MyTask } from '../shared/contracts/task'
+import type { CommentThreadItem } from '../shared/contracts/comment'
 import type { NotificationItem } from '../shared/kernel/notification'
 
 const databaseName = `sele_features_test_${randomUUID().replaceAll('-', '')}`
@@ -31,7 +33,23 @@ const gateway = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request)
   const prompt = await request.text()
   assert.ok(!prompt.includes('DO_NOT_LEAK_PRIVATE'))
   const chunk = { id: 'improvements', object: 'chat.completion.chunk', created: 1, model: 'fixture', choices: [{ index: 0, delta: { content: 'The launch is Monday [1].' }, finish_reason: null }] }
-  return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: ${JSON.stringify({ ...chunk, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+  const payload = `data: ${JSON.stringify(chunk)}\n\ndata: ${JSON.stringify({ ...chunk, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\ndata: [DONE]\n\n`
+  if (prompt.includes('stop-stream')) {
+    let timer: ReturnType<typeof setTimeout>
+    return new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`))
+        timer = setTimeout(() => {
+          controller.enqueue(new TextEncoder().encode(payload))
+          controller.close()
+        }, 500)
+      },
+      cancel() {
+        clearTimeout(timer)
+      }
+    }), { headers: { 'Content-Type': 'text/event-stream' } })
+  }
+  return new Response(payload, { headers: { 'Content-Type': 'text/event-stream' } })
 } })
 async function request<T>(actor: number, path: string, method = 'GET', body?: unknown, expected = 200): Promise<T> {
   const result = await fetch(`${origin}/api${path}`, { method, headers: { 'Cookie': `sele_session=${accounts[actor]!.token}`, 'Origin': origin, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) })
@@ -97,9 +115,34 @@ try {
   await request(1, `${base}/conversations/${conversation.id}/messages`, 'POST', { question: 'When is launch?', revision: 0 }, 409)
   await request(1, `${base}/conversations/${conversation.id}`, 'PATCH', { title: 'Launch discussion' })
   assert.equal((await request<ConversationDetail>(1, `${base}/conversations/${conversation.id}`)).title, 'Launch discussion')
+  await request(1, `${base}/conversations/${conversation.id}`, 'PATCH', { pinned: true })
+  assert.ok((await request<ConversationSummary[]>(1, `${base}/conversations`)).find(entry => entry.id === conversation.id)?.pinned)
+  assert.ok((await request<ConversationSummary[]>(1, `${base}/conversations?q=Monday`)).some(entry => entry.id === conversation.id), 'Search includes message bodies')
+  assert.ok(chat.messages[1]!.sources[0]!.excerpt?.includes('Monday'))
+  const streamResponse = await fetch(`${origin}/api${base}/conversations/${conversation.id}/stream`, {
+    method: 'POST', headers: { 'Cookie': `sele_session=${accounts[1]!.token}`, 'Origin': origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: 'When is the launch?', revision: chat.revision })
+  })
+  assert.equal(streamResponse.status, 200)
+  const events = (await streamResponse.text()).trim().split('\n').map(line => JSON.parse(line))
+  assert.ok(events.some(event => event.type === 'delta' && event.text.includes('Monday')))
+  assert.equal(events.at(-1).type, 'done')
+  assert.equal(events.at(-1).conversation.revision, chat.revision + 1)
+  const abort = new AbortController()
+  const stopped = await fetch(`${origin}/api${base}/conversations/${conversation.id}/stream`, {
+    method: 'POST', headers: { 'Cookie': `sele_session=${accounts[1]!.token}`, 'Origin': origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: 'When is launch stop-stream?', revision: chat.revision + 1 }), signal: abort.signal
+  })
+  const reader = stopped.body!.getReader()
+  assert.ok(!(await reader.read()).done)
+  abort.abort()
+  await reader.cancel().catch(() => {})
+  await Bun.sleep(700)
+  assert.equal((await request<ConversationDetail>(1, `${base}/conversations/${conversation.id}`)).revision, chat.revision + 1, 'Stop cancels generation before persistence')
   await request(0, `${itemPath}/access`, 'PUT', { mode: 'restricted', grants: [] })
   chat = await request<ConversationDetail>(1, `${base}/conversations/${conversation.id}`)
   assert.ok(chat.messages.filter(message => message.role === 'assistant').every(message => message.unavailable && !message.sources.length && !message.content.includes('Monday')))
+  assert.equal((await request<ConversationSummary[]>(1, `${base}/conversations?q=Monday`)).length, 0, 'Search cannot infer hidden answer content')
   await request(0, `${itemPath}/access`, 'PUT', { mode: 'inherit', grants: [] })
   const folder = await request<{
     id: string
@@ -161,6 +204,34 @@ try {
   assert.ok((await request<{
     id: string
   }[]>(1, `/library/search?q=CanvasLaunchReview&workspaceId=${workspace.id}`)).some(entry => entry.id === board.id))
+  const assigned = await request<MyTask[]>(1, '/library/tasks')
+  assert.ok(assigned.some(task => task.id === content.tasks[0]!.id && task.itemId === board.id), 'Assigned tasks use workspace member IDs')
+  assert.equal((await request<MyTask[]>(2, '/library/tasks')).length, 0)
+  assert.equal((await request<MyTask[]>(0, '/library/tasks')).length, 0)
+  const taskAnchor = { kind: 'object', objectType: 'task', objectId: content.tasks[0]!.id }
+  const taskComment = await request<CommentThreadItem>(1, `/items/${board.id}/comments`, 'POST', { quote: 'CanvasLaunchReview', anchor: taskAnchor, body: 'Review this task' }, 201)
+  assert.deepEqual(taskComment.anchor, taskAnchor)
+  await request(2, `/items/${board.id}/comments`, 'GET', undefined, 404)
+  await request(3, `/items/${board.id}/comments`, 'POST', { quote: 'Task', anchor: taskAnchor, body: 'Blocked viewer' }, 403)
+  await request(1, `/items/${board.id}/comments`, 'POST', { quote: 'Task', anchor: { ...taskAnchor, objectId: randomUUID() }, body: 'Missing object' }, 404)
+  await request(1, `/items/${board.id}/comments/${taskComment.id}/replies`, 'POST', { body: 'Confirmed' }, 201)
+  await request(1, `/items/${board.id}/comments/${taskComment.id}`, 'PATCH', { resolved: true })
+  await request(0, `/items/${board.id}/access`, 'PUT', { mode: 'restricted', grants: [] })
+  assert.ok(!(await request<MyTask[]>(1, '/library/tasks')).some(task => task.itemId === board.id), 'Task aggregation honors restricted boards')
+  await request(0, `/items/${board.id}/access`, 'PUT', { mode: 'inherit', grants: [] })
+  const otherWorkspace = await request<{ id: string }>(1, '/workspaces', 'POST', { name: 'Second workspace' }, 201)
+  const otherMember = (await request<MemberItem[]>(1, `/workspaces/${otherWorkspace.id}/members`)).find(entry => entry.userId === accounts[1]!.userId)!
+  assert.notEqual(otherMember.id, member.id)
+  const otherBoard = await request<ContentItem>(1, `/workspaces/${otherWorkspace.id}/items`, 'POST', { title: 'Other board', kind: 'kanban' }, 201)
+  const otherState = await request<CanvasSnapshot>(1, `/items/${otherBoard.id}/canvas`)
+  assert.equal(otherState.content.kind, 'kanban')
+  if (otherState.content.kind === 'kanban') {
+    otherState.content.tasks.push({ ...content.tasks[0]!, id: randomUUID(), assigneeId: otherMember.id, columnId: otherState.content.columns[0]!.id })
+    otherState.content.nextNumber = 2
+  }
+  await request(1, `/items/${otherBoard.id}/canvas`, 'PUT', { content: otherState.content, revision: 0 })
+  const across = await request<MyTask[]>(1, '/library/tasks')
+  assert.ok(across.some(task => task.itemId === board.id) && across.some(task => task.itemId === otherBoard.id), 'Tasks span distinct workspace memberships')
   const boardTemplate = await request<{
     id: string
   }>(0, `${base}/templates/save`, 'POST', { itemId: board.id, title: 'Release board template' })
@@ -174,6 +245,7 @@ try {
   await request(0, `/items/${board.id}/versions/${versions[0]!.id}/restore`, 'POST')
   assert.equal(((await request<CanvasSnapshot>(1, canvasPath)).content as KanbanContent).tasks.length, 0)
   await request(0, `/items/${board.id}/access`, 'PUT', { mode: 'restricted', grants: [] })
+  assert.ok(!(await request<MyTask[]>(1, '/library/tasks')).some(task => task.itemId === board.id))
   await request(1, canvasPath, 'GET', undefined, 404)
   assert.ok(!(await request<{
     id: string
@@ -194,6 +266,11 @@ try {
     }
     const updated = await request<CanvasSnapshot>(1, path, 'PUT', { content: state.content, revision: 0 })
     assert.deepEqual(updated.content, state.content)
+    const objectId = updated.content.kind === 'whiteboard' ? updated.content.elements[0]!.id : updated.content.kind === 'diagram' ? updated.content.nodes[0]!.id : ''
+    const objectAnchor = { kind: 'object', objectType: kind === 'whiteboard' ? 'element' : 'node', objectId }
+    const objectComment = await request<CommentThreadItem>(1, `/items/${item.id}/comments`, 'POST', { quote: 'Selected object', anchor: objectAnchor, body: 'Review the design' }, 201)
+    assert.deepEqual(objectComment.anchor, objectAnchor)
+
     await request(1, path, 'PUT', { content: { kind: 'kanban', columns: [], tasks: [], nextNumber: 1 }, revision: 1 }, 400)
     if (updated.content.kind === 'diagram') {
       await request(1, path, 'PUT', { content: { ...updated.content, edges: [{ ...updated.content.edges[0], target: randomUUID() }] }, revision: 1 }, 400)

@@ -4,6 +4,7 @@ export interface ConversationSummary {
   id: string
   title: string
   updatedAt: string
+  pinned?: boolean
   revision: number
 }
 interface ConversationMessage {

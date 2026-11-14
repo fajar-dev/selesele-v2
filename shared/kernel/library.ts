@@ -20,7 +20,7 @@ export interface KnowledgeSource {
 }
 export interface KnowledgeAnswer {
   answer: string
-  sources: Omit<KnowledgeSource, 'content'>[]
+  sources: (Omit<KnowledgeSource, 'content'> & { excerpt?: string })[]
 }
 export interface ItemTemplate {
   kind: ItemKind

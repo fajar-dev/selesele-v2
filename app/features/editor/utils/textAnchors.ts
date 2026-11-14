@@ -6,6 +6,9 @@ import type { CommentAnchor, RelativeTextPosition } from '#shared/kernel/comment
 type Mapping = Parameters<typeof absolutePositionToRelativePosition>[2]
 interface BindingState { doc: Y.Doc, type: Y.XmlFragment, binding: { mapping: Mapping } }
 export function resolveTextRange(state: EditorState, anchor: CommentAnchor): { from: number, to: number } | null {
+  if ('kind' in anchor) {
+    return null
+  }
   const binding = ySyncPluginKey.getState(state) as BindingState | undefined
   if (!binding?.binding) {
     return null

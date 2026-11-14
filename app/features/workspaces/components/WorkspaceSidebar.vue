@@ -115,6 +115,15 @@ async function logout() {
           :ui="{ leadingIcon: 'size-ui-lg' }"
         />
         <UButton
+          label="My tasks"
+          icon="i-lucide-list-checks"
+          to="/tasks"
+          color="neutral"
+          variant="ghost"
+          class="sidebar-link"
+          :ui="{ leadingIcon: 'size-ui-lg' }"
+        />
+        <UButton
           label="Ask workspace"
           icon="i-lucide-sparkles"
           color="neutral"

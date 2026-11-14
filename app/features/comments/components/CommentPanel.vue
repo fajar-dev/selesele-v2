@@ -47,7 +47,7 @@ watch(activeId, async (id) => {
   <USlideover
     v-model:open="open"
     title="Comments"
-    description="Discuss selected text with your workspace."
+    description="Discuss selected text, tasks, and objects with your workspace."
     :modal="false"
     :overlay="false"
     :dismissible="false"
@@ -150,7 +150,7 @@ watch(activeId, async (id) => {
           {{ filter === 'resolved' ? 'No resolved discussions' : 'Start a conversation' }}
         </p>
         <p class="text-xs text-muted leading-relaxed max-w-ui-15xl mt-ui-sm">
-          {{ filter === 'resolved' ? 'Completed discussions will appear here.' : 'Select text in the item, then choose Comment.' }}
+          {{ filter === 'resolved' ? 'Completed discussions will appear here.' : 'Select text, a task, or an object, then choose Comment.' }}
         </p>
       </div>
       <CommentThread

@@ -55,7 +55,7 @@ describe('knowledge tools and recovery boundaries', () => {
     expect(changed).toEqual(['restore', 'purge'])
     await expect(service.versions('outsider', 'private')).rejects.toThrow('Access denied')
   })
-  test('question answering never calls the model without readable sources and returns source metadata without document content', async () => {
+  test('question answering never calls the model without readable sources and returns only readable source excerpts', async () => {
     let called = false
     let hasSources = false
     const service = new WorkspaceQuestionService({ async context() {
@@ -77,7 +77,7 @@ describe('knowledge tools and recovery boundaries', () => {
     hasSources = true
     const answer = await service.answer(OWNER_ID, 'When is launch?', WORKSPACE_ID)
     expect(answer.answer).toContain('[1]')
-    expect(answer.sources).toEqual([{ id: 'item', workspaceId: WORKSPACE_ID, title: 'Project plan' }])
+    expect(answer.sources).toEqual([{ id: 'item', workspaceId: WORKSPACE_ID, title: 'Project plan', excerpt: 'Launch is Monday.' }])
     expect(questionSchema.safeParse({ question: 'hello', workspaceId: 'invalid' }).success).toBe(false)
   })
   test('knowledge retrieval rejects a non-member before querying content', async () => {
