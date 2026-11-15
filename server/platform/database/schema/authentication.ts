@@ -4,7 +4,8 @@ import { uuidv7 } from 'uuidv7'
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  microsoftSubject: varchar('microsoft_subject', { length: 73 }).notNull().unique(),
+  microsoftSubject: varchar('microsoft_subject', { length: 73 }).unique(),
+  googleSubject: varchar('google_subject', { length: 255 }).unique(),
   name: varchar('name', { length: 255 }),
   avatar: text('avatar'),
   lastLoginIp: varchar('last_login_ip', { length: 45 }),

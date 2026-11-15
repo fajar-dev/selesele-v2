@@ -1,6 +1,6 @@
 import { and, eq, or, sql, isNull, inArray } from 'drizzle-orm'
 import type { Account } from '../domain/Account'
-import type { MicrosoftIdentity } from '../domain/MicrosoftIdentity'
+import type { ExternalIdentity } from '../domain/ExternalIdentity'
 import type { UserRepository } from '../domain/UserRepository'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 import type { Database } from '../../../platform/database/client'
@@ -9,10 +9,11 @@ import { users, workspaceMembers, notifications, workspaces } from '../../../pla
 export class MySqlUserRepository implements UserRepository {
   constructor(private readonly db: Database) {}
 
-  async upsert(identity: MicrosoftIdentity, ip: string | null): Promise<Account> {
+  async upsert(identity: ExternalIdentity, ip: string | null): Promise<Account> {
+    const subjectColumn = identity.provider === 'google' ? users.googleSubject : users.microsoftSubject
     const profile = {
       email: identity.email,
-      microsoftSubject: identity.subject,
+      [identity.provider === 'google' ? 'googleSubject' : 'microsoftSubject']: identity.subject,
       name: identity.name,
       avatar: null,
       lastLoginIp: ip,
@@ -25,12 +26,12 @@ export class MySqlUserRepository implements UserRepository {
         .onDuplicateKeyUpdate({ set: { id: sql`${users.id}` } })
 
       const matches = await transaction.select().from(users)
-        .where(or(eq(users.microsoftSubject, identity.subject), eq(users.email, identity.email)))
+        .where(or(eq(subjectColumn, identity.subject), eq(users.email, identity.email)))
         .limit(2)
       const account = matches[0]
 
-      if (matches.length !== 1 || !account || account.microsoftSubject !== identity.subject) {
-        throw new ApplicationError('unauthenticated', 'Email is linked to a different Microsoft identity')
+      if (matches.length !== 1 || !account || account[identity.provider === 'google' ? 'googleSubject' : 'microsoftSubject'] !== identity.subject) {
+        throw new ApplicationError('unauthenticated', 'Email is linked to another sign-in identity; use the original sign-in provider')
       }
 
       await transaction.update(users).set({ ...profile, updatedAt: new Date() })

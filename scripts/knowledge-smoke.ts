@@ -43,7 +43,7 @@ async function request<T>(actor: number, path: string, method = 'GET', body?: un
 try {
   for (const label of ['owner', 'member', 'outsider']) {
     const email = `knowledge-smoke-${label}-${randomUUID()}@example.invalid`
-    const result = await auth.login({ subject: `${randomUUID()}:${randomUUID()}`, email, name: `Knowledge ${label}` }, null)
+    const result = await auth.login({ provider: 'microsoft', subject: `${randomUUID()}:${randomUUID()}`, email, name: `Knowledge ${label}` }, null)
     accounts.push({ userId: result.user.id, token: result.token, email })
   }
   const workspace = await request<{

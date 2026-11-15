@@ -1,7 +1,7 @@
 # SeleSele
 
 Workspace kolaboratif untuk dokumen, kanban, whiteboard, dan diagram.
-Satu monolith Nuxt + Bun dengan login Microsoft, folder dan izin akses per item, editor dokumen realtime, kanban task, whiteboard untuk menggambar, serta editor diagram node/konektor. Mendukung komentar dokumen, pencarian lintas jenis item, favorites, template, version history, arsip, Trash, AI workspace, email notifikasi, dan backup terjadwal.
+Satu monolith Nuxt + Bun dengan login Microsoft dan Google, folder dan izin akses per item, editor dokumen realtime, kanban task, whiteboard untuk menggambar, serta editor diagram node/konektor. Mendukung komentar dokumen, pencarian lintas jenis item, favorites, template, version history, arsip, Trash, AI workspace, email notifikasi, dan backup terjadwal.
 
 ## Fitur workspace
 
@@ -108,7 +108,13 @@ pm2 stop sele-sele
 
 Untuk update, hentikan aplikasi, install dependency, build, jalankan migrasi, lalu restart. Jika mengubah nilai `HOST`/`PORT` dari shell, jalankan ulang ecosystem dengan `pm2 restart ecosystem.config.cjs --update-env`, lalu `pm2 save`. Secrets dibaca Bun dari `.env` pada direktori project.
 
-## Konfigurasi Microsoft dan AI
+## Konfigurasi login dan AI
+
+Provider login diatur saat aplikasi mulai dengan `MICROSOFT_ENABLED=true|false` (default `true`) dan `GOOGLE_ENABLED=true|false` (default `false`). Provider yang dimatikan tidak muncul di halaman login dan endpoint login tidak dapat digunakan. Set keduanya `false` untuk menonaktifkan login baru; session aktif tetap berlaku. Restart aplikasi setelah mengubah `.env`.
+
+Untuk Google, buat OAuth client bertipe **Web application**, lalu isi `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET`, serta set `GOOGLE_ENABLED=true`. Daftarkan redirect URI persis `${APP_ORIGIN}/api/auth/google/callback` di Google Cloud Console, misalnya `http://localhost:3000/api/auth/google/callback` saat lokal. Konfigurasikan consent screen dan test users jika aplikasi masih berstatus testing. Lihat [panduan OpenID Connect Google](https://developers.google.com/identity/openid-connect/openid-connect).
+
+Login hanya menerima email Google yang terverifikasi. Identitas dipisahkan berdasarkan provider dan subject; email sama dari provider berbeda tidak otomatis menautkan akun. Akun yang sudah ada harus memakai provider semula. Undangan workspace tetap diklaim lewat email saat login pertama.
 
 Daftarkan aplikasi **Web, single-tenant** di Microsoft Entra ID. Isi tenant/client ID serta client secret, lalu daftarkan redirect URI sesuai `APP_ORIGIN`:
 

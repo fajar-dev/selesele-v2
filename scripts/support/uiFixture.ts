@@ -39,7 +39,7 @@ export async function createUiFixture(port = 13823) {
     const auth = new AuthService(new MySqlUserRepository(database.db), new MySqlSessionRepository(database.db), new CryptographicTokens(), new SystemClock())
     const accounts = []
     for (const name of ['UI Owner', 'UI Member', 'UI Viewer']) {
-      accounts.push(await auth.login({ subject: randomUUID(), email: `${randomUUID()}@example.invalid`, name }, null))
+      accounts.push(await auth.login({ provider: 'microsoft', subject: randomUUID(), email: `${randomUUID()}@example.invalid`, name }, null))
     }
     server = Bun.spawn(['bun', '.output/server/index.mjs'], { env: { ...process.env, DB_NAME: databaseName, MAIL_ENABLED: 'false', APP_ORIGIN: origin, HOST: '127.0.0.1', PORT: String(port), NODE_ENV: 'production', AI_BASE_URL: '', AI_API_KEY: '', AI_MODEL: '' }, stdout: 'ignore', stderr: 'inherit' })
     for (let attempt = 0; attempt < 100; attempt++) {

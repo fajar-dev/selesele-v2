@@ -1,6 +1,6 @@
 import type { Account } from './Account'
-import type { MicrosoftIdentity } from './MicrosoftIdentity'
+import type { ExternalIdentity } from './ExternalIdentity'
 
 export interface UserRepository {
-  upsert(identity: MicrosoftIdentity, ip: string | null): Promise<Account>
+  upsert(identity: ExternalIdentity, ip: string | null): Promise<Account>
 }

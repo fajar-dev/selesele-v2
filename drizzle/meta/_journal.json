@@ -15,6 +15,13 @@
       "when": 1794706662823,
       "tag": "0001_realtime_capture",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1794713178391,
+      "tag": "0002_google_authentication",
+      "breakpoints": true
     }
   ]
 }

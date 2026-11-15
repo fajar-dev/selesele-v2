@@ -13,7 +13,7 @@ const origin = new URL(process.env.SMOKE_ORIGIN || 'http://localhost:3000')
 assert.ok(['localhost', '127.0.0.1'].includes(origin.hostname), 'Development checks require a local server')
 const db = createDatabase()
 const auth = new AuthService(new MySqlUserRepository(db.db), new MySqlSessionRepository(db.db), new CryptographicTokens(), new SystemClock())
-const identity = await auth.login({ subject: `${randomUUID()}:${randomUUID()}`, email: `dev-ui-${randomUUID()}@example.invalid`, name: 'Development UI audit' }, null)
+const identity = await auth.login({ provider: 'microsoft', subject: `${randomUUID()}:${randomUUID()}`, email: `dev-ui-${randomUUID()}@example.invalid`, name: 'Development UI audit' }, null)
 let workspaceId: string | undefined
 try {
   const headers = { 'Cookie': `sele_session=${identity.token}`, 'Origin': origin.origin, 'Content-Type': 'application/json' }

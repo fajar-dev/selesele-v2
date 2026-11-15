@@ -1,3 +1,4 @@
+import { GoogleIdentityProvider } from '../../server/features/authentication/infrastructure/GoogleIdentityProvider'
 import { CryptographicTokens } from '../../server/features/authentication/infrastructure/CryptographicTokens'
 import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { describe, expect, test } from 'bun:test'
@@ -30,12 +31,13 @@ function callback(state = transaction().state) {
   return url
 }
 
-function providerFixture(overrides: Record<string, unknown> = {}, wrongSignature = false) {
+function providerFixture(overrides: Record<string, unknown> = {}, wrongSignature = false, kind: 'microsoft' | 'google' = 'microsoft') {
+  const identityIssuer = kind === 'google' ? 'https://accounts.google.com' : issuer
   let tokenRequest: URLSearchParams | undefined
   const fetcher: CustomFetch = async (url, options) => {
     if (url.includes('.well-known/openid-configuration')) {
-      return Response.json({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`,
-        jwks_uri: `${issuer}/keys`, response_types_supported: ['code'], subject_types_supported: ['pairwise'],
+      return Response.json({ issuer: identityIssuer, authorization_endpoint: `${identityIssuer}/authorize`, token_endpoint: `${identityIssuer}/token`,
+        jwks_uri: `${identityIssuer}/keys`, response_types_supported: ['code'], subject_types_supported: ['pairwise'],
         id_token_signing_alg_values_supported: ['RS256'], token_endpoint_auth_methods_supported: ['client_secret_post'],
         code_challenge_methods_supported: ['S256'] })
     }
@@ -47,14 +49,14 @@ function providerFixture(overrides: Record<string, unknown> = {}, wrongSignature
     }
     tokenRequest = new URLSearchParams(String(options.body))
     const now = Math.floor(Date.now() / 1000)
-    const claims = { iss: issuer, aud: clientId, sub: 'app-specific-subject', oid: objectId, tid: tenantId,
-      iat: now, exp: now + 300, nonce: transaction().nonce, email: 'Owner@Example.com', name: 'Owner', ...overrides }
+    const claims = { iss: identityIssuer, aud: clientId, sub: 'app-specific-subject', oid: objectId, tid: tenantId,
+      iat: now, exp: now + 300, nonce: transaction().nonce, email: 'Owner@Example.com', email_verified: true, name: 'Owner', ...overrides }
     const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
     const input = `${encode({ alg: 'RS256', kid: 'test-key' })}.${encode(claims)}`
     const signature = sign('RSA-SHA256', Buffer.from(input), wrongSignature ? otherKeys.privateKey : keys.privateKey).toString('base64url')
     return Response.json({ access_token: 'unused-access-token', token_type: 'Bearer', expires_in: 300, id_token: `${input}.${signature}` })
   }
-  return { provider: new MicrosoftIdentityProvider(configuration, fetcher), request: () => tokenRequest }
+  return { provider: kind === 'google' ? new GoogleIdentityProvider(configuration, fetcher) : new MicrosoftIdentityProvider(configuration, fetcher), request: () => tokenRequest }
 }
 
 describe('Microsoft OpenID Connect', () => {
@@ -69,7 +71,7 @@ describe('Microsoft OpenID Connect', () => {
     expect(url.searchParams.get('code_challenge')).toBe(createHash('sha256').update(pending.verifier).digest('base64url'))
     expect(url.searchParams.get('redirect_uri')).toBe(`${origin}/api/auth/microsoft/callback`)
     expect(url.searchParams.get('scope')).toBe('openid profile email')
-    expect(await provider.verify(callback(), pending)).toEqual({ subject: `${tenantId}:${objectId}`, email: 'owner@example.com', name: 'Owner' })
+    expect(await provider.verify(callback(), pending)).toEqual({ provider: 'microsoft', subject: `${tenantId}:${objectId}`, email: 'owner@example.com', name: 'Owner' })
     expect(request()?.get('code_verifier')).toBe(pending.verifier)
     expect(request()?.get('client_secret')).toBe(configuration.clientSecret)
     expect(request()?.get('redirect_uri')).toBe(`${origin}/api/auth/microsoft/callback`)
@@ -106,9 +108,9 @@ describe('Microsoft OpenID Connect', () => {
 describe('OAuth transaction boundaries', () => {
   test('generates fresh independent secrets for every login attempt', async () => {
     const accounts = new MemoryAccounts()
-    const oauth = new OAuthService(accounts, new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock()), new CryptographicTokens(), new SystemClock())
-    const first = await oauth.begin()
-    const second = await oauth.begin()
+    const oauth = new OAuthService({ microsoft: accounts }, new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock()), new CryptographicTokens(), new SystemClock())
+    const first = await oauth.begin('microsoft')
+    const second = await oauth.begin('microsoft')
     expect(first.transaction.state).toHaveLength(43)
     expect(first.transaction.verifier).toHaveLength(43)
     expect(first.transaction.nonce).toHaveLength(43)
@@ -117,20 +119,20 @@ describe('OAuth transaction boundaries', () => {
 
   test('rejects unbound, expired, future, duplicate and cancelled callbacks before creating a session', async () => {
     const accounts = new MemoryAccounts()
-    const oauth = new OAuthService(accounts, new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock()), new CryptographicTokens(), new SystemClock())
+    const oauth = new OAuthService({ microsoft: accounts }, new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock()), new CryptographicTokens(), new SystemClock())
     const expired = { ...transaction(), createdAt: Date.now() - OAUTH_TTL_SECONDS * 1000 }
     const future = { ...transaction(), createdAt: Date.now() + 60_000 }
     for (const pending of [undefined, expired, future, { ...transaction(), state: 'other-browser' }]) {
-      await expect(oauth.complete(callback(), pending, null)).rejects.toMatchObject({ code: 'invalid_input' })
+      await expect(oauth.complete('microsoft', callback(), pending, null)).rejects.toMatchObject({ code: 'invalid_input' })
     }
     for (const parameter of ['code', 'state']) {
       const url = callback()
       url.searchParams.append(parameter, 'duplicate')
-      await expect(oauth.complete(url, transaction(), null)).rejects.toMatchObject({ code: 'invalid_input' })
+      await expect(oauth.complete('microsoft', url, transaction(), null)).rejects.toMatchObject({ code: 'invalid_input' })
     }
     const denied = callback()
     denied.searchParams.set('error', 'access_denied')
-    await expect(oauth.complete(denied, transaction(), null)).rejects.toMatchObject({ code: 'unauthenticated' })
+    await expect(oauth.complete('microsoft', denied, transaction(), null)).rejects.toMatchObject({ code: 'unauthenticated' })
     expect(accounts.sessions.size).toBe(0)
   })
 
@@ -138,7 +140,63 @@ describe('OAuth transaction boundaries', () => {
     const accounts = new MemoryAccounts()
     const { provider } = providerFixture()
     const auth = new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock())
-    const result = await new OAuthService(provider, auth, new CryptographicTokens(), new SystemClock()).complete(callback(), transaction(), null)
+    const result = await new OAuthService({ microsoft: provider }, auth, new CryptographicTokens(), new SystemClock()).complete('microsoft', callback(), transaction(), null)
     expect(await auth.authenticate(result.token)).toEqual(result.user)
+  })
+})
+
+describe('Google OpenID Connect', () => {
+  const googleCallback = () => {
+    const url = callback()
+    url.pathname = '/api/auth/google/callback'
+    return url
+  }
+
+  test('uses the Google issuer, signed subject, verified email and the common PKCE flow', async () => {
+    const { provider, request } = providerFixture({}, false, 'google')
+    const pending = transaction()
+    const url = new URL(await provider.authorizationUrl(pending))
+    expect(url.origin).toBe('https://accounts.google.com')
+    expect(url.searchParams.get('redirect_uri')).toBe(`${origin}/api/auth/google/callback`)
+    expect(url.searchParams.get('state')).toBe(pending.state)
+    expect(url.searchParams.get('nonce')).toBe(pending.nonce)
+    expect(url.searchParams.get('code_challenge')).toBe(createHash('sha256').update(pending.verifier).digest('base64url'))
+    expect(url.searchParams.get('scope')).toBe('openid profile email')
+    expect(await provider.verify(googleCallback(), pending)).toEqual({ provider: 'google', subject: 'app-specific-subject', email: 'owner@example.com', name: 'Owner' })
+    expect(request()?.get('code_verifier')).toBe(pending.verifier)
+    expect(request()?.get('client_secret')).toBe(configuration.clientSecret)
+    expect(request()?.get('redirect_uri')).toBe(`${origin}/api/auth/google/callback`)
+  })
+
+  test('rejects unverified or absent email, missing subject and invalid ID-token checks', async () => {
+    for (const overrides of [
+      { email_verified: false }, { email_verified: 'true' }, { email_verified: undefined },
+      { email: undefined }, { sub: undefined }, { nonce: 'another-attempt' },
+      { iss: 'https://untrusted.example' }, { aud: 'another-client' }, { exp: 1 }
+    ]) {
+      const { provider } = providerFixture(overrides, false, 'google')
+      await expect(provider.verify(googleCallback(), transaction())).rejects.toMatchObject({ code: 'unauthenticated' })
+    }
+    await expect(providerFixture({}, true, 'google').provider.verify(googleCallback(), transaction())).rejects.toMatchObject({ code: 'unauthenticated' })
+    await expect(providerFixture({}, false, 'google').provider.verify(callback(), transaction())).rejects.toMatchObject({ code: 'unauthenticated' })
+  })
+
+  test('creates an application session after a valid Google callback', async () => {
+    const accounts = new MemoryAccounts()
+    const auth = new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock())
+    const oauth = new OAuthService({ google: providerFixture({}, false, 'google').provider }, auth, new CryptographicTokens(), new SystemClock())
+    const result = await oauth.complete('google', googleCallback(), transaction(), null)
+    expect(await auth.authenticate(result.token)).toEqual(result.user)
+  })
+
+  test('disabled providers cannot begin or complete authentication', async () => {
+    const accounts = new MemoryAccounts()
+    const auth = new AuthService(accounts, accounts, new CryptographicTokens(), new SystemClock())
+    const oauth = new OAuthService({ microsoft: accounts }, auth, new CryptographicTokens(), new SystemClock())
+    expect(oauth.available()).toEqual(['microsoft'])
+    await expect(oauth.begin('google')).rejects.toMatchObject({ code: 'unavailable' })
+    await expect(oauth.complete('google', googleCallback(), transaction(), null)).rejects.toMatchObject({ code: 'unavailable' })
+    expect(accounts.sessions.size).toBe(0)
+    expect(new OAuthService({}, auth, new CryptographicTokens(), new SystemClock()).available()).toEqual([])
   })
 })

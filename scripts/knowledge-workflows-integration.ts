@@ -69,7 +69,7 @@ try {
   const auth = new AuthService(new MySqlUserRepository(database.db), new MySqlSessionRepository(database.db), new CryptographicTokens(), new SystemClock())
   for (const name of ['Owner', 'Member', 'Outsider', 'Viewer']) {
     const email = `${name}-${randomUUID()}@example.invalid`
-    const account = await auth.login({ subject: `${randomUUID()}:${randomUUID()}`, email, name }, null)
+    const account = await auth.login({ provider: 'microsoft', subject: `${randomUUID()}:${randomUUID()}`, email, name }, null)
     accounts.push({ token: account.token, userId: account.user.id, email })
   }
   assert.ok(!await fetch(`${origin}/api/health`).then(() => true, () => false), 'Integration port occupied')

@@ -20,7 +20,7 @@
     "db:reset": "bun scripts/reset-database.ts",
     "test:integration": "bun scripts/integration.ts",
     "test:knowledge": "bun scripts/knowledge-integration.ts",
-    "verify": "bun run db:check && bun run audit:code && bun run audit:styles && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration && bun run test:knowledge && bun run test:mail && bun run test:settings && bun run test:workflows && bun run test:backup && bun run test:product && bun run test:performance && bun run test:realtime",
+    "verify": "bun run db:check && bun run audit:code && bun run audit:styles && bun run lint && bun run typecheck && bun run typecheck:server && bun run test && bun run build && bun run test:smoke && bun run test:integration && bun run test:knowledge && bun run test:mail && bun run test:settings && bun run test:workflows && bun run test:backup && bun run test:product && bun run test:performance && bun run test:realtime && bun run test:authentication",
     "db:check": "bun --bun drizzle-kit check",
     "audit:code": "bun --bun knip",
     "audit:styles": "bun scripts/check-styles.ts",
@@ -37,7 +37,8 @@
     "test:ui": "bun scripts/run-ui-tests.ts",
     "test:performance": "bun scripts/benchmark-canvases.ts",
     "test:product": "bun scripts/product-integration.ts",
-    "test:realtime": "bun scripts/realtime-integration.ts"
+    "test:realtime": "bun scripts/realtime-integration.ts",
+    "test:authentication": "bun scripts/authentication-integration.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.90",

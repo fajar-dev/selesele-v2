@@ -3,7 +3,7 @@ import type { ResourceKind, AccessLevel, MemberResourceAccess, ResourcePolicy } 
 import { defaultWorkspaceSettings } from '../../shared/model/workspaceSettings'
 import { DEFAULT_FOLDER_ICON } from '../../shared/model/icons'
 import type { Account } from '../../server/features/authentication/domain/Account'
-import type { MicrosoftIdentity } from '../../server/features/authentication/domain/MicrosoftIdentity'
+import type { ExternalIdentity } from '../../server/features/authentication/domain/ExternalIdentity'
 import type { IdentityProvider } from '../../server/features/authentication/domain/IdentityProvider'
 import type { SessionRepository } from '../../server/features/authentication/domain/SessionRepository'
 import type { UserRepository } from '../../server/features/authentication/domain/UserRepository'
@@ -155,8 +155,8 @@ export class MemoryAccounts implements UserRepository, SessionRepository, Identi
     return 'https://login.microsoftonline.com/authorize'
   }
 
-  async verify(): Promise<MicrosoftIdentity> {
-    return { subject: 'tenant-id:object-id', email: this.account.email }
+  async verify(): Promise<ExternalIdentity> {
+    return { provider: 'microsoft', subject: 'tenant-id:object-id', email: this.account.email }
   }
 
   async upsert() {

@@ -36,7 +36,7 @@ async function request<T>(actor: number, path: string, method = 'GET', body?: un
 try {
   for (const label of ['owner', 'member', 'outsider']) {
     const email = `workspace-smoke-${label}-${randomUUID()}@example.invalid`
-    const result = await auth.login({ subject: `${randomUUID()}:${randomUUID()}`, email, name: `Smoke ${label}` }, null)
+    const result = await auth.login({ provider: 'microsoft', subject: `${randomUUID()}:${randomUUID()}`, email, name: `Smoke ${label}` }, null)
     accounts.push({ userId: result.user.id, token: result.token, email })
   }
   const headers = { Cookie: `sele_session=${accounts[0]!.token}` }

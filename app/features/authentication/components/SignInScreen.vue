@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
+import DataRetry from '~/components/ui/DataRetry.vue'
 import AppBrand from '~/components/shell/AppBrand.vue'
 import AuthWorkspacePreview from './AuthWorkspacePreview.vue'
 
 const route = useRoute()
-const failed = computed(() => route.query.error === 'microsoft')
+const { $api } = useNuxtApp()
+const { data, status, refresh, error } = await useAsyncData('auth:providers', () => $api.auth.providers())
+const providers = computed(() => data.value?.data || [])
+const labels = { microsoft: 'Microsoft', google: 'Google' }
+const failed = computed(() => route.query.error === 'microsoft' || route.query.error === 'google')
 
-useFeedbackToast(() => failed.value ? 'Your sign-in was cancelled, expired, or could not be verified. Please try again.' : null, { key: 'microsoft-sign-in', title: 'Microsoft sign-in failed' })
+useFeedbackToast(() => failed.value ? 'Your sign-in was cancelled, expired, or could not be verified. If this email already has an account, use its original sign-in provider.' : null, { key: 'sign-in', title: 'Sign-in failed' })
+useFeedbackToast(error, { key: 'sign-in-providers', title: 'Unable to load sign-in options', retry: refresh })
 </script>
 
 <template>
@@ -49,52 +55,86 @@ useFeedbackToast(() => failed.value ? 'Your sign-in was cancelled, expired, or c
           One home for your notes, your projects, and the people you build with.
         </p>
 
-        <UButton
-          to="/api/auth/microsoft"
-          external
-          size="lg"
-          class="w-full justify-center min-h-ui-6xl gap-ui-md auth-sign-in"
+        <div
+          v-if="status === 'pending'"
+          class="text-sm text-muted"
+          role="status"
         >
-          <template #leading>
-            <span class="auth-microsoft-mark">
-              <svg
-                viewBox="0 0 21 21"
-                class="size-ui-lg"
-                aria-hidden="true"
+          Loading sign-in options…
+        </div>
+        <DataRetry
+          v-else-if="status === 'error'"
+          :on-retry="refresh"
+        />
+        <p
+          v-else-if="!providers.length"
+          class="text-sm text-muted"
+        >
+          Sign-in is currently disabled. Contact your administrator.
+        </p>
+        <div
+          v-else
+          class="flex flex-col gap-ui-md"
+        >
+          <UButton
+            v-for="provider in providers"
+            :key="provider"
+            :to="`/api/auth/${provider}`"
+            external
+            size="lg"
+            class="w-full justify-center min-h-ui-6xl gap-ui-md auth-sign-in"
+          >
+            <template #leading>
+              <span
+                v-if="provider === 'microsoft'"
+                class="auth-provider-mark"
               >
-                <path
-                  fill="#f25022"
-                  d="M0 0h10v10H0z"
-                />
-                <path
-                  fill="#7fba00"
-                  d="M11 0h10v10H11z"
-                />
-                <path
-                  fill="#00a4ef"
-                  d="M0 11h10v10H0z"
-                />
-                <path
-                  fill="#ffb900"
-                  d="M11 11h10v10H11z"
-                />
-              </svg>
-            </span>
-          </template>
-          Continue with Microsoft
-          <template #trailing>
-            <UIcon
-              name="i-lucide-arrow-right"
-              class="size-ui-lg ms-auto opacity-70"
-            />
-          </template>
-        </UButton>
+                <svg
+                  viewBox="0 0 21 21"
+                  class="size-ui-lg"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="#f25022"
+                    d="M0 0h10v10H0z"
+                  />
+                  <path
+                    fill="#7fba00"
+                    d="M11 0h10v10H11z"
+                  />
+                  <path
+                    fill="#00a4ef"
+                    d="M0 11h10v10H0z"
+                  />
+                  <path
+                    fill="#ffb900"
+                    d="M11 11h10v10H11z"
+                  />
+                </svg>
+              </span>
+              <span
+                v-else
+                class="auth-provider-mark"
+              ><UIcon
+                name="i-simple-icons-google"
+                class="size-ui-lg text-neutral-800"
+              /></span>
+            </template>
+            Continue with {{ labels[provider] }}
+            <template #trailing>
+              <UIcon
+                name="i-lucide-arrow-right"
+                class="size-ui-lg ms-auto opacity-70"
+              />
+            </template>
+          </UButton>
+        </div>
         <div class="auth-account-note">
           <UIcon
             name="i-lucide-shield-check"
             class="size-ui-lg shrink-0 mt-ui-2xs text-muted"
           />
-          <p>Use your organization’s Microsoft account.<br><span class="text-muted">Your team’s space is just one sign-in away.</span></p>
+          <p>Use an enabled sign-in provider to continue.<br><span class="text-muted">Your team’s space is just one sign-in away.</span></p>
         </div>
       </div>
       <p class="auth-entry-footer">
@@ -114,7 +154,7 @@ useFeedbackToast(() => failed.value ? 'Your sign-in was cancelled, expired, or c
 .auth-entry { height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: var(--spacing-ui-10xl) var(--spacing-ui-3xl) var(--spacing-ui-2xl); }
 .auth-entry-content { width: 100%; max-width: var(--container-auth-form); margin: auto; }
 .auth-entry h1 { color: var(--ui-text-highlighted); font-size: var(--text-4xl); font-weight: var(--font-weight-semibold); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
-.auth-microsoft-mark { display: grid; place-items: center; width: var(--spacing-ui-2xl); height: var(--spacing-ui-2xl); background: var(--color-white); border-radius: var(--radius-xs); flex-shrink: 0; }
+.auth-provider-mark { display: grid; place-items: center; width: var(--spacing-ui-2xl); height: var(--spacing-ui-2xl); background: var(--color-white); border-radius: var(--radius-xs); flex-shrink: 0; }
 .auth-sign-in { padding-inline: var(--spacing-ui-md); font-size: var(--text-sm); }
 .auth-account-note { display: flex; gap: var(--spacing-ui-sm); border-top: var(--app-border-thin) solid var(--ui-border-muted); padding-top: var(--spacing-ui-2xl); margin-top: var(--spacing-ui-2xl); font-size: var(--text-xs); line-height: var(--leading-loose); color: var(--ui-text-toned); }
 .auth-entry-footer { text-align: center; font-size: var(--text-xs); color: var(--ui-text-muted); }

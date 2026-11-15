@@ -26,7 +26,7 @@ const accounts: {
 let workspaceId = ''
 let imageFilename = ''
 async function createAccount(email: string) {
-  const session = await auth.login({ subject: `${randomUUID()}:${randomUUID()}`, email, name: 'Access tester' }, null)
+  const session = await auth.login({ provider: 'microsoft', subject: `${randomUUID()}:${randomUUID()}`, email, name: 'Access tester' }, null)
   return { userId: session.user.id, token: session.token, email }
 }
 async function login(email: string) {

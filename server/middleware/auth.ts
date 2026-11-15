@@ -13,7 +13,7 @@ export default apiHandler(async (event) => {
   if (!['GET', 'HEAD', 'OPTIONS'].includes(event.method)) {
     assertSameOrigin(event)
   }
-  if (['/api/auth/microsoft', '/api/auth/microsoft/callback'].includes(path) || path === '/api/health') {
+  if (['/api/auth/providers', '/api/auth/microsoft', '/api/auth/microsoft/callback', '/api/auth/google', '/api/auth/google/callback'].includes(path) || path === '/api/health') {
     return
   }
   event.context.user = await getApplication().services.auth.authenticate(sessionToken(event))

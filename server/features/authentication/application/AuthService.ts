@@ -1,7 +1,7 @@
 import { SESSION_TTL_SECONDS } from '../domain/SessionPolicy'
 import type { Clock } from '../../../core/ports/Clock'
 import type { TokenGenerator } from '../domain/TokenGenerator'
-import type { MicrosoftIdentity } from '../domain/MicrosoftIdentity'
+import type { ExternalIdentity } from '../domain/ExternalIdentity'
 import type { SessionRepository } from '../domain/SessionRepository'
 import type { UserRepository } from '../domain/UserRepository'
 import type { User } from '../../../../shared/model/user'
@@ -19,7 +19,7 @@ export class AuthService {
     return { id: user.id, email: user.email, name: user.name, avatar: user.avatar }
   }
 
-  async login(identity: MicrosoftIdentity, ip: string | null) {
+  async login(identity: ExternalIdentity, ip: string | null) {
     const user = await this.users.upsert(identity, ip)
     if (!user.isActive) {
       throw new ApplicationError('forbidden', 'Account is inactive')
