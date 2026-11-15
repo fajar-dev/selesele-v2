@@ -279,7 +279,8 @@ CREATE TABLE `sessions` (
 CREATE TABLE `users` (
 	`id` varchar(36) NOT NULL,
 	`email` varchar(255) NOT NULL,
-	`microsoft_subject` varchar(73) NOT NULL,
+	`microsoft_subject` varchar(73),
+	`google_subject` varchar(255),
 	`name` varchar(255),
 	`avatar` text,
 	`last_login_ip` varchar(45),
@@ -290,7 +291,8 @@ CREATE TABLE `users` (
 	`is_active` boolean DEFAULT true,
 	CONSTRAINT `users_id` PRIMARY KEY(`id`),
 	CONSTRAINT `users_email_unique` UNIQUE(`email`),
-	CONSTRAINT `users_microsoft_subject_unique` UNIQUE(`microsoft_subject`)
+	CONSTRAINT `users_microsoft_subject_unique` UNIQUE(`microsoft_subject`),
+	CONSTRAINT `users_google_subject_unique` UNIQUE(`google_subject`)
 );
 --> statement-breakpoint
 CREATE TABLE `workspace_activity` (

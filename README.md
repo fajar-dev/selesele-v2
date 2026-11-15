@@ -80,7 +80,7 @@ bun run dev
 
 Buka **http://localhost:3000**. Migrasi lokal dijalankan manual; Docker menjalankannya sebelum aplikasi dimulai.
 
-Schema development memakai baseline baru `drizzle/0000_schema.sql` dan capture realtime `drizzle/0001_realtime_capture.sql`, dengan 31 tabel. Rewrite ini mengganti model konten menjadi `items`; untuk lingkungan development lama, jalankan `bun run db:reset` satu kali. **Reset menghapus semua data development, termasuk akun dan session.** Setelah itu gunakan `bun run db:migrate` untuk perubahan schema berikutnya.
+Schema development memakai baseline baru `drizzle/0000_schema.sql` dan capture realtime `drizzle/0001_realtime_capture.sql`, dengan 31 tabel, termasuk identitas Microsoft dan Google tanpa migrasi tambahan. Rewrite ini mengganti model konten menjadi `items`; untuk lingkungan development lama, jalankan `bun run db:reset` satu kali. **Reset menghapus semua data development, termasuk akun dan session.** Setelah itu gunakan `bun run db:migrate` untuk perubahan schema berikutnya.
 
 ## Menjalankan dengan PM2
 

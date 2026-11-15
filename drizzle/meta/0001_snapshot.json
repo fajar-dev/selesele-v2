@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "0a796c07-c7e2-4085-bd1b-deec679c467a",
-  "prevId": "9b11894a-553d-48a1-b730-a1d9637c12e4",
+  "id": "367e2393-1639-45fb-9cbf-63beac58bd90",
+  "prevId": "473a4f8b-bbff-465b-8519-8c9e218a25b3",
   "tables": {
     "canvas_presence": {
       "name": "canvas_presence",
@@ -2590,7 +2590,14 @@
           "name": "microsoft_subject",
           "type": "varchar(73)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "google_subject": {
+          "name": "google_subject",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "name": {
@@ -2675,6 +2682,12 @@
           "name": "users_microsoft_subject_unique",
           "columns": [
             "microsoft_subject"
+          ]
+        },
+        "users_google_subject_unique": {
+          "name": "users_google_subject_unique",
+          "columns": [
+            "google_subject"
           ]
         }
       },
@@ -3091,7 +3104,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'🏡'"
+          "default": "'\ud83c\udfe1'"
         },
         "created_at": {
           "name": "created_at",

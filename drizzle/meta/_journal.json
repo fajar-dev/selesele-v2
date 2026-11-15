@@ -5,22 +5,15 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1794706662822,
+      "when": 1794714699562,
       "tag": "0000_schema",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "5",
-      "when": 1794706662823,
+      "when": 1794714699563,
       "tag": "0001_realtime_capture",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1794713178391,
-      "tag": "0002_google_authentication",
       "breakpoints": true
     }
   ]
