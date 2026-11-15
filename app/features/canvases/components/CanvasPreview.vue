@@ -2,6 +2,7 @@
 import { canvasContentSchema } from '#shared/validation/canvas'
 
 const { content } = defineProps<{
+  itemId?: string
   content: string
 }>()
 const data = computed(() => {
@@ -26,10 +27,12 @@ const DiagramEditor = defineAsyncComponent(() => import('~/features/diagrams/com
     /><WhiteboardEditor
       v-else-if="data.kind === 'whiteboard'"
       :content="data"
+      :item-id="itemId"
       readonly
     /><DiagramEditor
       v-else
       :content="data"
+      :item-id="itemId"
       readonly
     />
   </ClientOnly>

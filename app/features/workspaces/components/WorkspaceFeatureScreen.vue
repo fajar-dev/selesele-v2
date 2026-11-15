@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WorkspaceItem } from '#shared/contracts/workspace'
+import type { WorkspaceItem } from '#shared/model/workspace'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import ScreenContent from '~/components/ui/ScreenContent.vue'
 import ScreenHeading from '~/components/ui/ScreenHeading.vue'

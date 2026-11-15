@@ -1,5 +1,5 @@
-import type { ItemTemplate } from '../../../../../shared/kernel/library'
-import type { DrawingElement, WhiteboardContent } from '../../../../../shared/kernel/content'
+import type { ItemTemplate } from '../../../../../shared/model/library'
+import type { DrawingElement, WhiteboardContent } from '../../../../../shared/model/content'
 
 function text(id: string, type: 'text' | 'sticky', value: string, x: number, y: number, color = '#18181b'): DrawingElement {
   const lines = type === 'sticky' ? value.split('\n').flatMap(line => line.match(/.{1,24}(?:\s|$)|\S{1,24}/g)?.map(part => part.trim()) || ['']) : value.split('\n')

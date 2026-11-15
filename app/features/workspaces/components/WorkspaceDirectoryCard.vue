@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WorkspaceItem } from '#shared/contracts/workspace'
+import type { WorkspaceItem } from '#shared/model/workspace'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 
 defineProps<{ workspace: WorkspaceItem, layout: 'list' | 'grid' }>()

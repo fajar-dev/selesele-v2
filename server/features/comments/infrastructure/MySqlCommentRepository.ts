@@ -2,7 +2,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { CommentRepository } from '../domain/CommentRepository'
 import type { CommentThread } from '../domain/CommentThread'
-import type { CommentThreadInput } from '../../../../shared/contracts/comment'
+import type { CommentThreadInput } from '../../../../shared/model/comment'
 import type { Database } from '../../../platform/database/client'
 import { comments, commentThreads, users } from '../../../platform/database/schema'
 

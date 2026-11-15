@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DataRetry from '~/components/ui/DataRetry.vue'
-import type { WorkspaceItem } from '#shared/contracts/workspace'
+import type { WorkspaceItem } from '#shared/model/workspace'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import Breadcrumbs from '~/components/ui/Breadcrumbs.vue'
 import ScreenContent from '~/components/ui/ScreenContent.vue'

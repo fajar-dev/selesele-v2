@@ -1,4 +1,4 @@
-import { getContainer } from '../bootstrap/container'
+import { getApplication } from '../bootstrap/application'
 import { readMultipartFormData } from '@nuxt/nitro-server/h3'
 import { apiHandler } from '../platform/http/response'
 import { currentUser } from '../platform/http/session'
@@ -13,5 +13,5 @@ export default apiHandler(async (event) => {
     throw new ApplicationError('invalid_input', 'Select an image to upload')
   }
   const itemId = idSchema.parse(parts?.find(part => part.name === 'itemId')?.data.toString())
-  return getContainer().images.put(file.data, user.id, itemId)
+  return getApplication().services.images.put(file.data, user.id, itemId)
 })

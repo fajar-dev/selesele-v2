@@ -1,4 +1,4 @@
-import type { AccessGrant, AccessLevel, ResourceMode } from '../../../../shared/kernel/access'
+import type { AccessGrant, AccessLevel, ResourceMode } from '../../../../shared/model/access'
 import type { PolicySubject } from './accessPolicy'
 import { resolveResourceAccess } from './accessPolicy'
 

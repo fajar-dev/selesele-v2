@@ -1,4 +1,4 @@
-import { allowsWorkspaceAction, type WorkspaceCapability } from '../../../../shared/kernel/workspaceSettings'
+import { allowsWorkspaceAction, type WorkspaceCapability } from '../../../../shared/model/workspaceSettings'
 import type { WorkspaceRepository } from '../domain/WorkspaceRepository'
 import type { WorkspaceAuthorization } from '../domain/WorkspaceAuthorization'
 import { ApplicationError } from '../../../core/errors/ApplicationError'

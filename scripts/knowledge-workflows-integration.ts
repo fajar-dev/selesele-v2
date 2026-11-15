@@ -1,5 +1,5 @@
-import type { ItemTemplate } from '../shared/kernel/library'
-import type { CanvasSnapshot, KanbanContent } from '../shared/kernel/content'
+import type { ItemTemplate } from '../shared/model/library'
+import type { CanvasSnapshot, KanbanContent } from '../shared/model/content'
 import { strict as assert } from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { createConnection } from 'mysql2/promise'
@@ -7,18 +7,18 @@ import { drizzle } from 'drizzle-orm/mysql2'
 import { migrate } from 'drizzle-orm/mysql2/migrator'
 import { createDatabase } from '../server/platform/database/client'
 import { databaseConfig } from '../server/platform/database/config'
-import { AuthService } from '../server/features/identity/application/AuthService'
-import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
-import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
-import { CryptographicTokens } from '../server/features/identity/infrastructure/CryptographicTokens'
+import { AuthService } from '../server/features/authentication/application/AuthService'
+import { MySqlUserRepository } from '../server/features/authentication/infrastructure/MySqlUserRepository'
+import { MySqlSessionRepository } from '../server/features/authentication/infrastructure/MySqlSessionRepository'
+import { CryptographicTokens } from '../server/features/authentication/infrastructure/CryptographicTokens'
 import { SystemClock } from '../server/platform/runtime/SystemClock'
-import type { ConversationDetail, ConversationSummary } from '../shared/kernel/conversation'
-import type { MoveImpact, ResourcePolicy } from '../shared/kernel/access'
-import type { ContentItem } from '../shared/contracts/item'
-import type { MemberItem } from '../shared/kernel/member'
-import type { MyTask } from '../shared/contracts/task'
-import type { CommentThreadItem } from '../shared/contracts/comment'
-import type { NotificationItem } from '../shared/kernel/notification'
+import type { ConversationDetail, ConversationSummary } from '../shared/model/conversation'
+import type { MoveImpact, ResourcePolicy } from '../shared/model/access'
+import type { ContentItem } from '../shared/model/item'
+import type { MemberItem } from '../shared/model/member'
+import type { MyTask } from '../shared/model/task'
+import type { CommentThreadItem } from '../shared/model/comment'
+import type { NotificationItem } from '../shared/model/notification'
 
 const databaseName = `sele_features_test_${randomUUID().replaceAll('-', '')}`
 const admin = await createConnection({ ...databaseConfig(), database: undefined })
@@ -258,11 +258,11 @@ try {
     assert.equal(state.content.kind, kind)
     if (state.content.kind === 'whiteboard') {
       state.content.elements.push({ id: randomUUID(), type: 'pen', x: 10, y: 20, width: 80, height: 40, points: [[0, 0, 0.5], [40, 10, 0.7], [80, 40, 0.5]], text: '', color: '#2563eb', size: 4 })
-      state.content.elements.push({ id: randomUUID(), type: 'sticky', x: 100, y: 100, width: 200, height: 140, points: [], text: 'CanvasIdeasReview', color: '#d97706', size: 2 })
+      state.content.elements.push({ id: randomUUID(), type: 'sticky', x: 100, y: 100, width: 200, height: 140, points: [], text: 'CanvasIdeasReview', color: '#d97706', size: 2, fontSize: 24, fill: '#2563eb', opacity: 0.75, dashed: true, locked: true })
     } else if (state.content.kind === 'diagram') {
-      const node = (label: string, x: number) => ({ id: randomUUID(), type: 'shape' as const, position: { x, y: 10 }, data: { label, shape: 'rectangle' as const, color: '#18181b', width: 180, height: 90 } })
+      const node = (label: string, x: number) => ({ id: randomUUID(), type: 'shape' as const, position: { x, y: 10 }, data: { label, shape: 'cylinder' as const, color: '#18181b', width: 180, height: 90, fill: '#2563eb', fontSize: 18, dashed: true, locked: false } })
       state.content.nodes.push(node('CanvasFlowReview', 0), node('Done', 300))
-      state.content.edges.push({ id: randomUUID(), source: state.content.nodes[0]!.id, target: state.content.nodes[1]!.id, sourceHandle: 'right', targetHandle: 'left', label: 'Approved', type: 'smoothstep' })
+      state.content.edges.push({ id: randomUUID(), source: state.content.nodes[0]!.id, target: state.content.nodes[1]!.id, sourceHandle: 'right', targetHandle: 'left', label: 'Approved', type: 'default', color: '#9333ea', dashed: true, animated: true, arrow: 'both' })
     }
     const updated = await request<CanvasSnapshot>(1, path, 'PUT', { content: state.content, revision: 0 })
     assert.deepEqual(updated.content, state.content)

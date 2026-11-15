@@ -4,7 +4,7 @@ import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 
 export function usePersonalLibrary() {
   const { library } = useApi()
-  const query = useLazyAsyncData(libraryKeys.personal, async () => (await library.personal()).data, { server: false, default: () => ({ favorites: [], recent: [] }) })
+  const query = useRealtimeQuery(libraryKeys.personal, async () => (await library.personal()).data, { server: false, default: () => ({ favorites: [], recent: [] }) })
   useFeedbackToast(query.error, { key: libraryKeys.personal, title: 'Unable to load your items', recovered: () => query.status.value === 'success', retry: () => query.refresh() })
   const busy = ref(false)
   const toast = useToast()

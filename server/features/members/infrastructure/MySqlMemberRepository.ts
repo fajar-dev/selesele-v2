@@ -2,10 +2,10 @@ import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { and, asc, count, desc, eq, inArray, isNull, isNotNull, lt, or, sql } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { Database, DatabaseTransaction } from '../../../platform/database/client'
-import { groupMembers, memberGroups, notifications, resourceGrants, users, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { memberGroupMembers, memberGroups, notifications, resourceGrants, users, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import type { MemberRepository, MemberQuery } from '../domain/MemberRepository'
-import type { MemberItem, MemberAddInput, MemberAddResult, MemberGroup } from '../../../../shared/kernel/member'
-import { defaultWorkspaceSettings, allowsWorkspaceAction } from '../../../../shared/kernel/workspaceSettings'
+import type { MemberItem, MemberAddInput, MemberAddResult, MemberGroup } from '../../../../shared/model/member'
+import { defaultWorkspaceSettings, allowsWorkspaceAction } from '../../../../shared/model/workspaceSettings'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 import { requireMemberManagement } from '../domain/memberPolicy'
 import { appendWorkspaceActivity, appendWorkspaceActivities } from '../../settings/infrastructure/MySqlWorkspaceJournal'
@@ -38,7 +38,7 @@ export class MySqlMemberRepository implements MemberRepository {
     avatar: string | null
   }[]): Promise<MemberItem[]> {
     const ids = rows.map(row => row.member.id)
-    const groups = ids.length ? await this.db.select({ memberId: groupMembers.memberId, id: memberGroups.id, name: memberGroups.name }).from(groupMembers).innerJoin(memberGroups, eq(memberGroups.id, groupMembers.groupId)).where(inArray(groupMembers.memberId, ids)) : []
+    const groups = ids.length ? await this.db.select({ memberId: memberGroupMembers.memberId, id: memberGroups.id, name: memberGroups.name }).from(memberGroupMembers).innerJoin(memberGroups, eq(memberGroups.id, memberGroupMembers.groupId)).where(inArray(memberGroupMembers.memberId, ids)) : []
     const actorIds = [...new Set(rows.map(row => row.member.invitedBy).filter((id): id is string => !!id))]
     const actors = actorIds.length ? await this.db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(inArray(users.id, actorIds)) : []
     return rows.map(({ member, name, avatar }) => ({ id: member.id, userId: member.userId, email: member.email, name, avatar, role: member.role, joinedAt: member.joinedAt.toISOString(), lastActiveAt: member.lastActiveAt?.toISOString() ?? null, suspendedAt: member.suspendedAt?.toISOString() ?? null, invitedBy: actors.find(actor => actor.id === member.invitedBy)?.name || actors.find(actor => actor.id === member.invitedBy)?.email || null, groups: groups.filter(group => group.memberId === member.id).map(group => ({ id: group.id, name: group.name })) }))
@@ -50,7 +50,7 @@ export class MySqlMemberRepository implements MemberRepository {
 
   async directory(id: string, input: MemberQuery) {
     const search = `%${input.q.replaceAll('=', '==').replaceAll('%', '=%').replaceAll('_', '=_')}%`
-    const where = and(eq(workspaceMembers.workspaceId, id), input.q ? or(sql`${workspaceMembers.email} LIKE ${search} ESCAPE '='`, sql`${users.name} LIKE ${search} ESCAPE '='`) : undefined, input.role ? eq(workspaceMembers.role, input.role as MemberItem['role']) : undefined, input.status === 'suspended' ? isNotNull(workspaceMembers.suspendedAt) : input.status === 'unregistered' ? and(isNull(workspaceMembers.userId), isNull(workspaceMembers.suspendedAt)) : input.status === 'active' ? and(isNotNull(workspaceMembers.userId), isNull(workspaceMembers.suspendedAt)) : undefined, input.groupId ? sql`exists (select 1 from ${groupMembers} where ${groupMembers.memberId} = ${workspaceMembers.id} and ${groupMembers.groupId} = ${input.groupId})` : undefined)
+    const where = and(eq(workspaceMembers.workspaceId, id), input.q ? or(sql`${workspaceMembers.email} LIKE ${search} ESCAPE '='`, sql`${users.name} LIKE ${search} ESCAPE '='`) : undefined, input.role ? eq(workspaceMembers.role, input.role as MemberItem['role']) : undefined, input.status === 'suspended' ? isNotNull(workspaceMembers.suspendedAt) : input.status === 'unregistered' ? and(isNull(workspaceMembers.userId), isNull(workspaceMembers.suspendedAt)) : input.status === 'active' ? and(isNotNull(workspaceMembers.userId), isNull(workspaceMembers.suspendedAt)) : undefined, input.groupId ? sql`exists (select 1 from ${memberGroupMembers} where ${memberGroupMembers.memberId} = ${workspaceMembers.id} and ${memberGroupMembers.groupId} = ${input.groupId})` : undefined)
     const [rows, [total]] = await Promise.all([this.rows(id).where(and(where, input.cursor ? lt(workspaceMembers.id, input.cursor) : undefined)).orderBy(desc(workspaceMembers.id)).limit(51), this.db.select({ count: count() }).from(workspaceMembers).leftJoin(users, eq(users.id, workspaceMembers.userId)).where(where)])
     const items = await this.present(rows.slice(0, 50))
     return { items, total: total?.count ?? 0, nextCursor: rows.length > 50 ? items.at(-1)!.id : null }
@@ -92,7 +92,7 @@ export class MySqlMemberRepository implements MemberRepository {
             throw new ApplicationError('invalid_input', 'Group belongs to another workspace')
           }
           if (groups.length) {
-            await tx.insert(groupMembers).values(groups.map(group => ({ groupId: group.id, memberId })))
+            await tx.insert(memberGroupMembers).values(groups.map(group => ({ groupId: group.id, memberId })))
           }
           if (input.grants.length) {
             await tx.insert(resourceGrants).values(input.grants.map(grant => ({ workspaceId: id, itemId: grant.kind === 'item' ? grant.resourceId : null, folderId: grant.kind === 'folder' ? grant.resourceId : null, memberId, level: grant.level, expiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null })))
@@ -134,7 +134,7 @@ export class MySqlMemberRepository implements MemberRepository {
 
   async groups(id: string) {
     const rows = await this.db.select().from(memberGroups).where(eq(memberGroups.workspaceId, id)).orderBy(asc(memberGroups.name))
-    const members = rows.length ? await this.db.select().from(groupMembers).where(inArray(groupMembers.groupId, rows.map(row => row.id))) : []
+    const members = rows.length ? await this.db.select().from(memberGroupMembers).where(inArray(memberGroupMembers.groupId, rows.map(row => row.id))) : []
     return rows.map(row => ({ id: row.id, name: row.name, description: row.description, memberIds: members.filter(member => member.groupId === row.id).map(member => member.memberId) }))
   }
 
@@ -162,10 +162,10 @@ export class MySqlMemberRepository implements MemberRepository {
       } else {
         await tx.insert(memberGroups).values({ id: target, workspaceId: id, name: input.name, description: input.description })
       }
-      const previous = await tx.select().from(groupMembers).where(eq(groupMembers.groupId, target))
-      await tx.delete(groupMembers).where(eq(groupMembers.groupId, target))
+      const previous = await tx.select().from(memberGroupMembers).where(eq(memberGroupMembers.groupId, target))
+      await tx.delete(memberGroupMembers).where(eq(memberGroupMembers.groupId, target))
       if (members.length) {
-        await tx.insert(groupMembers).values(members.map(member => ({ groupId: target, memberId: member.id })))
+        await tx.insert(memberGroupMembers).values(members.map(member => ({ groupId: target, memberId: member.id })))
       }
       const affected = [...new Set([...previous.map(member => member.memberId), ...members.map(member => member.id)])]
       await appendWorkspaceActivities(tx, id, actorId, affected.map(memberId => ({ action: 'group.updated', target: input.name, context: { memberId } })))
@@ -182,7 +182,7 @@ export class MySqlMemberRepository implements MemberRepository {
       if (!group) {
         throw new ApplicationError('not_found', 'Group not found')
       }
-      const members = await tx.select().from(groupMembers).where(eq(groupMembers.groupId, groupId))
+      const members = await tx.select().from(memberGroupMembers).where(eq(memberGroupMembers.groupId, groupId))
       await tx.delete(memberGroups).where(eq(memberGroups.id, groupId))
       await appendWorkspaceActivities(tx, id, actorId, members.map(member => ({ action: 'group.deleted', target: group.name, context: { memberId: member.memberId } })))
     })

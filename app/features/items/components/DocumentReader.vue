@@ -1,24 +1,24 @@
 <script setup lang="ts">
+import ItemHeader from './ItemHeader.vue'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
 import * as Y from 'yjs'
 import { useNotificationTarget } from '~/features/notifications/composables/useNotificationTarget'
 import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Emoji } from '@tiptap/extension-emoji'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
-import type { ContentItem } from '#shared/contracts/item'
+import type { ContentItem } from '#shared/model/item'
 import { CustomMention } from '~/features/editor/extensions/MentionExtension'
 import { ImageUpload } from '~/features/editor/extensions/ImageUploadExtension'
 import { useApi } from '~/core/http/useApi'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 import { useItemComments } from '~/features/comments/composables/useItemComments'
 import CommentPanel from '~/features/comments/components/CommentPanel.vue'
-import AppHeader from '~/components/shell/AppHeader.vue'
-import Breadcrumbs from '~/components/ui/Breadcrumbs.vue'
+import ItemResourcesButton from '~/features/resources/components/ItemResourcesButton.vue'
 import ScreenContent from '~/components/ui/ScreenContent.vue'
 import ScreenHeading from '~/components/ui/ScreenHeading.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
@@ -34,9 +34,7 @@ const api = useApi()
 const editorRef = useTemplateRef<{
   editor: Editor | undefined
 }>('editorRef')
-const comments = useItemComments(item.id, editorRef, true, () => {
-  void refresh()
-})
+const comments = useItemComments(item.id, editorRef)
 const commentOpen = comments.open
 useNotificationTarget(editorRef, comments)
 const { data: workspace } = useWorkspace(item.workspaceId)
@@ -61,7 +59,7 @@ async function restoreItem() {
 const canComment = computed(() => !archived && item.accessLevel === 'comment')
 const document = new Y.Doc()
 const extensions = [Collaboration.configure({ document }), comments.extension, CustomMention, Emoji, ImageUpload, TableKit, TaskList, TaskItem, CodeBlockShiki.configure({ defaultTheme: 'material-theme', themes: { light: 'material-theme-lighter', dark: 'material-theme-palenight' } })]
-const { data: snapshot, status, error, refresh } = useLazyAsyncData(`reader-content:${item.id}`, async () => (await api.items.state(item.id)).data, { server: false })
+const { data: snapshot, status, error, refresh } = useRealtimeQuery(`reader-content:${item.id}`, async () => (await api.items.state(item.id)).data, { server: false })
 watch(snapshot, (state) => {
   if (state) {
     Y.applyUpdate(document, Uint8Array.from(atob(state), char => char.charCodeAt(0)))
@@ -74,28 +72,33 @@ useFeedbackToast(() => item.archivedAt ? 'This archived item is read-only. It ca
 
 <template>
   <div>
-    <AppHeader>
-      <template #left>
-        <Breadcrumbs :items="[{ label: workspaceName, to: `/workspaces/${item.workspaceId}` }, { label: item.title, emoji: item.icon }]" />
-      </template><template #right>
-        <UButton
-          v-if="canRestore"
-          label="Restore item"
-          icon="i-lucide-archive-restore"
-          color="neutral"
-          variant="outline"
-          :loading="restoring"
-          @click="restoreItem"
-        />
-        <UButton
-          icon="i-lucide-message-square"
-          label="Comments"
-          color="neutral"
-          variant="ghost"
-          @click="commentOpen = !commentOpen"
-        />
-      </template>
-    </AppHeader>
+    <ItemHeader
+      :item="item"
+      :workspace-name="workspaceName"
+      :workspace-icon="workspace?.workspace.icon"
+      :folders="workspace?.folders"
+    >
+      <UButton
+        v-if="canRestore"
+        label="Restore item"
+        icon="i-lucide-archive-restore"
+        color="neutral"
+        variant="outline"
+        :loading="restoring"
+        @click="restoreItem"
+      />
+      <UButton
+        icon="i-lucide-message-square"
+        label="Comments"
+        color="neutral"
+        variant="ghost"
+        @click="commentOpen = !commentOpen"
+      />
+      <ItemResourcesButton
+        :item-id="item.id"
+        readonly
+      />
+    </ItemHeader>
     <ScreenContent>
       <ScreenHeading
         :title="item.title"

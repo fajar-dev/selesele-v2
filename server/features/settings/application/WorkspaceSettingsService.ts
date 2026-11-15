@@ -2,7 +2,7 @@ import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAu
 import type { ItemAccess } from '../../items/domain/ItemAccess'
 import type { SettingsRepository } from '../domain/SettingsRepository'
 import type { WorkspaceArchive } from '../domain/WorkspaceArchive'
-import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '../../../../shared/kernel/workspaceSettings'
+import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '../../../../shared/model/workspaceSettings'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class WorkspaceSettingsService {

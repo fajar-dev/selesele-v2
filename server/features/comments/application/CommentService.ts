@@ -1,15 +1,14 @@
 import type { CanvasRepository } from '../../canvases/domain/CanvasRepository'
 import type { ActivityPublisher } from '../../notifications/domain/ActivityPublisher'
-import type { CommentEvents } from '../domain/CommentEvents'
 import type { CommentRepository } from '../domain/CommentRepository'
 import type { ItemAccess } from '../../items/domain/ItemAccess'
 import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
 import type { CommentThread } from '../domain/CommentThread'
-import type { CommentThreadInput, CommentThreadItem } from '../../../../shared/contracts/comment'
+import type { CommentThreadInput, CommentThreadItem } from '../../../../shared/model/comment'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class CommentService {
-  constructor(private readonly comments: CommentRepository, private readonly items: ItemAccess, private readonly access: WorkspaceAuthorization, private readonly events: CommentEvents, private readonly activity: ActivityPublisher, private readonly canvases?: CanvasRepository) {
+  constructor(private readonly comments: CommentRepository, private readonly items: ItemAccess, private readonly access: WorkspaceAuthorization, private readonly activity: ActivityPublisher, private readonly canvases?: CanvasRepository) {
   }
 
   async list(itemId: string, userId: string): Promise<CommentThreadItem[]> {
@@ -38,7 +37,6 @@ export class CommentService {
     }
     const id = await this.comments.create(itemId, input, userId)
     const thread = this.present(await this.requireThread(itemId, id))
-    await this.events.commentsChanged(itemId)
     await this.activity.comment(itemId, id, input.body, userId, 'comment')
     return thread
   }
@@ -51,7 +49,6 @@ export class CommentService {
     }
     await this.comments.reply(threadId, body, userId)
     const updated = this.present(await this.requireThread(itemId, threadId))
-    await this.events.commentsChanged(itemId)
     await this.activity.comment(itemId, threadId, body, userId, 'reply')
     return updated
   }
@@ -61,7 +58,6 @@ export class CommentService {
     await this.requireThread(itemId, threadId)
     await this.comments.resolve(threadId, resolved, userId)
     const updated = this.present(await this.requireThread(itemId, threadId))
-    await this.events.commentsChanged(itemId)
     return updated
   }
 
@@ -73,7 +69,6 @@ export class CommentService {
       await this.access.requireManager(item.workspaceId, userId)
     }
     await this.comments.delete(threadId)
-    await this.events.commentsChanged(itemId)
   }
 
   private async requireThread(itemId: string, threadId: string): Promise<CommentThread> {

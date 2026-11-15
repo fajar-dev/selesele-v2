@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
-import type { ResourceKind, AccessGrant, ResourceMode, AccessLevel } from '#shared/kernel/access'
+import type { ResourceKind, AccessGrant, ResourceMode, AccessLevel } from '#shared/model/access'
 import { useApi } from '~/core/http/useApi'
 import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import DetailPanel from '~/components/ui/DetailPanel.vue'
@@ -26,12 +26,20 @@ watch(open, (value) => {
   }
 })
 const { data: overview } = useWorkspace(workspaceId)
-const { data: groups, error: groupsError, status: groupsStatus, refresh: refreshGroups } = useLazyAsyncData(`member-groups:${workspaceId}`, async () => (await api.members.groups(workspaceId)).data, { server: false, default: () => [] })
-const { data: policy, status, error: loadError, refresh: refreshPolicy } = useLazyAsyncData(`resource-policy:${kind}:${resourceId}`, async () => (await api.access.get(workspaceId, kind, resourceId)).data, { server: false })
-watch(policy, (value) => {
+const { data: groups, error: groupsError, status: groupsStatus, refresh: refreshGroups } = useRealtimeQuery(`member-groups:${workspaceId}`, async () => (await api.members.groups(workspaceId)).data, { server: false, default: () => [] })
+const { data: policy, status, error: loadError, refresh: refreshPolicy } = useRealtimeQuery(`resource-policy:${kind}:${resourceId}`, async () => (await api.access.get(workspaceId, kind, resourceId)).data, { server: false })
+const stale = ref(false)
+watch(policy, (value, previous) => {
   if (value) {
-    mode.value = value.mode
-    grants.value = value.grants.map(item => ({ ...item }))
+    const dirty = previous && (mode.value !== previous.mode || JSON.stringify(grants.value) !== JSON.stringify(previous.grants))
+    if (dirty && (value.mode !== previous.mode || JSON.stringify(value.grants) !== JSON.stringify(previous.grants))) {
+      stale.value = true
+      return
+    }
+    if (!dirty) {
+      mode.value = value.mode
+      grants.value = value.grants.map(item => ({ ...item }))
+    }
   }
 }, { immediate: true })
 const subjects = computed(() => [{ label: 'Choose a person or group', value: 'choose' }, ...(overview.value?.members || []).filter(item => item.role !== 'owner').map(item => ({ label: item.name || item.email, value: `member:${item.id}` })), ...groups.value.map(item => ({ label: `Group · ${item.name}`, value: `group:${item.id}` }))])
@@ -60,6 +68,10 @@ function expiry(grant: AccessGrant, value: string | number) {
   grant.expiresAt = value ? new Date(value).toISOString() : null
 }
 async function save() {
+  if (stale.value) {
+    error.value = 'Access changed while you were editing. Load the latest policy before saving.'
+    return
+  }
   if (busy.value) {
     return
   }
@@ -84,7 +96,7 @@ useFeedbackToast(groupsError, { key: `member-groups:${workspaceId}`, title: 'Una
 <template>
   <DetailPanel
     v-model:open="open"
-    title="Document access"
+    :title="kind === 'folder' ? 'Folder access' : 'Item access'"
     description="Manage access for people and groups"
     icon="i-lucide-shield-check"
     wide
@@ -101,6 +113,14 @@ useFeedbackToast(groupsError, { key: `member-groups:${workspaceId}`, title: 'Una
           :on-retry="() => refreshPolicy()"
         />
         <template v-else-if="policy">
+          <UButton
+            v-if="stale"
+            label="Discard draft and load latest access"
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="outline"
+            @click="mode = policy.mode; grants = policy.grants.map(grant => ({ ...grant })); stale = false"
+          />
           <div>
             <h2 class="text-base font-semibold break-words">
               {{ policy.title }}

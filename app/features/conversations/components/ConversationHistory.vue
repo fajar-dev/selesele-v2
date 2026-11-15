@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ConversationSummary } from '#shared/kernel/conversation'
+import type { ConversationSummary } from '#shared/model/conversation'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import DataRetry from '~/components/ui/DataRetry.vue'
 

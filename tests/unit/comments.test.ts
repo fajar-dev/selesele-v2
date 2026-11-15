@@ -7,7 +7,7 @@ import { ItemService } from '../../server/features/items/application/ItemService
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
 import type { CommentRepository } from '../../server/features/comments/domain/CommentRepository'
 import type { CommentThread } from '../../server/features/comments/domain/CommentThread'
-import type { CommentThreadInput } from '../../shared/contracts/comment'
+import type { CommentThreadInput } from '../../shared/model/comment'
 import { commentThreadSchema, commentBodySchema, commentResolutionSchema } from '../../shared/validation/comment'
 
 const input: CommentThreadInput = { body: 'Please clarify this.', quote: 'Shared text', anchor: {
@@ -56,11 +56,7 @@ function fixture(structured = false) {
   }
   const canvases = { find: async () => snapshot, save: async () => snapshot }
   const repository = new MemoryComments()
-  const published: string[] = []
-  const events = { async commentsChanged(id: string) {
-    published.push(id)
-  } }
-  return { shapeId, snapshot, published, service: new CommentService(repository, itemService, access, events, silentActivity, canvases), repository, items, members, itemId: items.item.id }
+  return { shapeId, snapshot, service: new CommentService(repository, itemService, access, silentActivity, canvases), repository, items, members, itemId: items.item.id }
 }
 describe('text comment discussions', () => {
   test('members create, reply, resolve and reopen with public author information', async () => {
@@ -77,19 +73,16 @@ describe('text comment discussions', () => {
     expect((await service.resolve(itemId, thread.id, false, OWNER_ID)).resolvedAt).toBeNull()
     expect((await service.reply(itemId, thread.id, 'Reopened', EDITOR_ID)).messages).toHaveLength(3)
   })
-  test('publishes committed mutations only, including deletion, to the item room', async () => {
-    const { service, published, repository, itemId } = fixture()
+  test('commits valid mutations and rejects invalid replies and unauthorized deletion', async () => {
+    const { service, repository, itemId } = fixture()
     const thread = await service.create(itemId, input, OWNER_ID)
     expect(repository.rows.has(thread.id)).toBe(true)
-    expect(published).toEqual([itemId])
     await service.reply(itemId, thread.id, 'A reply', EDITOR_ID)
     await service.resolve(itemId, thread.id, true, OWNER_ID)
     await expect(service.reply(itemId, thread.id, 'Rejected', EDITOR_ID)).rejects.toMatchObject({ code: 'conflict' })
     await expect(service.delete(itemId, thread.id, EDITOR_ID)).rejects.toMatchObject({ code: 'forbidden' })
-    expect(published).toHaveLength(3)
     await service.delete(itemId, thread.id, OWNER_ID)
     expect(repository.rows.has(thread.id)).toBe(false)
-    expect(published).toEqual([itemId, itemId, itemId, itemId])
   })
   test('outsiders cannot list, create, read through mutations or delete discussions', async () => {
     const { service, itemId } = fixture()

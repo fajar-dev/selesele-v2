@@ -12,7 +12,7 @@ import { MySqlNotificationRepository } from '../server/features/notifications/in
 import { MySqlEmailOutbox } from '../server/features/mail/infrastructure/MySqlEmailOutbox'
 import { SmtpEmailSender } from '../server/features/mail/infrastructure/SmtpEmailSender'
 import { EmailDeliveryService } from '../server/features/mail/application/EmailDeliveryService'
-import { CryptographicTokens } from '../server/features/identity/infrastructure/CryptographicTokens'
+import { CryptographicTokens } from '../server/features/authentication/infrastructure/CryptographicTokens'
 import { deliveryPolicy } from '../server/features/mail/domain/deliveryPolicy'
 // Own both the database and SMTP listener: no configured relay or real recipient is used.
 const databaseName = `sele_mail_test_${randomUUID().replaceAll('-', '')}`

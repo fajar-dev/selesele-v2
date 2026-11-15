@@ -1,6 +1,6 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
-import type { ApiResponse } from '#shared/contracts/api'
-import type { WorkspaceSettingsOverview, WorkspaceUsage, WorkspaceActivityItem, WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '#shared/contracts/workspaceSettings'
+import type { ApiResponse } from '#shared/model/api'
+import type { WorkspaceSettingsOverview, WorkspaceUsage, WorkspaceActivityItem, WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '#shared/model/workspaceSettings'
 
 export class WorkspaceSettingsClient {
   constructor(private readonly http: ApiTransport) {

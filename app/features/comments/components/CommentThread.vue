@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CommentComposer from '~/features/comments/components/CommentComposer.vue'
-import type { CommentThreadItem } from '#shared/contracts/comment'
+import type { CommentThreadItem } from '#shared/model/comment'
 
 const props = defineProps<{
   thread: CommentThreadItem

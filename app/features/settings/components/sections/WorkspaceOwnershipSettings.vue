@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import ScreenSection from '~/components/ui/ScreenSection.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
-import type { WorkspaceOverview } from '#shared/contracts/workspace'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import type { WorkspaceOverview } from '#shared/model/workspace'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 
 const props = defineProps<{
   overview: WorkspaceOverview

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SignInScreen from '~/features/auth/components/SignInScreen.vue'
+import SignInScreen from '~/features/authentication/components/SignInScreen.vue'
 </script>
 
 <template>

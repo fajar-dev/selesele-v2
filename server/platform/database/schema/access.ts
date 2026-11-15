@@ -9,10 +9,10 @@ export const memberGroups = mysqlTable('member_groups', {
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 120 }).notNull(), description: varchar('description', { length: 500 }).notNull().default('')
 }, table => [uniqueIndex('member_groups_name_unique').on(table.workspaceId, table.name)])
-export const groupMembers = mysqlTable('group_members', {
+export const memberGroupMembers = mysqlTable('member_group_members', {
   groupId: varchar('group_id', { length: 36 }).notNull().references(() => memberGroups.id, { onDelete: 'cascade' }),
   memberId: varchar('member_id', { length: 36 }).notNull().references(() => workspaceMembers.id, { onDelete: 'cascade' })
-}, table => [primaryKey({ columns: [table.groupId, table.memberId] }), index('group_members_member_index').on(table.memberId)])
+}, table => [primaryKey({ columns: [table.groupId, table.memberId] }), index('member_group_members_member_index').on(table.memberId)])
 export const resourceGrants = mysqlTable('resource_grants', {
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),

@@ -2,7 +2,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
 import { items, canvases, workspaces, workspaceMembers } from '../../../platform/database/schema'
 import { loadResourceScope } from '../../access/infrastructure/resourceScope'
-import type { MyTask } from '../../../../shared/contracts/task'
+import type { MyTask } from '../../../../shared/model/task'
 
 export class MySqlTaskRepository {
   constructor(private readonly db: Database) {}

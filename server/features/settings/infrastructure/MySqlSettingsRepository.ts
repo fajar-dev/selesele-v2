@@ -1,11 +1,11 @@
 import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { and, count, desc, eq, isNull, lt, sql, inArray, or } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
-import { canvases, documents, folders, items, imageUploads, users, workspaceActivity, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { itemAttachments, relatedItems, canvases, documents, folders, items, documentImages, users, workspaceActivity, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import { appendWorkspaceActivity } from './MySqlWorkspaceJournal'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
-import { defaultNotificationPreferences, defaultWorkspaceSettings } from '../../../../shared/kernel/workspaceSettings'
-import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '../../../../shared/kernel/workspaceSettings'
+import { defaultNotificationPreferences, defaultWorkspaceSettings } from '../../../../shared/model/workspaceSettings'
+import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences } from '../../../../shared/model/workspaceSettings'
 import type { SettingsRepository } from '../domain/SettingsRepository'
 
 export class MySqlSettingsRepository implements SettingsRepository {
@@ -74,8 +74,14 @@ export class MySqlSettingsRepository implements SettingsRepository {
             .leftJoin(documents, eq(documents.itemId, items.id)).leftJoin(canvases, eq(canvases.itemId, items.id)).leftJoin(folders, eq(folders.id, items.folderId))
             .where(and(eq(items.workspaceId, id), inArray(items.id, allowedItems), isNull(items.deletedAt), isNull(folders.deletedAt)))
         : []
-      const images = allowedItems.length ? await tx.select({ filename: imageUploads.filename }).from(imageUploads).where(inArray(imageUploads.itemId, allowedItems)) : []
-      return { name: workspace!.name, attachments: images.map(image => image.filename), folders: directories, items: notes.map(row => ({ ...row, markdown: row.markdown ?? '' })) }
+      const images = allowedItems.length ? await tx.select({ filename: documentImages.filename }).from(documentImages).where(inArray(documentImages.itemId, allowedItems)) : []
+      const [fileSize] = allowedItems.length ? await tx.select({ bytes: sql<number>`coalesce(sum(${itemAttachments.size}), 0)` }).from(itemAttachments).where(inArray(itemAttachments.itemId, allowedItems)) : []
+      if (Number(fileSize?.bytes || 0) > 50 * 1024 * 1024) {
+        throw new ApplicationError('invalid_input', 'Workspace export exceeds the 50 MB limit')
+      }
+      const files = allowedItems.length ? await tx.select({ id: itemAttachments.id, itemId: itemAttachments.itemId, name: itemAttachments.name, mime: itemAttachments.mime, anchor: itemAttachments.anchor, data: itemAttachments.data }).from(itemAttachments).where(inArray(itemAttachments.itemId, allowedItems)) : []
+      const relations = allowedItems.length ? await tx.select({ sourceId: relatedItems.sourceId, targetId: relatedItems.targetId, sourceAnchor: relatedItems.sourceAnchor, targetAnchor: relatedItems.targetAnchor, label: relatedItems.label }).from(relatedItems).where(and(inArray(relatedItems.sourceId, allowedItems), inArray(relatedItems.targetId, allowedItems))) : []
+      return { files, relations, name: workspace!.name, attachments: images.map(image => image.filename), folders: directories, items: notes.map(row => ({ ...row, markdown: row.markdown ?? '' })) }
     }, { isolationLevel: 'repeatable read', accessMode: 'read only' })
   }
 

@@ -1,35 +1,50 @@
+import type { SearchFilters } from '../../../../shared/model/itemResources'
 import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { and, desc, eq, isNotNull, isNull, or, sql, inArray } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
-import { canvases, documents, folders, itemActivity, itemLinks, items, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { canvases, documents, folders, itemPreferences, itemLinks, items, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import { itemVisibility } from '../../../platform/database/itemVisibility'
 import type { LibraryRepository } from '../domain/LibraryRepository'
-import type { LibraryEntry } from '../../../../shared/contracts/library'
+import type { LibraryEntry } from '../../../../shared/model/library'
 
 const body = sql<string>`coalesce(${documents.markdown}, ${canvases.summary}, '')`
-const columns = { id: items.id, kind: sql<'item'>`'item'`, workspaceId: items.workspaceId, title: items.title, icon: items.icon, snippet: sql<string>`substring(${body}, 1, 240)` }
+const columns = { id: items.id, kind: sql<'item'>`'item'`, workspaceId: items.workspaceId, title: items.title, icon: items.icon, itemKind: items.kind, snippet: sql<string>`substring(${body}, 1, 240)` }
 const pattern = (value: string) => `%${value.replaceAll('=', '==').replaceAll('%', '=%').replaceAll('_', '=_')}%`
 const contains = (column: typeof items.title | typeof documents.markdown | typeof body, value: string) => sql`${column} LIKE ${pattern(value)} ESCAPE '='`
 export class MySqlLibraryRepository implements LibraryRepository {
   constructor(private readonly db: Database) {
   }
 
-  private readable(userId: string) {
-    return this.db.select(columns).from(items).leftJoin(documents, eq(documents.itemId, items.id)).leftJoin(canvases, eq(canvases.itemId, items.id))
+  private readable(userId: string, term = '') {
+    const snippet = term ? sql<string>`substring(${body}, greatest(1, locate(lower(${term}), lower(${body})) - 60), 240)` : columns.snippet
+    return this.db.select({ ...columns, snippet }).from(items).leftJoin(documents, eq(documents.itemId, items.id)).leftJoin(canvases, eq(canvases.itemId, items.id))
       .innerJoin(workspaces, eq(workspaces.id, items.workspaceId)).innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id))
       .leftJoin(folders, eq(folders.id, items.folderId)).where(itemVisibility(userId)).$dynamic()
   }
 
-  async search(userId: string, query: string, workspaceId?: string): Promise<LibraryEntry[]> {
-    if (!query.trim()) {
+  async search(userId: string, query: string, workspaceId?: string, filters: SearchFilters = {}): Promise<LibraryEntry[]> {
+    if (!query.trim() && !workspaceId && !Object.values(filters).some(Boolean)) {
       return []
     }
     const scope = await loadResourceScope(this.db, userId, workspaceId)
     const itemIds = scope.allowed('item')
     const folderIds = scope.allowed('folder')
+    const filtered = !!workspaceId || Object.values(filters).some(Boolean)
+    const label = filters.label?.replaceAll('=', '==').replaceAll('%', '=%').replaceAll('_', '=_')
     const itemRows = itemIds.length
-      ? await this.readable(userId).where(and(inArray(items.id, itemIds), itemVisibility(userId), workspaceId ? eq(items.workspaceId, workspaceId) : undefined, or(contains(items.title, query), contains(body, query)))).orderBy(desc(items.updatedAt)).limit(30)
+      ? await this.readable(userId, query).where(and(inArray(items.id, itemIds), itemVisibility(userId), workspaceId ? eq(items.workspaceId, workspaceId) : undefined,
+          query.trim() ? or(contains(items.title, query), contains(body, query)) : undefined,
+          filters.kind ? eq(items.kind, filters.kind) : undefined,
+          filters.createdBy ? eq(items.createdBy, filters.createdBy) : undefined,
+          filters.folderId ? eq(items.folderId, filters.folderId) : undefined,
+          filters.updatedAfter ? sql`${items.updatedAt} >= ${`${filters.updatedAfter} 00:00:00`}` : undefined,
+          filters.updatedBefore ? sql`${items.updatedAt} < date_add(${filters.updatedBefore}, interval 1 day)` : undefined,
+          label ? sql`JSON_SEARCH(${canvases.content}, 'one', ${label}, '=', '$.tasks[*].labels[*]') IS NOT NULL` : undefined
+        )).orderBy(desc(items.updatedAt)).limit(50)
       : []
+    if (filtered) {
+      return itemRows
+    }
     const workspaceRows = await this.db.select({ id: workspaces.id, workspaceId: workspaces.id, title: workspaces.name, icon: workspaces.icon, snippet: workspaces.description }).from(workspaces)
       .innerJoin(workspaceMembers, eq(workspaceMembers.workspaceId, workspaces.id)).where(and(eq(workspaceMembers.userId, userId), isNull(workspaceMembers.suspendedAt), isNull(workspaces.deletedAt), workspaceId ? eq(workspaces.id, workspaceId) : undefined, sql`${workspaces.name} LIKE ${pattern(query)} ESCAPE '='`)).limit(10)
     const folderRows = folderIds.length
@@ -45,22 +60,22 @@ export class MySqlLibraryRepository implements LibraryRepository {
     if (!ids.length) {
       return { favorites: [], recent: [] }
     }
-    const query = () => this.readable(userId).innerJoin(itemActivity, and(eq(itemActivity.itemId, items.id), eq(itemActivity.userId, userId)))
+    const query = () => this.readable(userId).innerJoin(itemPreferences, and(eq(itemPreferences.itemId, items.id), eq(itemPreferences.userId, userId)))
     const [favorites, recent] = await Promise.all([
-      query().where(and(inArray(items.id, ids), itemVisibility(userId), isNotNull(itemActivity.favoriteAt))).orderBy(desc(itemActivity.favoriteAt)).limit(100),
-      query().where(and(inArray(items.id, ids), itemVisibility(userId), isNotNull(itemActivity.visitedAt))).orderBy(desc(itemActivity.visitedAt)).limit(20)
+      query().where(and(inArray(items.id, ids), itemVisibility(userId), isNotNull(itemPreferences.favoriteAt))).orderBy(desc(itemPreferences.favoriteAt)).limit(100),
+      query().where(and(inArray(items.id, ids), itemVisibility(userId), isNotNull(itemPreferences.visitedAt))).orderBy(desc(itemPreferences.visitedAt)).limit(20)
     ])
     return { favorites, recent }
   }
 
   async favorite(userId: string, itemId: string, favorite: boolean) {
     const favoriteAt = favorite ? new Date() : null
-    await this.db.insert(itemActivity).values({ userId, itemId, favoriteAt }).onDuplicateKeyUpdate({ set: { favoriteAt } })
+    await this.db.insert(itemPreferences).values({ userId, itemId, favoriteAt }).onDuplicateKeyUpdate({ set: { favoriteAt } })
   }
 
   async visit(userId: string, itemId: string) {
     const visitedAt = new Date()
-    await this.db.insert(itemActivity).values({ userId, itemId, visitedAt }).onDuplicateKeyUpdate({ set: { visitedAt } })
+    await this.db.insert(itemPreferences).values({ userId, itemId, visitedAt }).onDuplicateKeyUpdate({ set: { visitedAt } })
   }
 
   async backlinks(userId: string, itemId: string) {

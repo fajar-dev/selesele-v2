@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ScreenSection from '~/components/ui/ScreenSection.vue'
-import type { WorkspaceNotificationPreferences } from '#shared/contracts/workspaceSettings'
+import type { WorkspaceNotificationPreferences } from '#shared/model/workspaceSettings'
 
 defineProps<{
   busy: boolean

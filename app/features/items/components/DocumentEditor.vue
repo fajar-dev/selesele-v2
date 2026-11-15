@@ -1,33 +1,29 @@
 <script setup lang="ts">
+import ItemHeader from './ItemHeader.vue'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
 import { useNotificationTarget } from '~/features/notifications/composables/useNotificationTarget'
 import { refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
-import type { WorkspaceItem, WorkspaceMember, FolderItem } from '#shared/contracts/workspace'
+import type { WorkspaceItem, WorkspaceMember, FolderItem } from '#shared/model/workspace'
 import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
-import ItemHistory from '~/features/recovery/components/ItemHistory.vue'
+import ItemToolbar from './ItemToolbar.vue'
 import ItemBacklinks from '~/features/library/components/ItemBacklinks.vue'
-import { usePersonalLibrary } from '~/features/library/composables/usePersonalLibrary'
 import { useApi } from '~/core/http/useApi'
-import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
 import { useDocumentEditor } from '~/features/items/composables/useDocumentEditor'
 import ItemMetadata from '~/features/items/components/ItemMetadata.vue'
 import { useItemActions } from '~/features/items/composables/useItemActions'
-import AppHeader from '~/components/shell/AppHeader.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
-import Breadcrumbs from '~/components/ui/Breadcrumbs.vue'
 import ScreenContent from '~/components/ui/ScreenContent.vue'
-import ScreenToolbar from '~/components/ui/ScreenToolbar.vue'
 import CommentPanel from '~/features/comments/components/CommentPanel.vue'
 import EditorCollaborationUsers from '~/features/editor/components/EditorCollaborationUsers.vue'
 import EditorLinkPopover from '~/features/editor/components/EditorLinkPopover.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 import { useItemComments } from '~/features/comments/composables/useItemComments'
 import type { DropdownMenuItem, EditorDragHandleProps } from '@nuxt/ui'
-import { useFullscreen } from '@vueuse/core'
-import type { ContentItem } from '#shared/contracts/item'
+import { useContentFullscreen } from '~/core/layout/useContentFullscreen'
+import type { ContentItem } from '#shared/model/item'
 import { showImageToolbar, showTableToolbar, showTextToolbar } from '~/features/editor/utils/editorSelection'
 
 const props = defineProps<{
@@ -44,15 +40,7 @@ const emit = defineEmits<{
 }>()
 const { state: auth } = useAuth()
 const { save: saveMetadata, exporting: isExporting, exportMarkdown, remove: onConfirmDelete } = useItemActions(() => props.item, item => emit('updated', item))
-const personal = usePersonalLibrary()
 const { library, items: itemApi } = useApi()
-const favorite = computed(() => personal.data.value.favorites.some(item => item.id === props.item.id))
-onMounted(async () => {
-  try {
-    await library.visit(props.item.id)
-    await personal.refresh()
-  } catch { /* Feedback is owned by the caller; preserve the current draft or retry state. */ }
-})
 const deleteOpen = ref(false)
 const accessOpen = ref(false)
 const editorRef = useTemplateRef('editorRef')
@@ -60,13 +48,8 @@ const comments = useItemComments(props.item.id, editorRef)
 useNotificationTarget(editorRef, comments)
 const commentOpen = comments.open
 const textToolbarItems = computed(() => [[{ label: 'Comment', icon: 'i-lucide-message-square-plus', onClick: () => comments.start() }], ...bubbleToolbarItems.value])
-const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
-const { collaborationReady, collaborationConnected, collaborationError, connectedUsers, customHandlers, extensions, toolbarItems, bubbleToolbarItems, getImageToolbarItems, getTableToolbarItems, emojiItems, mentionItems, suggestionItems, getDragHandleItems, onNodeChange } = useDocumentEditor(props.item.id, () => props.members, editorRef, { annotationExtension: comments.extension, onCommentsChanged: comments.synchronize })
-const breadcrumbItems = computed(() => [
-  { label: props.workspaceName, emoji: props.workspaceIcon, icon: 'i-lucide-panels-top-left', to: `/workspaces/${props.item.workspaceId}` },
-  ...(props.item.folderId ? [{ label: props.folders.find(folder => folder.id === props.item.folderId)?.name || 'Folder', emoji: props.folders.find(folder => folder.id === props.item.folderId)?.icon || DEFAULT_FOLDER_ICON, to: `/workspaces/${props.item.workspaceId}?folder=${props.item.folderId}` }] : []),
-  { label: props.item.title, emoji: props.item.icon, icon: 'i-lucide-file', to: `/workspaces/${props.item.workspaceId}/items/${props.item.id}` }
-])
+const { isFullscreen, toggle: toggleFullscreen } = useContentFullscreen()
+const { collaborationReady, collaborationConnected, collaborationError, connectedUsers, customHandlers, extensions, toolbarItems, bubbleToolbarItems, getImageToolbarItems, getTableToolbarItems, emojiItems, mentionItems, suggestionItems, getDragHandleItems, onNodeChange } = useDocumentEditor(props.item.id, () => props.members, editorRef, { annotationExtension: comments.extension })
 // Keep the visual gutter inside the handle's hit area so leaving the document
 // enters the controls directly instead of crossing a gap that hides them.
 const dragHandleOptions: EditorDragHandleProps['options'] = {
@@ -124,39 +107,42 @@ useFeedbackToast(collaborationError, { key: `item-collaboration:${props.item.id}
 </script>
 
 <template>
-  <div>
-    <AppHeader>
-      <template #right>
-        <UTooltip :text="collaborationConnected ? 'Changes sync automatically with your workspace' : 'Trying to restore the live connection'">
-          <span
-            role="status"
-            :aria-label="collaborationConnected ? 'Live sync' : 'Reconnecting…'"
-            class="inline-flex items-center gap-ui-xs text-xs text-muted whitespace-nowrap"
-          >
-            <UIcon
-              :name="collaborationConnected ? 'i-lucide-cloud-check' : 'i-lucide-loader-circle'"
-              :class="['size-ui-md', { 'animate-spin': !collaborationConnected }]"
-            />
-            <span class="hidden sm:inline">{{ collaborationConnected ? 'Live sync' : 'Reconnecting…' }}</span>
-          </span>
-        </UTooltip>
-        <EditorCollaborationUsers
-          :users="connectedUsers"
-        />
-        <ConfirmationDialog
-          v-model:open="deleteOpen"
-          title="Delete item"
-          :description="`“${item.title}” will be moved to Trash. You can restore it later.`"
-          confirm-label="Delete"
-          :on-confirm="onConfirmDelete"
-        />
-      </template>
-
-      <template #left>
-        <Breadcrumbs :items="breadcrumbItems" />
-      </template>
-    </AppHeader>
-    <ScreenContent>
+  <div :class="{ 'content-fullscreen content-fullscreen-document': isFullscreen }">
+    <div v-show="!isFullscreen">
+      <ItemHeader
+        :item="item"
+        :workspace-name="workspaceName"
+        :workspace-icon="workspaceIcon"
+        :folders="folders"
+      >
+        <template #default>
+          <UTooltip :text="collaborationConnected ? 'Changes sync automatically with your workspace' : 'Trying to restore the live connection'">
+            <span
+              role="status"
+              :aria-label="collaborationConnected ? 'Live sync' : 'Reconnecting…'"
+              class="inline-flex items-center gap-ui-xs text-xs text-muted whitespace-nowrap"
+            >
+              <UIcon
+                :name="collaborationConnected ? 'i-lucide-cloud-check' : 'i-lucide-loader-circle'"
+                :class="['size-ui-md', { 'animate-spin': !collaborationConnected }]"
+              />
+              <span class="hidden sm:inline">{{ collaborationConnected ? 'Live sync' : 'Reconnecting…' }}</span>
+            </span>
+          </UTooltip>
+          <EditorCollaborationUsers
+            :users="connectedUsers"
+          />
+          <ConfirmationDialog
+            v-model:open="deleteOpen"
+            title="Delete item"
+            :description="`“${item.title}” will be moved to Trash. You can restore it later.`"
+            confirm-label="Delete"
+            :on-confirm="onConfirmDelete"
+          />
+        </template>
+      </ItemHeader>
+    </div>
+    <ScreenContent v-show="!isFullscreen">
       <ItemMetadata
         :item="item"
         :on-save="saveMetadata"
@@ -185,63 +171,28 @@ useFeedbackToast(collaborationError, { key: `item-collaboration:${props.item.id}
         content: 'workspace-content'
       }"
     >
-      <div class="workspace-content mt-ui-2xl">
-        <ScreenToolbar>
-          <template #left>
-            <UEditorToolbar
-              :editor="editor"
-              :items="toolbarItems"
-              :ui="{ base: 'gap-ui-xs', group: 'gap-ui-xs', separator: 'h-ui-lg self-center mx-ui-xs bg-(--ui-border-muted)' }"
-            />
-          </template>
-
-          <template #right>
-            <UButton
-              :aria-label="favorite ? 'Remove from favorites' : 'Add to favorites'"
-              icon="i-lucide-star"
-              :active="favorite"
-              :aria-pressed="favorite"
-              active-variant="soft"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :loading="personal.busy.value"
-              @click="personal.favorite(item.id)"
-            />
-            <ItemHistory :item-id="item.id" />
+      <div class="workspace-content mt-ui-2xl document-toolbar">
+        <ItemToolbar
+          :item-id="item.id"
+          kind="document"
+          :comment-count="comments.openCount.value"
+          :fullscreen="isFullscreen"
+          export-label="Export Markdown"
+          :exporting="isExporting"
+          @comments="commentOpen = !commentOpen"
+          @fullscreen="toggleFullscreen"
+          @export="exportMarkdown"
+        >
+          <UEditorToolbar
+            :editor="editor"
+            :items="toolbarItems"
+            size="sm"
+            :ui="{ base: 'gap-ui-xs', group: 'gap-ui-xs', separator: 'h-ui-lg self-center mx-ui-xs bg-(--ui-border-muted)' }"
+          />
+          <template #related>
             <ItemBacklinks :item-id="item.id" />
-            <UButton
-              :label="comments.openCount.value ? `Comments ${comments.openCount.value}` : 'Comments'"
-              aria-label="Open comments"
-              icon="i-lucide-message-square"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click="commentOpen = !commentOpen"
-            />
-            <UTooltip text="Export as Markdown">
-              <UButton
-                aria-label="Export Markdown"
-                icon="i-lucide-download"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="text-muted hover:text-highlighted"
-                :loading="isExporting"
-                @click="exportMarkdown"
-              />
-            </UTooltip>
-            <UTooltip :text="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'">
-              <UButton
-                size="sm"
-                variant="ghost"
-                color="neutral"
-                class="text-muted hover:text-highlighted"
-                :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
-                :aria-label="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'"
-                @click="toggleFullscreen"
-              />
-            </UTooltip>
+          </template>
+          <template #more>
             <UDropdownMenu
               v-if="itemsItems.length"
               :items="itemsItems"
@@ -265,7 +216,7 @@ useFeedbackToast(collaborationError, { key: `item-collaboration:${props.item.id}
               />
             </UDropdownMenu>
           </template>
-        </ScreenToolbar>
+        </ItemToolbar>
       </div>
       <UEditorToolbar
         :editor="editor"

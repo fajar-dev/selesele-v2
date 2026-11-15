@@ -1,5 +1,5 @@
-import type { ConversationDetail, ConversationSummary } from '../../../../shared/kernel/conversation'
-import type { KnowledgeAnswer } from '../../../../shared/kernel/library'
+import type { ConversationDetail, ConversationSummary } from '../../../../shared/model/conversation'
+import type { KnowledgeAnswer } from '../../../../shared/model/library'
 
 export interface ConversationRepository {
   list(workspaceId: string, userId: string, query?: string): Promise<ConversationSummary[]>

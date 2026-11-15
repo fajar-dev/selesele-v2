@@ -1,9 +1,105 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "7faaa126-6603-4edf-b9cb-6c1b9ce0c3c5",
+  "id": "9b11894a-553d-48a1-b730-a1d9637c12e4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "canvas_presence": {
+      "name": "canvas_presence",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cursor": {
+          "name": "cursor",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "selected": {
+          "name": "selected",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "canvas_presence_item": {
+          "name": "canvas_presence_item",
+          "columns": [
+            "item_id",
+            "updated_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "canvas_presence_item_id_items_id_fk": {
+          "name": "canvas_presence_item_id_items_id_fk",
+          "tableFrom": "canvas_presence",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "canvas_presence_user_id_users_id_fk": {
+          "name": "canvas_presence_user_id_users_id_fk",
+          "tableFrom": "canvas_presence",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "canvas_presence_session_id": {
+          "name": "canvas_presence_session_id",
+          "columns": [
+            "session_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "item_canvases": {
       "name": "item_canvases",
       "columns": {
@@ -112,7 +208,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -120,7 +216,7 @@
         },
         "resolved_at": {
           "name": "resolved_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -228,7 +324,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -284,8 +380,8 @@
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
-    "ai_conversation_messages": {
-      "name": "ai_conversation_messages",
+    "conversation_messages": {
+      "name": "conversation_messages",
       "columns": {
         "id": {
           "name": "id",
@@ -342,10 +438,10 @@
         }
       },
       "foreignKeys": {
-        "ai_conversation_messages_conversation_id_ai_conversations_id_fk": {
-          "name": "ai_conversation_messages_conversation_id_ai_conversations_id_fk",
-          "tableFrom": "ai_conversation_messages",
-          "tableTo": "ai_conversations",
+        "conversation_messages_conversation_id_conversations_id_fk": {
+          "name": "conversation_messages_conversation_id_conversations_id_fk",
+          "tableFrom": "conversation_messages",
+          "tableTo": "conversations",
           "columnsFrom": [
             "conversation_id"
           ],
@@ -357,8 +453,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "ai_conversation_messages_id": {
-          "name": "ai_conversation_messages_id",
+        "conversation_messages_id": {
+          "name": "conversation_messages_id",
           "columns": [
             "id"
           ]
@@ -367,8 +463,8 @@
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
-    "ai_conversations": {
-      "name": "ai_conversations",
+    "conversations": {
+      "name": "conversations",
       "columns": {
         "id": {
           "name": "id",
@@ -390,6 +486,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "pinned": {
+          "name": "pinned",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "title": {
           "name": "title",
@@ -427,9 +531,9 @@
         }
       },
       "foreignKeys": {
-        "ai_conversations_workspace_id_workspaces_id_fk": {
-          "name": "ai_conversations_workspace_id_workspaces_id_fk",
-          "tableFrom": "ai_conversations",
+        "conversations_workspace_id_workspaces_id_fk": {
+          "name": "conversations_workspace_id_workspaces_id_fk",
+          "tableFrom": "conversations",
           "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
@@ -440,9 +544,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "ai_conversations_user_id_users_id_fk": {
-          "name": "ai_conversations_user_id_users_id_fk",
-          "tableFrom": "ai_conversations",
+        "conversations_user_id_users_id_fk": {
+          "name": "conversations_user_id_users_id_fk",
+          "tableFrom": "conversations",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -455,10 +559,172 @@
         }
       },
       "compositePrimaryKeys": {
-        "ai_conversations_id": {
-          "name": "ai_conversations_id",
+        "conversations_id": {
+          "name": "conversations_id",
           "columns": [
             "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "document_images": {
+      "name": "document_images",
+      "columns": {
+        "filename": {
+          "name": "filename",
+          "type": "varchar(48)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "document_images_item_id_items_id_fk": {
+          "name": "document_images_item_id_items_id_fk",
+          "tableFrom": "document_images",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "document_images_user_id_users_id_fk": {
+          "name": "document_images_user_id_users_id_fk",
+          "tableFrom": "document_images",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "document_images_filename": {
+          "name": "document_images_filename",
+          "columns": [
+            "filename"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "document_presence": {
+      "name": "document_presence",
+      "columns": {
+        "item_id": {
+          "name": "item_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "mediumblob",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "document_presence_expiry": {
+          "name": "document_presence_expiry",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "document_presence_item_id_items_id_fk": {
+          "name": "document_presence_item_id_items_id_fk",
+          "tableFrom": "document_presence",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "document_presence_user_id_users_id_fk": {
+          "name": "document_presence_user_id_users_id_fk",
+          "tableFrom": "document_presence",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "document_presence_item_id_client_id_pk": {
+          "name": "document_presence_item_id_client_id_pk",
+          "columns": [
+            "item_id",
+            "client_id"
           ]
         }
       },
@@ -491,11 +757,10 @@
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "onUpdate": true,
           "default": "(now())"
         }
       },
@@ -807,14 +1072,14 @@
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -822,11 +1087,10 @@
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "onUpdate": true,
           "default": "(now())"
         }
       },
@@ -873,79 +1137,12 @@
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
-    "group_members": {
-      "name": "group_members",
+    "item_attachments": {
+      "name": "item_attachments",
       "columns": {
-        "group_id": {
-          "name": "group_id",
+        "id": {
+          "name": "id",
           "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "member_id": {
-          "name": "member_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "group_members_member_index": {
-          "name": "group_members_member_index",
-          "columns": [
-            "member_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "group_members_group_id_member_groups_id_fk": {
-          "name": "group_members_group_id_member_groups_id_fk",
-          "tableFrom": "group_members",
-          "tableTo": "member_groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "group_members_member_id_workspace_members_id_fk": {
-          "name": "group_members_member_id_workspace_members_id_fk",
-          "tableFrom": "group_members",
-          "tableTo": "workspace_members",
-          "columnsFrom": [
-            "member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "group_members_group_id_member_id_pk": {
-          "name": "group_members_group_id_member_id_pk",
-          "columns": [
-            "group_id",
-            "member_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraint": {}
-    },
-    "image_uploads": {
-      "name": "image_uploads",
-      "columns": {
-        "filename": {
-          "name": "filename",
-          "type": "varchar(48)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -957,8 +1154,43 @@
           "notNull": true,
           "autoincrement": false
         },
-        "user_id": {
-          "name": "user_id",
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mime": {
+          "name": "mime",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "size": {
+          "name": "size",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "mediumblob",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "anchor": {
+          "name": "anchor",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
           "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
@@ -966,112 +1198,26 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": "(now())"
         }
       },
-      "indexes": {},
-      "foreignKeys": {
-        "image_uploads_item_id_items_id_fk": {
-          "name": "image_uploads_item_id_items_id_fk",
-          "tableFrom": "image_uploads",
-          "tableTo": "items",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "image_uploads_user_id_users_id_fk": {
-          "name": "image_uploads_user_id_users_id_fk",
-          "tableFrom": "image_uploads",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "image_uploads_filename": {
-          "name": "image_uploads_filename",
-          "columns": [
-            "filename"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraint": {}
-    },
-    "item_activity": {
-      "name": "item_activity",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "favorite_at": {
-          "name": "favorite_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "visited_at": {
-          "name": "visited_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
       "indexes": {
-        "item_activity_recent": {
-          "name": "item_activity_recent",
+        "attachments_item": {
+          "name": "attachments_item",
           "columns": [
-            "user_id",
-            "visited_at"
+            "item_id"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "item_activity_user_id_users_id_fk": {
-          "name": "item_activity_user_id_users_id_fk",
-          "tableFrom": "item_activity",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "item_activity_item_id_items_id_fk": {
-          "name": "item_activity_item_id_items_id_fk",
-          "tableFrom": "item_activity",
+        "item_attachments_item_id_items_id_fk": {
+          "name": "item_attachments_item_id_items_id_fk",
+          "tableFrom": "item_attachments",
           "tableTo": "items",
           "columnsFrom": [
             "item_id"
@@ -1081,14 +1227,26 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "item_attachments_created_by_users_id_fk": {
+          "name": "item_attachments_created_by_users_id_fk",
+          "tableFrom": "item_attachments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
-        "item_activity_user_id_item_id_pk": {
-          "name": "item_activity_user_id_item_id_pk",
+        "item_attachments_id": {
+          "name": "item_attachments_id",
           "columns": [
-            "user_id",
-            "item_id"
+            "id"
           ]
         }
       },
@@ -1215,6 +1373,88 @@
           "columns": [
             "item_id",
             "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "item_preferences": {
+      "name": "item_preferences",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "favorite_at": {
+          "name": "favorite_at",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "visited_at": {
+          "name": "visited_at",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "item_preferences_recent": {
+          "name": "item_preferences_recent",
+          "columns": [
+            "user_id",
+            "visited_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "item_preferences_user_id_users_id_fk": {
+          "name": "item_preferences_user_id_users_id_fk",
+          "tableFrom": "item_preferences",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "item_preferences_item_id_items_id_fk": {
+          "name": "item_preferences_item_id_items_id_fk",
+          "tableFrom": "item_preferences",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "item_preferences_user_id_item_id_pk": {
+          "name": "item_preferences_user_id_item_id_pk",
+          "columns": [
+            "user_id",
+            "item_id"
           ]
         }
       },
@@ -1381,7 +1621,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -1389,23 +1629,22 @@
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "onUpdate": true,
           "default": "(now())"
         },
         "archived_at": {
           "name": "archived_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1469,6 +1708,73 @@
           "name": "items_id",
           "columns": [
             "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "member_group_members": {
+      "name": "member_group_members",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "member_group_members_member_index": {
+          "name": "member_group_members_member_index",
+          "columns": [
+            "member_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "member_group_members_group_id_member_groups_id_fk": {
+          "name": "member_group_members_group_id_member_groups_id_fk",
+          "tableFrom": "member_group_members",
+          "tableTo": "member_groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "member_group_members_member_id_workspace_members_id_fk": {
+          "name": "member_group_members_member_id_workspace_members_id_fk",
+          "tableFrom": "member_group_members",
+          "tableTo": "workspace_members",
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "member_group_members_group_id_member_id_pk": {
+          "name": "member_group_members_group_id_member_id_pk",
+          "columns": [
+            "group_id",
+            "member_id"
           ]
         }
       },
@@ -1605,14 +1911,14 @@
         },
         "read_at": {
           "name": "read_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -1681,6 +1987,244 @@
       "compositePrimaryKeys": {
         "notifications_id": {
           "name": "notifications_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "realtime_clock": {
+      "name": "realtime_clock",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "realtime_clock_id": {
+          "name": "realtime_clock_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "realtime_events": {
+      "name": "realtime_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "topic": {
+          "name": "topic",
+          "type": "varchar(24)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "realtime_events_sequence": {
+          "name": "realtime_events_sequence",
+          "columns": [
+            "sequence"
+          ],
+          "isUnique": true
+        },
+        "realtime_events_retention": {
+          "name": "realtime_events_retention",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "realtime_events_id": {
+          "name": "realtime_events_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "related_items": {
+      "name": "related_items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_anchor": {
+          "name": "source_anchor",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_anchor": {
+          "name": "target_anchor",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "anchor_key": {
+          "name": "anchor_key",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'Related'"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "relation_unique": {
+          "name": "relation_unique",
+          "columns": [
+            "source_id",
+            "target_id",
+            "anchor_key"
+          ],
+          "isUnique": true
+        },
+        "relation_target": {
+          "name": "relation_target",
+          "columns": [
+            "target_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "related_items_source_id_items_id_fk": {
+          "name": "related_items_source_id_items_id_fk",
+          "tableFrom": "related_items",
+          "tableTo": "items",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "related_items_target_id_items_id_fk": {
+          "name": "related_items_target_id_items_id_fk",
+          "tableFrom": "related_items",
+          "tableTo": "items",
+          "columnsFrom": [
+            "target_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "related_items_created_by_users_id_fk": {
+          "name": "related_items_created_by_users_id_fk",
+          "tableFrom": "related_items",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "related_items_id": {
+          "name": "related_items_id",
           "columns": [
             "id"
           ]
@@ -1877,6 +2421,87 @@
         }
       }
     },
+    "saved_searches": {
+      "name": "saved_searches",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "query": {
+          "name": "query",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filters": {
+          "name": "filters",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "saved_search_user": {
+          "name": "saved_search_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "saved_searches_user_id_users_id_fk": {
+          "name": "saved_searches_user_id_users_id_fk",
+          "tableFrom": "saved_searches",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "saved_searches_id": {
+          "name": "saved_searches_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "sessions": {
       "name": "sessions",
       "columns": {
@@ -1896,7 +2521,7 @@
         },
         "expires_at": {
           "name": "expires_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -1991,14 +2616,14 @@
         },
         "last_login_at": {
           "name": "last_login_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
@@ -2006,11 +2631,10 @@
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "onUpdate": true,
           "default": "(now())"
         },
         "invitation_email": {
@@ -2200,14 +2824,14 @@
         },
         "suspended_at": {
           "name": "suspended_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "last_active_at": {
           "name": "last_active_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2229,7 +2853,7 @@
         },
         "joined_at": {
           "name": "joined_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -2381,7 +3005,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -2471,7 +3095,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -2479,23 +3103,22 @@
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "onUpdate": true,
           "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "archived_at": {
           "name": "archived_at",
-          "type": "timestamp",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

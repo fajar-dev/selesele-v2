@@ -1,5 +1,5 @@
 import { getRequestIP, getRequestURL, sendRedirect, setHeader } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../../bootstrap/container'
+import { getApplication } from '../../../bootstrap/application'
 import { apiHandler } from '../../../platform/http/response'
 import { oauthSession } from '../../../platform/http/oauth'
 import { setSession, sessionToken } from '../../../platform/http/session'
@@ -12,7 +12,7 @@ export default apiHandler(async (event) => {
   await pending.clear()
   const callback = new URL('/api/auth/microsoft/callback', process.env.APP_ORIGIN)
   callback.search = getRequestURL(event).search
-  const { auth, oauth } = getContainer()
+  const { auth, oauth } = getApplication().services
   try {
     const result = await oauth.complete(callback, transaction, getRequestIP(event) || null)
     await auth.logout(sessionToken(event))

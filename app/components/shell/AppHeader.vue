@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import RealtimeStatus from '~/core/realtime/components/RealtimeStatus.vue'
 import NotificationInbox from '~/features/notifications/components/NotificationInbox.vue'
 import { useLibrarySearch } from '~/features/library/composables/useLibrarySearch'
 import AppBrand from './AppBrand.vue'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 import type { DropdownMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
@@ -81,6 +82,7 @@ async function logout(): Promise<void> {
       <slot name="left" />
     </template>
     <template #right>
+      <RealtimeStatus v-if="insideWorkspace" />
       <slot name="right" />
       <UButton
         v-if="!insideWorkspace"

@@ -4,7 +4,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { EditorState } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { captureTextRange, resolveTextRange } from '../../editor/utils/textAnchors'
-import type { CommentAnchor } from '#shared/contracts/comment'
+import type { CommentAnchor } from '#shared/model/comment'
 
 interface TextAnnotation { id: string, anchor: CommentAnchor }
 interface HighlightOptions {

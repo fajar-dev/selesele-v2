@@ -1,5 +1,5 @@
-import type { ApiResponse } from '#shared/contracts/api'
-import type { CommentThreadInput, CommentThreadItem } from '#shared/contracts/comment'
+import type { ApiResponse } from '#shared/model/api'
+import type { CommentThreadInput, CommentThreadItem } from '#shared/model/comment'
 import type { ApiTransport } from '~/core/http/ApiTransport'
 
 export class CommentClient {

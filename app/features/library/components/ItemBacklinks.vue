@@ -8,7 +8,7 @@ const props = defineProps<{
 }>()
 const { library } = useApi()
 const open = ref(false)
-const { data, error, status, refresh } = useLazyAsyncData(`backlinks:${props.itemId}`, async () => (await library.backlinks(props.itemId)).data, { server: false, immediate: false, default: () => [] })
+const { data, error, status, refresh } = useRealtimeQuery(`backlinks:${props.itemId}`, async () => (await library.backlinks(props.itemId)).data, { server: false, immediate: false, default: () => [] })
 watch(open, (value) => {
   if (value) {
     void refresh()

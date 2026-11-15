@@ -1,14 +1,14 @@
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { useApi } from '~/core/http/useApi'
-import type { WorkspaceOverview } from '#shared/contracts/workspace'
+import type { WorkspaceOverview } from '#shared/model/workspace'
 /** Independent resources share cache keys; no request waits for another collection. */
 export function useWorkspace(workspaceId: string) {
   const api = useApi()
-  const workspace = useLazyAsyncData(workspaceKeys.detail(workspaceId), async () => (await api.workspaces.get(workspaceId)).data, { dedupe: 'defer', server: false })
-  const folders = useLazyAsyncData(workspaceKeys.folders(workspaceId), async () => (await api.folders.list(workspaceId)).data, { dedupe: 'defer', server: false, default: () => [] })
-  const items = useLazyAsyncData(workspaceKeys.items(workspaceId), async () => (await api.items.list(workspaceId)).data, { dedupe: 'defer', server: false, default: () => [] })
-  const members = useLazyAsyncData(workspaceKeys.members(workspaceId), async () => (await api.members.roster(workspaceId)).data, { dedupe: 'defer', server: false, default: () => [] })
+  const workspace = useRealtimeQuery(workspaceKeys.detail(workspaceId), async () => (await api.workspaces.get(workspaceId)).data, { dedupe: 'defer', server: false })
+  const folders = useRealtimeQuery(workspaceKeys.folders(workspaceId), async () => (await api.folders.list(workspaceId)).data, { dedupe: 'defer', server: false, default: () => [] })
+  const items = useRealtimeQuery(workspaceKeys.items(workspaceId), async () => (await api.items.list(workspaceId)).data, { dedupe: 'defer', server: false, default: () => [] })
+  const members = useRealtimeQuery(workspaceKeys.members(workspaceId), async () => (await api.members.roster(workspaceId)).data, { dedupe: 'defer', server: false, default: () => [] })
   for (const [resource, key, title] of [
     [workspace, workspaceKeys.detail(workspaceId), 'Unable to load workspace'],
     [folders, workspaceKeys.folders(workspaceId), 'Unable to load folders'],

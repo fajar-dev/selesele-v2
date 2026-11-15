@@ -38,7 +38,7 @@ export default withNuxt(
     rules: {
       'no-restricted-imports': restricted([
         ...frameworkAndDatabase, 'node:*', 'zod', '**/application/**', '**/infrastructure/**', '**/platform/**', '**/bootstrap/**',
-        '**/shared/contracts/**', '**/shared/validation/**'
+        '**/shared/validation/**'
       ], 'Domain models and ports are independent of HTTP, use cases, frameworks and persistence.')
     }
   },
@@ -66,7 +66,14 @@ export default withNuxt(
   {
     files: ['app/**/*.{ts,vue}'],
     rules: {
-      'no-restricted-imports': restricted(['**/server/**', '@nuxt/nitro-server/**', 'nuxt/server', 'drizzle-orm', 'drizzle-orm/**', 'mysql2', 'mysql2/**'], 'Browser features communicate through injected API clients and shared contracts.')
+      'no-restricted-imports': restricted(['**/server/**', '@nuxt/nitro-server/**', 'nuxt/server', 'drizzle-orm', 'drizzle-orm/**', 'mysql2', 'mysql2/**'], 'Browser features communicate through injected API clients and shared models.')
+    }
+  },
+  {
+    files: ['app/**/*.{ts,vue}'],
+    ignores: ['app/core/realtime/infrastructure/BrowserRealtimeConnection.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', { selector: 'NewExpression[callee.name="EventSource"]', message: 'Use the shared realtime connection and register query/effect dependencies.' }]
     }
   },
   {

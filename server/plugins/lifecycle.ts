@@ -1,6 +1,6 @@
-import { closeContainer, getContainer } from '../bootstrap/container'
+import { closeApplication, getApplication } from '../bootstrap/application'
 
 export default defineNitroPlugin((nitro) => {
-  getContainer().startWorkers()
-  nitro.hooks.hook('close', closeContainer)
+  getApplication().startWorkers()
+  nitro.hooks.hook('close', closeApplication)
 })

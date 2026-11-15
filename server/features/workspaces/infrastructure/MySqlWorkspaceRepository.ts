@@ -1,4 +1,4 @@
-import { defaultWorkspaceSettings } from '../../../../shared/kernel/workspaceSettings'
+import { defaultWorkspaceSettings } from '../../../../shared/model/workspaceSettings'
 import { and, desc, eq, isNull, lt, or } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { WorkspaceRepository } from '../domain/WorkspaceRepository'

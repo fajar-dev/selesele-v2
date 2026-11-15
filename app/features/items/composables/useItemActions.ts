@@ -1,5 +1,5 @@
 import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
-import type { ContentItem, ItemUpdate } from '#shared/contracts/item'
+import type { ContentItem, ItemUpdate } from '#shared/model/item'
 import { useApi } from '~/core/http/useApi'
 import { useItemDeletion } from './useItemDeletion'
 

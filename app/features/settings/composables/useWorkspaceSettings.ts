@@ -1,16 +1,14 @@
-import { useWorkspaceEvents } from '~/features/workspaces/composables/useWorkspaceEvents'
 import { reconcileDraft } from '~/core/state/reconcileDraft'
-import type { WorkspaceSettingsChanges } from '#shared/kernel/workspaceSettings'
+import type { WorkspaceSettingsChanges, WorkspaceActivityItem } from '#shared/model/workspaceSettings'
 import { useApi } from '~/core/http/useApi'
-import { defaultNotificationPreferences, defaultWorkspaceSettings } from '#shared/kernel/workspaceSettings'
+import { defaultNotificationPreferences, defaultWorkspaceSettings } from '#shared/model/workspaceSettings'
 import { refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
-import type { WorkspaceActivityItem } from '#shared/contracts/workspaceSettings'
 
 export function useWorkspaceSettings(workspaceId: string, manager: Ref<boolean>, section: Ref<string>) {
   const { workspaceSettings: api } = useApi()
   const toast = useToast()
-  const query = useLazyAsyncData(`workspace-settings:${workspaceId}`, async () => (await api.get(workspaceId)).data, { server: false })
+  const query = useRealtimeQuery(`workspace-settings:${workspaceId}`, async () => (await api.get(workspaceId)).data, { server: false })
   const draft = ref(defaultWorkspaceSettings())
   const notifications = ref(defaultNotificationPreferences())
   watch(query.data, (data, previous) => {
@@ -41,8 +39,8 @@ export function useWorkspaceSettings(workspaceId: string, manager: Ref<boolean>,
       busy.value = false
     }
   }
-  const activity = useLazyAsyncData(`workspace-activity:${workspaceId}`, async () => manager.value ? (await api.activity(workspaceId)).data : { items: [], nextCursor: null }, { server: false, immediate: false, default: (): WorkspaceActivityItem => ({ items: [], nextCursor: null }) })
-  const usage = useLazyAsyncData(`workspace-usage:${workspaceId}`, async () => manager.value ? (await api.usage(workspaceId)).data : null, { server: false, immediate: false })
+  const activity = useRealtimeQuery(`workspace-activity:${workspaceId}`, async () => manager.value ? (await api.activity(workspaceId)).data : { items: [], nextCursor: null }, { server: false, immediate: false, default: (): WorkspaceActivityItem => ({ items: [], nextCursor: null }) })
+  const usage = useRealtimeQuery(`workspace-usage:${workspaceId}`, async () => manager.value ? (await api.usage(workspaceId)).data : null, { server: false, immediate: false })
   watch([manager, section], ([allowed, active]) => {
     if (!allowed) {
       activity.clear()
@@ -56,15 +54,6 @@ export function useWorkspaceSettings(workspaceId: string, manager: Ref<boolean>,
       void usage.refresh()
     }
   }, { immediate: true })
-  useWorkspaceEvents(workspaceId, () => {
-    void query.refresh()
-    if (manager.value && section.value === 'activity') {
-      void activity.refresh()
-    }
-    if (manager.value && section.value === 'data') {
-      void usage.refresh()
-    }
-  })
   async function save(changes: WorkspaceSettingsChanges) {
     await mutate(async () => {
       await api.save(workspaceId, changes)

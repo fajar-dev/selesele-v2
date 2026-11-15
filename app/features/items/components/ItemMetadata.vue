@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ContentItem, ItemUpdate } from '#shared/contracts/item'
+import type { ContentItem, ItemUpdate } from '#shared/model/item'
 import EntityIconPicker from '~/components/ui/EntityIconPicker.vue'
 import ScreenHeading from '~/components/ui/ScreenHeading.vue'
 import InlineTextField from '~/components/ui/InlineTextField.vue'

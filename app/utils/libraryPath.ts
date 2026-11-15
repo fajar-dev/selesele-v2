@@ -1,4 +1,4 @@
-import type { LibraryEntry } from '#shared/contracts/library'
+import type { LibraryEntry } from '#shared/model/library'
 
 export function libraryPath(entry: Pick<LibraryEntry, 'kind' | 'workspaceId' | 'id'>): string {
   const home = `/workspaces/${entry.workspaceId}`

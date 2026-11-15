@@ -1,7 +1,7 @@
 import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
 import type { MemberRepository, MemberQuery } from '../domain/MemberRepository'
-import type { MemberAddInput, MemberBulkAction } from '../../../../shared/kernel/member'
-import type { InviteRole } from '../../../../shared/kernel/workspace'
+import type { MemberAddInput, MemberBulkAction } from '../../../../shared/model/member'
+import type { InviteRole } from '../../../../shared/model/workspace'
 import type { ResourceAccess } from '../../access/domain/ResourceAccess'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 

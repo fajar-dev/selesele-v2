@@ -4,9 +4,9 @@ import { needsSnapshot, snapshotPolicy } from '../../server/features/recovery/do
 import { NotificationService } from '../../server/features/notifications/application/NotificationService'
 import { describe, expect, test } from 'bun:test'
 import { RecoveryService } from '../../server/features/recovery/application/RecoveryService'
-import { WorkspaceQuestionService } from '../../server/features/writing/application/WorkspaceQuestionService'
+import { WorkspaceQuestionService } from '../../server/features/ai/application/WorkspaceQuestionService'
 import type { RecoveryRepository } from '../../server/features/recovery/domain/RecoveryRepository'
-import type { TrashItem } from '../../shared/kernel/recovery'
+import type { TrashItem } from '../../shared/model/recovery'
 import { documentLinks } from '../../server/features/library/domain/documentLinks'
 import { itemTemplates } from '../../server/features/library/domain/templates'
 import { LibraryService } from '../../server/features/library/application/LibraryService'
@@ -135,8 +135,6 @@ describe('snapshot policy and notification failure isolation', () => {
       async mentions() {
         return []
       }
-    }, () => {
-      throw new Error('No change should be published')
     }, { report(_message, cause) {
       errors.push(cause)
     } })

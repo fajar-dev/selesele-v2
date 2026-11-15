@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ItemKind } from '#shared/kernel/content'
+import type { ItemKind } from '#shared/model/content'
 
 defineProps<{ kind: ItemKind }>()
 </script>

@@ -1,4 +1,7 @@
-import { canonicalJson } from '../../../../shared/kernel/json'
+import { scheduleRecurringTasks } from '../../../../shared/model/taskScheduling'
+import { uuidv7 } from 'uuidv7'
+import { validateCanvas, canvasSearchText } from '../domain/canvasPolicy'
+import { canonicalJson } from '../../../../shared/model/json'
 import { needsSnapshot } from '../../recovery/domain/snapshotPolicy'
 import { and, eq, isNull, desc } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
@@ -7,8 +10,7 @@ import { loadResourceScope } from '../../access/infrastructure/resourceScope'
 import { saveItemSnapshot } from '../../../platform/database/itemSnapshots'
 import { appendWorkspaceActivities } from '../../settings/infrastructure/MySqlWorkspaceJournal'
 import type { CanvasRepository } from '../domain/CanvasRepository'
-import type { CanvasContent } from '../../../../shared/kernel/content'
-import { canvasSearchText } from '../domain/canvasPolicy'
+import type { CanvasContent } from '../../../../shared/model/content'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class MySqlCanvasRepository implements CanvasRepository {
@@ -39,7 +41,13 @@ export class MySqlCanvasRepository implements CanvasRepository {
       if (!current || current.revision !== revision) {
         throw new ApplicationError('conflict', 'Another member updated this item. Your draft is preserved; review the latest version before replacing it.')
       }
-      if (content.kind === 'kanban') {
+      if (content.kind === 'kanban' && current.content.kind === 'kanban') {
+        try {
+          content = scheduleRecurringTasks(current.content, content, uuidv7, new Date().toISOString())
+        } catch (cause) {
+          throw new ApplicationError('invalid_input', cause instanceof Error ? cause.message : 'Unable to schedule the next task')
+        }
+        validateCanvas(content, 'kanban')
         const members = await tx.select({ id: workspaceMembers.id }).from(workspaceMembers).where(and(eq(workspaceMembers.workspaceId, item.workspaceId), isNull(workspaceMembers.suspendedAt)))
         const previous = current.content.kind === 'kanban' ? current.content.tasks : []
         if (content.tasks.some(task => task.assigneeId && previous.find(entry => entry.id === task.id)?.assigneeId !== task.assigneeId && !members.some(member => member.id === task.assigneeId))) {

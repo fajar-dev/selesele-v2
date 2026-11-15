@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import type { Database, DatabaseTransaction } from '../../../platform/database/client'
-import { items, folders, workspaceMembers, users, resourceGrants, groupMembers } from '../../../platform/database/schema'
+import { items, folders, workspaceMembers, users, resourceGrants, memberGroupMembers } from '../../../platform/database/schema'
 import { loadResourceScope } from './resourceScope'
 import { movedItemAccess } from '../domain/movePolicy'
-import type { AccessGrant, MoveImpact } from '../../../../shared/kernel/access'
+import type { AccessGrant, MoveImpact } from '../../../../shared/model/access'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export async function itemMoveImpact(db: Database | DatabaseTransaction, itemId: string, folderId: string | null, userId: string): Promise<MoveImpact> {
@@ -24,7 +24,7 @@ export async function itemMoveImpact(db: Database | DatabaseTransaction, itemId:
   const directories = await db.select().from(folders).where(eq(folders.workspaceId, item.workspaceId))
   const members = await db.select({ member: workspaceMembers, name: users.name }).from(workspaceMembers).leftJoin(users, eq(users.id, workspaceMembers.userId)).where(eq(workspaceMembers.workspaceId, item.workspaceId)).orderBy(workspaceMembers.id)
   const grants = await db.select().from(resourceGrants).where(eq(resourceGrants.workspaceId, item.workspaceId))
-  const groups = await db.select({ memberId: groupMembers.memberId, groupId: groupMembers.groupId }).from(groupMembers).innerJoin(workspaceMembers, and(eq(workspaceMembers.id, groupMembers.memberId), eq(workspaceMembers.workspaceId, item.workspaceId)))
+  const groups = await db.select({ memberId: memberGroupMembers.memberId, groupId: memberGroupMembers.groupId }).from(memberGroupMembers).innerJoin(workspaceMembers, and(eq(workspaceMembers.id, memberGroupMembers.memberId), eq(workspaceMembers.workspaceId, item.workspaceId)))
   const policy = (id: string, kind: 'item' | 'folder') => {
     const mode = kind === 'item' ? item.accessMode : directories.find(item => item.id === id)!.accessMode
     const values: AccessGrant[] = grants.filter(grant => kind === 'item' ? grant.itemId === id : grant.folderId === id).map(grant => ({ id: grant.id, memberId: grant.memberId, groupId: grant.groupId, level: grant.level, expiresAt: grant.expiresAt?.toISOString() || null }))

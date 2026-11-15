@@ -1,7 +1,6 @@
-import type { CommentEvents } from '../../features/comments/domain/CommentEvents'
 import type { CollaborationPeer } from './CollaborationPeer'
 import * as Y from 'yjs'
-import type { SessionAuthenticator } from '../../features/identity/domain/SessionAuthenticator'
+import type { SessionAuthenticator } from '../../features/authentication/domain/SessionAuthenticator'
 import type { ItemAccess } from '../../features/items/domain/ItemAccess'
 import type { DocumentRepository } from '../../features/items/domain/DocumentRepository'
 import type { DocumentEditor } from '../../features/items/domain/DocumentEditor'
@@ -10,7 +9,7 @@ import type { CollaborationConnection } from './CollaborationRoom'
 import { CollaborationRoom } from './CollaborationRoom'
 import { createDocument } from './document'
 /** Owns room lifecycles within one Bun application process. */
-export class CollaborationHub implements CommentEvents, DocumentEditor {
+export class CollaborationHub implements DocumentEditor {
   private readonly rooms = new Map<string, Promise<CollaborationRoom>>()
   private readonly peerRooms = new Map<string, string>()
   private readonly roomWorkspaces = new Map<string, string>()
@@ -77,23 +76,6 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     }
   }
 
-  async commentsChanged(itemId: string): Promise<void> {
-    const loading = this.rooms.get(itemId)
-    if (!loading) {
-      return
-    }
-    // A failed socket must not turn an already committed comment into a failed POST.
-    // Reconnecting viewers fetch the latest snapshot when document sync completes.
-    try {
-      const room = await loading
-      if (!room.isClosing) {
-        await room.notifyCommentsChanged()
-      }
-    } catch (cause) {
-      console.error('Unable to notify comment viewers', cause)
-    }
-  }
-
   async replaceMarkdown(id: string, content: string, userId?: string): Promise<void> {
     while (!this.closed) {
       const loading = this.getRoom(id)
@@ -126,6 +108,22 @@ export class CollaborationHub implements CommentEvents, DocumentEditor {
     for (const [id, loading] of this.rooms) {
       if (this.roomWorkspaces.get(id) === workspaceId) {
         (await loading).evict(userId)
+      }
+    }
+  }
+
+  async synchronizePresence(workspaceId: string) {
+    for (const [id, loading] of this.rooms) {
+      if (this.roomWorkspaces.get(id) === workspaceId) {
+        await (await loading).synchronizePresence()
+      }
+    }
+  }
+
+  async synchronizeWorkspace(workspaceId: string) {
+    for (const [id, loading] of this.rooms) {
+      if (this.roomWorkspaces.get(id) === workspaceId) {
+        await (await loading).synchronize()
       }
     }
   }

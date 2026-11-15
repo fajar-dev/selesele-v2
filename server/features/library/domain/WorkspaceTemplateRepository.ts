@@ -1,4 +1,4 @@
-import type { ItemTemplate } from '../../../../shared/kernel/library'
+import type { ItemTemplate } from '../../../../shared/model/library'
 
 export interface WorkspaceTemplate extends ItemTemplate {
   workspaceId: string

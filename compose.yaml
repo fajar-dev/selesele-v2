@@ -30,7 +30,10 @@ services:
     build:
       context: .
       target: migrator
-    environment: *database-environment
+    environment:
+      <<: *database-environment
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in your Docker environment file}
     depends_on:
       mysql:
         condition: service_healthy

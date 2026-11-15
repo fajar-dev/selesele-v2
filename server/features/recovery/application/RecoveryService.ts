@@ -4,7 +4,7 @@ import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAu
 import type { RecoveryRepository } from '../domain/RecoveryRepository'
 import type { ItemAccess } from '../../items/domain/ItemAccess'
 import type { DocumentEditor } from '../../items/domain/DocumentEditor'
-import type { TrashKind } from '../../../../shared/contracts/recovery'
+import type { TrashKind } from '../../../../shared/model/recovery'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class RecoveryService {

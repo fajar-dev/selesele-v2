@@ -2,11 +2,11 @@ import { expect, test } from 'bun:test'
 import { CanvasDraftStorage } from '../../app/features/canvases/storage/CanvasDraftStorage'
 import { CanvasSession } from '../../app/features/canvases/domain/CanvasSession'
 import { ConversationClient } from '../../app/features/conversations/api/ConversationClient'
-import { WorkspaceQuestionService } from '../../server/features/writing/application/WorkspaceQuestionService'
+import { WorkspaceQuestionService } from '../../server/features/ai/application/WorkspaceQuestionService'
 import { ConversationService } from '../../server/features/conversations/application/ConversationService'
 import { commentThreadSchema } from '../../shared/validation/comment'
 import type { ApiTransport } from '../../app/core/http/ApiTransport'
-import type { CanvasSnapshot } from '../../shared/kernel/content'
+import type { CanvasSnapshot } from '../../shared/model/content'
 
 function memoryStorage() {
   const values = new Map<string, string>()

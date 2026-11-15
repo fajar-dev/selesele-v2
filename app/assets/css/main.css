@@ -95,12 +95,36 @@
 }
 
 @layer components {
-  .editor-tools {
+  .editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: var(--spacing-ui-5xl);
+    gap: var(--spacing-ui-sm);
+    padding-block: var(--spacing-ui-xs);
+    border-bottom: var(--app-border-thin) solid var(--ui-border-muted);
+  }
+  .editor-toolbar-main {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    min-width: var(--spacing-ui-zero);
+    gap: var(--spacing-ui-sm);
+  }
+  .editor-toolbar-actions, .editor-toolbar-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-ui-xs);
+  }
+  .editor-toolbar-actions { margin-inline-start: auto; max-width: 100%; }
+  .editor-context-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-ui-sm);
-    padding-block: var(--spacing-ui-md);
+    padding-block: var(--spacing-ui-xs);
     border-bottom: var(--app-border-thin) solid var(--ui-border-muted);
   }
   .template-card {
@@ -212,3 +236,50 @@ html.dark .tiptap .shiki span {
   .chat-markdown :not(pre) > code { border-radius: var(--radius-sm); background: var(--ui-bg-accented); padding-inline: var(--spacing-ui-xs); font-size: var(--text-xs); }
   .chat-markdown blockquote { border-inline-start: var(--app-border-emphasis) solid var(--ui-border); padding-inline-start: var(--spacing-ui-lg); color: var(--ui-text-muted); }
 }
+
+/* Content fullscreen keeps browser chrome and mounted editor state intact. */
+.content-fullscreen {
+  position: fixed;
+  inset: var(--spacing-ui-zero);
+  z-index: 40;
+  height: var(--spacing-viewport);
+  background: var(--ui-bg);
+}
+.content-fullscreen-document { overflow: auto; }
+.content-fullscreen-document .document-toolbar {
+  position: sticky;
+  top: var(--spacing-ui-zero);
+  z-index: 10;
+  margin-top: var(--spacing-ui-zero);
+  background: var(--ui-bg);
+}
+.content-fullscreen-canvas { overflow: hidden; }
+.content-fullscreen-canvas .canvas-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: none;
+  gap: var(--spacing-ui-md);
+  padding: var(--spacing-ui-lg);
+}
+.content-fullscreen-canvas .canvas-content > * {
+  flex-shrink: 0;
+  margin-block: var(--spacing-ui-zero);
+}
+.content-fullscreen-canvas .canvas-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: var(--spacing-ui-zero);
+  gap: var(--spacing-ui-md);
+}
+.content-fullscreen-canvas .canvas-editor > * {
+  flex-shrink: 0;
+  margin-block: var(--spacing-ui-zero);
+}
+.content-fullscreen-canvas :is(.canvas-surface, .kanban-surface) {
+  flex: 1;
+  min-height: var(--spacing-ui-zero);
+  height: auto;
+}
+.content-fullscreen-canvas .kanban-surface { overflow: auto; }

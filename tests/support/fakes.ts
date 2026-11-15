@@ -1,12 +1,12 @@
 import type { ResourceAccess } from '../../server/features/access/domain/ResourceAccess'
-import type { ResourceKind, AccessLevel, MemberResourceAccess, ResourcePolicy } from '../../shared/kernel/access'
-import { defaultWorkspaceSettings } from '../../shared/kernel/workspaceSettings'
-import { DEFAULT_FOLDER_ICON } from '../../shared/kernel/icons'
-import type { Account } from '../../server/features/identity/domain/Account'
-import type { MicrosoftIdentity } from '../../server/features/identity/domain/MicrosoftIdentity'
-import type { IdentityProvider } from '../../server/features/identity/domain/IdentityProvider'
-import type { SessionRepository } from '../../server/features/identity/domain/SessionRepository'
-import type { UserRepository } from '../../server/features/identity/domain/UserRepository'
+import type { ResourceKind, AccessLevel, MemberResourceAccess, ResourcePolicy } from '../../shared/model/access'
+import { defaultWorkspaceSettings } from '../../shared/model/workspaceSettings'
+import { DEFAULT_FOLDER_ICON } from '../../shared/model/icons'
+import type { Account } from '../../server/features/authentication/domain/Account'
+import type { MicrosoftIdentity } from '../../server/features/authentication/domain/MicrosoftIdentity'
+import type { IdentityProvider } from '../../server/features/authentication/domain/IdentityProvider'
+import type { SessionRepository } from '../../server/features/authentication/domain/SessionRepository'
+import type { UserRepository } from '../../server/features/authentication/domain/UserRepository'
 import type { DocumentRepository } from '../../server/features/items/domain/DocumentRepository'
 import type { Item } from '../../server/features/items/domain/Item'
 import type { ItemRepository } from '../../server/features/items/domain/ItemRepository'
@@ -14,8 +14,8 @@ import type { WorkspaceRepository } from '../../server/features/workspaces/domai
 import type { FolderRepository } from '../../server/features/workspaces/domain/FolderRepository'
 import type { Folder } from '../../server/features/workspaces/domain/Folder'
 import type { Workspace } from '../../server/features/workspaces/domain/Workspace'
-import type { ItemInput, ItemUpdate } from '../../shared/contracts/item'
-import type { WorkspaceRole } from '../../shared/contracts/workspace'
+import type { ItemInput, ItemUpdate } from '../../shared/model/item'
+import type { WorkspaceRole } from '../../shared/model/workspace'
 
 export const OWNER_ID = '019a71f3-32c1-7000-8000-000000000002'
 export const EDITOR_ID = '019a71f3-32c1-7000-8000-000000000003'
@@ -124,6 +124,12 @@ export class MemoryItems implements ItemRepository, DocumentRepository {
     this.markdown = content
     this.state = null
   }
+
+  async readAwareness() {
+    return []
+  }
+
+  async saveAwareness() {}
 
   async readState() {
     return this.state

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { renderChatMarkdown } from '../utils/renderChatMarkdown'
-import type { ConversationDetail } from '#shared/kernel/conversation'
+import type { ConversationDetail } from '#shared/model/conversation'
 
 const { message } = defineProps<{ message: ConversationDetail['messages'][number] }>()
 const toast = useToast()

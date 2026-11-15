@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import LibrarySearch from '~/features/library/components/LibrarySearch.vue'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 
 const { state: auth } = useAuth()
 useHead({

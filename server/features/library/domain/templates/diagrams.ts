@@ -1,5 +1,5 @@
-import type { ItemTemplate } from '../../../../../shared/kernel/library'
-import type { DiagramContent, DiagramNode } from '../../../../../shared/kernel/content'
+import type { ItemTemplate } from '../../../../../shared/model/library'
+import type { DiagramContent, DiagramNode } from '../../../../../shared/model/content'
 
 function node(id: string, label: string, x: number, y: number, shape: DiagramNode['data']['shape'] = 'rectangle'): DiagramNode {
   return { id, type: 'shape', position: { x, y }, data: { label, shape, color: '#18181b', width: 180, height: 90 } }

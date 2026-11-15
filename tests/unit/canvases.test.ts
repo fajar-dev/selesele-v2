@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { emptyCanvas } from '../../shared/kernel/content'
-import type { CanvasContent, CanvasSnapshot, KanbanContent, DiagramContent } from '../../shared/kernel/content'
+import { emptyCanvas } from '../../shared/model/content'
+import type { CanvasContent, CanvasSnapshot, KanbanContent, DiagramContent } from '../../shared/model/content'
 import { canvasContentSchema } from '../../shared/validation/canvas'
 import { validateCanvas } from '../../server/features/canvases/domain/canvasPolicy'
 import { KanbanBoard } from '../../app/features/kanban/domain/KanbanBoard'
@@ -98,15 +98,18 @@ describe('canvas persistence sessions', () => {
     session.redo()
     expect(session.dirty).toBe(false)
   })
-  test('remote changes never overwrite a dirty draft and require an explicit replacement', async () => {
-    const state = initial(), latest = { ...state, revision: 2 }
+  test('overlapping remote changes preserve the dirty draft and require explicit replacement', async () => {
+    const state = initial(), latest = structuredClone({ ...state, revision: 2 })
+    ;(latest.content as KanbanContent).columns[0]!.title = 'Remote title'
     let revision = -1
     const gateway = { get: async () => ({ data: latest }), save: async (_id: string, content: CanvasContent, value: number) => {
       revision = value
       return { data: { ...latest, content, revision: value + 1 } }
     } }
     const session = new CanvasSession(gateway, 'test', state)
-    session.edit(new KanbanBoard(session.draft as KanbanContent).addColumn('Review'))
+    const local = structuredClone(session.draft) as KanbanContent
+    local.columns[0]!.title = 'Local title'
+    session.edit(new KanbanBoard(local).addColumn('Review'))
     session.observe(latest)
     expect((session.draft as KanbanContent).columns).toHaveLength(4)
     await expect(session.save()).rejects.toThrow()

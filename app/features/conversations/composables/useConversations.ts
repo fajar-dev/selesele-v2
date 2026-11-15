@@ -1,6 +1,6 @@
 import { useApi } from '~/core/http/useApi'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
-import type { ConversationDetail } from '#shared/contracts/conversation'
+import type { ConversationDetail } from '#shared/model/conversation'
 
 export function useConversations(workspaceId: string) {
   const api = useApi().conversations
@@ -15,7 +15,7 @@ export function useConversations(workspaceId: string) {
       searchQuery.value = value.trim()
     }, 300)
   })
-  const list = useLazyAsyncData(`conversations:${workspaceId}`, async () => (await api.list(workspaceId, searchQuery.value)).data, { server: false, default: () => [], watch: [searchQuery] })
+  const list = useRealtimeQuery(`conversations:${workspaceId}`, async () => (await api.list(workspaceId, searchQuery.value)).data, { server: false, default: () => [], watch: [searchQuery] })
   const current = shallowRef<ConversationDetail | null>(null)
   const loading = ref(false), busy = ref(false), question = ref(''), pendingQuestion = ref('')
   const toast = useToast()
@@ -55,6 +55,36 @@ export function useConversations(workspaceId: string) {
       }
     }
   }
+  let refreshPending = false
+  async function refreshCurrent() {
+    if (busy.value) {
+      refreshPending = true
+      return
+    }
+    const id = selected.value, version = revision
+    if (!id || !active) {
+      return
+    }
+    try {
+      const incoming = (await api.get(workspaceId, id)).data
+      if (active && version === revision && id === selected.value && !busy.value) {
+        current.value = incoming
+      }
+    } catch (cause) {
+      if (active && version === revision && [401, 403, 404].includes(Number((cause as {
+        statusCode?: number
+      }).statusCode))) {
+        current.value = null
+      }
+    }
+  }
+  useRealtimeEffect(`conversation-detail:${workspaceId}`, { workspaceId, topics: ['conversations', 'items', 'content', 'access', 'members', 'groups', 'folders', 'workspaces'] }, refreshCurrent)
+  watch(busy, (value) => {
+    if (!value && refreshPending) {
+      refreshPending = false
+      void refreshCurrent()
+    }
+  })
   watch(selected, (id) => {
     if (current.value?.id !== id) {
       void inspect(id)

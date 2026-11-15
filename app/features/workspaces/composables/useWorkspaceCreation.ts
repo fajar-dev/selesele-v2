@@ -1,6 +1,6 @@
 import { useApi } from '~/core/http/useApi'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
-import type { WorkspaceItem } from '#shared/contracts/workspace'
+import type { WorkspaceItem } from '#shared/model/workspace'
 
 export function useWorkspaceCreation() {
   const { workspaces } = useApi()

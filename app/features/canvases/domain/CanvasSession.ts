@@ -1,11 +1,12 @@
-import { canonicalJson } from '#shared/kernel/json'
-import type { CanvasContent, CanvasSnapshot } from '#shared/kernel/content'
+import { mergeCanvas } from '#shared/model/canvasMerge'
+import { canonicalJson } from '#shared/model/json'
+import type { CanvasContent, CanvasSnapshot } from '#shared/model/content'
 
 interface CanvasGateway {
   get(id: string): Promise<{
     data: CanvasSnapshot
   }>
-  save(id: string, content: CanvasContent, revision: number): Promise<{
+  save(id: string, content: CanvasContent, revision: number, base?: CanvasContent): Promise<{
     data: CanvasSnapshot
   }>
 }
@@ -74,8 +75,23 @@ export class CanvasSession {
     if (state.revision <= this.revision) {
       return
     }
-    if (this.dirty || this.saving) {
+    if (this.saving) {
       this.remote = state
+      return
+    }
+    if (this.dirty) {
+      const merged = mergeCanvas(JSON.parse(this.baseline), this.draft, state.content)
+      if (merged.conflicts.length || this.remote) {
+        this.remote = state
+        return
+      }
+      this.past = this.past.map(previous => mergeCanvas(JSON.parse(this.baseline), previous, state.content).content)
+      this.future = []
+      this.draft = merged.content
+      this.revision = state.revision
+      this.draftRevision = state.revision
+      this.baseline = canonicalJson(state.content)
+      this.updatedAt = state.updatedAt
       return
     }
     this.load(state)
@@ -110,12 +126,21 @@ export class CanvasSession {
     this.saving = true
     const draft = copy(this.draft)
     try {
-      const { data } = await this.gateway.save(this.id, draft, this.revision)
+      const { data } = await this.gateway.save(this.id, draft, this.revision, JSON.parse(this.baseline))
+      const pending = mergeCanvas(draft, this.draft, data.content)
+      if (!pending.conflicts.length) {
+        this.draft = pending.content
+      } else {
+        this.remote = data
+      }
+      this.past = this.past.map(previous => mergeCanvas(draft, previous, data.content).content)
       this.revision = data.revision
       this.draftRevision = data.revision
       this.updatedAt = data.updatedAt
       this.baseline = canonicalJson(data.content)
-      this.acknowledge(data.revision)
+      if (!pending.conflicts.length) {
+        this.acknowledge(data.revision)
+      }
     } catch (cause) {
       try {
         this.observe((await this.gateway.get(this.id)).data)
@@ -136,6 +161,7 @@ export class CanvasSession {
     const latest = (await this.gateway.get(this.id)).data
     this.revision = latest.revision
     this.remote = null
+    this.baseline = canonicalJson(latest.content)
     await this.save()
   }
 }

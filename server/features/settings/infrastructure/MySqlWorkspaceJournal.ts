@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import type { Database, DatabaseTransaction } from '../../../platform/database/client'
 import { users, workspaceActivity } from '../../../platform/database/schema'
 import type { WorkspaceJournal, ActivityContext } from '../domain/WorkspaceJournal'
-import type { WorkspaceActivityAction } from '../../../../shared/kernel/workspaceSettings'
+import type { WorkspaceActivityAction } from '../../../../shared/model/workspaceSettings'
 
 export class MySqlWorkspaceJournal implements WorkspaceJournal {
   constructor(private readonly db: Database) {

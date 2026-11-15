@@ -3,8 +3,8 @@ import type { EmailActivity } from '../../../features/mail/domain/EmailActivity'
 import { uuidv7 } from 'uuidv7'
 import { workspaces, workspaceMembers } from './workspaces'
 import { items } from './items'
-import { users } from './identity'
-import type { NotificationItem } from '../../../../shared/kernel/notification'
+import { users } from './authentication'
+import type { NotificationItem } from '../../../../shared/model/notification'
 
 export const emailDeliveries = mysqlTable('email_deliveries', {
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),
@@ -14,7 +14,7 @@ export const emailDeliveries = mysqlTable('email_deliveries', {
   workspaceId: varchar('workspace_id', { length: 36 }).notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   itemId: varchar('item_id', { length: 36 }).references(() => items.id, { onDelete: 'cascade' }),
   memberId: varchar('member_id', { length: 36 }).references(() => workspaceMembers.id, { onDelete: 'cascade' }),
-  kind: varchar('kind', { length: 20 }).notNull().$type<NotificationItem['kind']>(),
+  kind: varchar('kind', { length: 20 }).notNull().$type<Exclude<NotificationItem['kind'], 'task'>>(),
   title: varchar('title', { length: 320 }).notNull(),
   activity: json('activity').$type<EmailActivity>(),
   deliveryMode: varchar('delivery_mode', { length: 12 }).notNull().default('immediate').$type<'immediate' | 'daily'>(),

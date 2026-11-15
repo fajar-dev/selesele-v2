@@ -1,5 +1,5 @@
-import type { WorkspaceSettings } from '../../../../shared/kernel/workspaceSettings'
-import type { WorkspaceRole } from '../../../../shared/kernel/workspace'
+import type { WorkspaceSettings } from '../../../../shared/model/workspaceSettings'
+import type { WorkspaceRole } from '../../../../shared/model/workspace'
 
 export interface Workspace {
   id: string

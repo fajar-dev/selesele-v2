@@ -1,6 +1,6 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
-import type { ApiResponse } from '#shared/contracts/api'
-import type { ResourceKind, ResourcePolicy } from '#shared/kernel/access'
+import type { ApiResponse } from '#shared/model/api'
+import type { ResourceKind, ResourcePolicy } from '#shared/model/access'
 
 export class ResourceAccessClient {
   constructor(private readonly http: ApiTransport) {

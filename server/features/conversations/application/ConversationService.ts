@@ -1,7 +1,7 @@
 import type { ConversationRepository } from '../domain/ConversationRepository'
 import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
 import type { ResourceAccess } from '../../access/domain/ResourceAccess'
-import type { WorkspaceQuestionService } from '../../writing/application/WorkspaceQuestionService'
+import type { WorkspaceQuestionService } from '../../ai/application/WorkspaceQuestionService'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class ConversationService {

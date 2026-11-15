@@ -4,8 +4,8 @@ import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import CommentComposer from '~/features/comments/components/CommentComposer.vue'
 import CommentThread from '~/features/comments/components/CommentThread.vue'
-import { useAuth } from '~/features/auth/composables/useAuth'
-import type { CommentThreadItem } from '#shared/contracts/comment'
+import { useAuth } from '~/features/authentication/composables/useAuth'
+import type { CommentThreadItem } from '#shared/model/comment'
 import type { useItemComments } from '~/features/comments/composables/useItemComments'
 
 const props = defineProps<{

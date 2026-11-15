@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
 import { canvases, documents, folders, items, itemVersions, users, workspaceMembers, workspaces } from '../../../platform/database/schema'
 import type { RecoveryRepository } from '../domain/RecoveryRepository'
-import type { TrashKind, TrashItem } from '../../../../shared/contracts/recovery'
+import type { TrashKind, TrashItem } from '../../../../shared/model/recovery'
 
 export class MySqlRecoveryRepository implements RecoveryRepository {
   constructor(private readonly db: Database) {

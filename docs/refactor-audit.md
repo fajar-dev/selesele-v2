@@ -1,15 +1,13 @@
-# Item architecture rewrite
+# Rewrite audit
 
-The development model is now `items`, with four content kinds: document, kanban, whiteboard, and diagram. Browser/server feature folders, routes, clients, domain models, variables, permission subjects, activity names, media ownership, notification targets, contracts, SQL tables/columns, fixtures, and documentation use this terminology. Nuxt route APIs and HTML `aria-current="page"` retain their standards-defined names.
+The current architecture is documented in [architecture.md](architecture.md).
 
-The schema is rebuilt into one development baseline. This intentionally discards prior development data and migration history. There are no compatibility aliases or redirect endpoints for the former entity API.
+- One shared model vocabulary, strict request schemas, and constructor-injected domain/application services.
+- Explicit composition modules; adapters and routes cannot import the wrong layer.
+- Fresh schema baseline, deterministic trigger capture, canonical table names, and no old migration chain.
+- One authenticated browser invalidation connection, query dependency coverage, and no notification/DOM refresh bridge.
+- Transactional events, commit-order sequencing, private event isolation, multi-process content/presence synchronization and revocation.
+- Shared item header, consistent icons/toolbars/tokens, and protected unsaved drafts.
+- Automated schema coverage, dead-code/style checks, unit tests and multi-process integration.
 
-Kanban, drawing, graph, and autosave commands have dedicated classes. Server use cases depend on ports and use the shared item access boundary; persistence and codec implementations are injected at bootstrap. The shared shell owns metadata, lifecycle, version history, access, JSON import/export, and feedback, while each editor owns its own interactions. Existing document collaboration and text comments remain document-specific.
-
-The audit includes immutable kind validation, strict payload schemas, transaction-scoped permission checks, compare-and-swap revisions, exact write acknowledgements, draft preservation on concurrent edits, WIP limits, unique task/column/shape IDs, graph endpoint validation, active assignee checks, search projections, type-preserving templates, Markdown/JSON workspace export, archive/Trash handling, common snapshots, and recovery. Runtime geometry stays numeric; interface spacing uses semantic tokens.
-
-Verification commands are documented in README and `package.json`. Automated checks cover lint/architecture/unused code/style boundaries, type checking, pure command behavior, concurrent draft persistence, HTTP authorization, lifecycle, search, templates, versions, exports, email outbox, and isolated full backup restore. These checks establish observable behavior rather than guaranteeing the absence of every possible defect.
-
-The completed rewrite passed `bun run verify`: 100 unit tests, production build, HTTP smoke tests, workspace/access, knowledge, email, settings, structured-content workflows, and isolated backup/restore integration. Schema generation reports no pending changes. Browser interaction checks confirmed kanban creation/task editing and whiteboard drawing; they exposed a JSON key-order autosave loop, now covered by a regression test. Diagram commands and persistence are covered automatically; its complete pointer interaction suite has not been manually exercised.
-
-The subsequent workspace presentation pass unifies content gutters and width across documents, canvases, overview, and management screens. The template catalog now contains ten templates across all four kinds; structured templates are validated and created through the real HTTP integration path. Ask workspace uses Nuxt UI chat components with a separate history panel, composer, message presentation, restricted Markdown renderer, and source links. Answers still arrive as completed responses rather than token streams. Verification passed with 102 unit tests and the complete integration suite; authenticated development SSR also passed. The final gallery ordering adjustment passed app type checking, lint, and semantic style checks. Browser review confirmed the chat empty state and template gallery; interactive checks were interrupted by simultaneous browser use.
+Verification commands and deployment requirements are in README and architecture.md.

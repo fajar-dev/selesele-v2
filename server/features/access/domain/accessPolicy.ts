@@ -1,6 +1,6 @@
-import type { AccessGrant, AccessLevel, MemberResourceAccess, ResourceMode } from '../../../../shared/kernel/access'
-import { accessLevels, accessRank } from '../../../../shared/kernel/access'
-import type { WorkspaceRole } from '../../../../shared/kernel/workspace'
+import type { AccessGrant, AccessLevel, MemberResourceAccess, ResourceMode } from '../../../../shared/model/access'
+import { accessLevels, accessRank } from '../../../../shared/model/access'
+import type { WorkspaceRole } from '../../../../shared/model/workspace'
 
 export interface PolicySubject {
   id: string

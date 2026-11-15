@@ -5,15 +5,15 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1794556646746,
-      "tag": "0000_initial_schema",
+      "when": 1794706662822,
+      "tag": "0000_schema",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "5",
-      "when": 1794589353808,
-      "tag": "0001_conversation_pins",
+      "when": 1794706662823,
+      "tag": "0001_realtime_capture",
       "breakpoints": true
     }
   ]

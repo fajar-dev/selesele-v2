@@ -1,4 +1,4 @@
-import type { TrashItem, TrashKind, ItemVersion } from '../../../../shared/kernel/recovery'
+import type { TrashItem, TrashKind, ItemVersion } from '../../../../shared/model/recovery'
 
 export interface RecoveryRepository {
   findTrashed(userId: string, kind: TrashKind, id: string): Promise<TrashItem | null>

@@ -1,7 +1,7 @@
-import type { CommentAnchor } from '../../../../shared/kernel/comment'
+import type { CommentAnchor } from '../../../../shared/model/comment'
 import { mysqlTable, varchar, text, json, timestamp, index } from 'drizzle-orm/mysql-core'
 import { uuidv7 } from 'uuidv7'
-import { users } from './identity'
+import { users } from './authentication'
 import { items } from './items'
 
 export const commentThreads = mysqlTable('comment_threads', {
@@ -10,8 +10,8 @@ export const commentThreads = mysqlTable('comment_threads', {
   quote: text('quote').notNull(),
   anchor: json('anchor').$type<CommentAnchor>().notNull(),
   createdBy: varchar('created_by', { length: 36 }).notNull().references(() => users.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  resolvedAt: timestamp('resolved_at'),
+  createdAt: timestamp('created_at', { fsp: 3 }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { fsp: 3 }),
   resolvedBy: varchar('resolved_by', { length: 36 }).references(() => users.id)
 }, table => [index('comment_threads_item_index').on(table.itemId, table.createdAt)])
 export const comments = mysqlTable('comments', {
@@ -19,5 +19,5 @@ export const comments = mysqlTable('comments', {
   threadId: varchar('thread_id', { length: 36 }).notNull().references(() => commentThreads.id, { onDelete: 'cascade' }),
   authorId: varchar('author_id', { length: 36 }).notNull().references(() => users.id),
   body: text('body').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow()
+  createdAt: timestamp('created_at', { fsp: 3 }).notNull().defaultNow()
 }, table => [index('comments_thread_index').on(table.threadId, table.createdAt)])

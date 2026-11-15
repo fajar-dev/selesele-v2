@@ -1,3 +1,4 @@
+import { ItemResourceClient } from '~/features/resources/api/ItemResourceClient'
 import { CanvasClient } from '~/features/canvases/api/CanvasClient'
 import { WorkspaceSettingsClient } from '~/features/settings/api/WorkspaceSettingsClient'
 import { ConversationClient } from '~/features/conversations/api/ConversationClient'
@@ -6,7 +7,7 @@ import { RecoveryClient } from '~/features/recovery/api/RecoveryClient'
 import { NotificationClient } from '~/features/notifications/api/NotificationClient'
 import { MediaClient } from '~/features/editor/api/MediaClient'
 import { NuxtApiTransport } from '~/core/http/ApiTransport'
-import { AuthClient } from '~/features/auth/api/AuthClient'
+import { AuthClient } from '~/features/authentication/api/AuthClient'
 import { CommentClient } from '~/features/comments/api/CommentClient'
 import { ItemClient } from '~/features/items/api/ItemClient'
 import { WorkspaceClient } from '~/features/workspaces/api/WorkspaceClient'
@@ -14,11 +15,12 @@ import { FolderClient } from '~/features/workspaces/api/FolderClient'
 import { MemberClient } from '~/features/members/api/MemberClient'
 import { ResourceAccessClient } from '~/features/access/api/ResourceAccessClient'
 
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin({ name: 'api', setup() {
   const http = new NuxtApiTransport(useRequestFetch())
   return {
     provide: {
       api: {
+        itemResources: new ItemResourceClient(http),
         auth: new AuthClient(http),
         conversations: new ConversationClient(http),
         library: new LibraryClient(http),
@@ -36,4 +38,4 @@ export default defineNuxtPlugin(() => {
       }
     }
   }
-})
+} })

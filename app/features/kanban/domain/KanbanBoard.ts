@@ -1,4 +1,5 @@
-import type { KanbanContent, KanbanTask } from '#shared/kernel/content'
+import { validateTaskGraph } from '#shared/model/taskScheduling'
+import type { KanbanContent, KanbanTask } from '#shared/model/content'
 /** Immutable board commands keep UI gestures and persistence independent. */
 export class KanbanBoard {
   private readonly content: KanbanContent
@@ -24,7 +25,7 @@ export class KanbanBoard {
 
   updateColumn(id: string, title: string, limit: number | null) {
     const column = this.column(id)
-    if (limit && this.content.tasks.filter(task => task.columnId === id).length > limit) {
+    if (limit && this.content.tasks.filter(task => task.columnId === id && !task.completedAt).length > limit) {
       throw new Error('Move tasks out before lowering this column’s limit')
     }
     Object.assign(column, { title: title.trim() || column.title, limit })
@@ -74,6 +75,7 @@ export class KanbanBoard {
       throw new Error('Task no longer exists')
     }
     Object.assign(previous, task)
+    validateTaskGraph(this.content)
     this.checkLimit(task.columnId)
     return this.content
   }
@@ -93,7 +95,7 @@ export class KanbanBoard {
   }
 
   removeTask(id: string) {
-    this.content.tasks = this.content.tasks.filter(task => task.id !== id)
+    this.content.tasks = this.content.tasks.filter(task => task.id !== id).map(task => ({ ...task, parentId: task.parentId === id ? null : task.parentId, dependencies: task.dependencies?.filter(dependency => dependency !== id) }))
     return this.content
   }
 
@@ -105,14 +107,14 @@ export class KanbanBoard {
     if (this.content.tasks.length >= 1000) {
       throw new Error('A board supports up to 1,000 tasks')
     }
-    this.content.tasks.push({ ...source, id: this.id(), number: this.content.nextNumber++, title: `${source.title} (copy)`.slice(0, 255), createdAt: this.now(), checklist: source.checklist.map(entry => ({ ...entry, id: this.id() })) })
+    this.content.tasks.push({ ...source, id: this.id(), number: this.content.nextNumber++, title: `${source.title} (copy)`.slice(0, 255), completedAt: null, nextOccurrenceId: undefined, createdAt: this.now(), checklist: source.checklist.map(entry => ({ ...entry, id: this.id() })) })
     this.checkLimit(source.columnId)
     return this.content
   }
 
   private checkLimit(id: string) {
     const column = this.column(id)
-    if (column.limit && this.content.tasks.filter(task => task.columnId === id).length > column.limit) {
+    if (column.limit && this.content.tasks.filter(task => task.columnId === id && !task.completedAt).length > column.limit) {
       throw new Error(`${column.title} has reached its work-in-progress limit`)
     }
   }

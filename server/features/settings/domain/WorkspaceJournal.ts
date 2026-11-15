@@ -1,4 +1,4 @@
-import type { WorkspaceActivityAction } from '../../../../shared/kernel/workspaceSettings'
+import type { WorkspaceActivityAction } from '../../../../shared/model/workspaceSettings'
 
 export interface ActivityContext {
   memberId?: string

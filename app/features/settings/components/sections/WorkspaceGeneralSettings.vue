@@ -3,8 +3,8 @@ import { reconcileDraft } from '~/core/state/reconcileDraft'
 import ScreenSection from '~/components/ui/ScreenSection.vue'
 import EntityIconPicker from '~/components/ui/EntityIconPicker.vue'
 import { useWorkspaceActions } from '~/features/workspaces/composables/useWorkspaceActions'
-import type { WorkspaceOverview } from '#shared/contracts/workspace'
-import type { WorkspaceSettings } from '#shared/contracts/workspaceSettings'
+import type { WorkspaceOverview } from '#shared/model/workspace'
+import type { WorkspaceSettings } from '#shared/model/workspaceSettings'
 
 const props = defineProps<{
   workspaceId: string

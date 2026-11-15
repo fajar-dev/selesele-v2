@@ -1,12 +1,13 @@
+import { createDocument, documentMarkdown } from '../../../platform/collaboration/document'
 import { appendWorkspaceActivity } from '../../settings/infrastructure/MySqlWorkspaceJournal'
-import { and, desc, eq, inArray, isNull, isNotNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, isNotNull, gt } from 'drizzle-orm'
 import { needsSnapshot } from '../../recovery/domain/snapshotPolicy'
 import { saveItemSnapshot } from '../../../platform/database/itemSnapshots'
 import type { Clock } from '../../../core/ports/Clock'
 import * as Y from 'yjs'
 import { yDocToProsemirrorJSON } from 'y-prosemirror'
 import type { Database } from '../../../platform/database/client'
-import { documents, itemLinks, itemMentions, items, itemVersions, workspaceMembers } from '../../../platform/database/schema'
+import { documents, documentPresence, itemLinks, itemMentions, items, itemVersions, workspaceMembers } from '../../../platform/database/schema'
 import type { DocumentRepository } from '../domain/DocumentRepository'
 import type { ActivityPublisher } from '../../notifications/domain/ActivityPublisher'
 import { documentLinks } from '../../library/domain/documentLinks'
@@ -34,7 +35,17 @@ function mentionedUsers(state: Uint8Array): string[] {
   }
 }
 export class MySqlDocumentRepository implements DocumentRepository {
-  constructor(private readonly db: Database, private readonly activity: ActivityPublisher, private readonly clock: Clock, private readonly changed: (id: string) => void) {
+  constructor(private readonly db: Database, private readonly activity: ActivityPublisher, private readonly clock: Clock) {
+  }
+
+  async readAwareness(id: string) {
+    return (await this.db.select({ state: documentPresence.state }).from(documentPresence).where(and(eq(documentPresence.itemId, id), gt(documentPresence.updatedAt, new Date(Date.now() - 25000))))).map(row => new Uint8Array(row.state))
+  }
+
+  async saveAwareness(id: string, updates: { clientId: number, userId: string, state: Uint8Array }[]) {
+    for (const update of updates) {
+      await this.db.insert(documentPresence).values({ itemId: id, clientId: update.clientId, userId: update.userId, state: Buffer.from(update.state), updatedAt: new Date() }).onDuplicateKeyUpdate({ set: { state: Buffer.from(update.state), updatedAt: new Date() } })
+    }
   }
 
   async readContent(id: string): Promise<string> {
@@ -48,7 +59,7 @@ export class MySqlDocumentRepository implements DocumentRepository {
   }
 
   async saveState(id: string, state: Uint8Array, markdown: string, userId?: string, checkpoint = false): Promise<void> {
-    const snapshot = Buffer.from(state)
+    let snapshot = Buffer.from(state)
     const mentions = mentionedUsers(state)
     const newMentions = await this.db.transaction(async (transaction) => {
       const [item] = await transaction.select().from(items).where(eq(items.id, id)).limit(1).for('update')
@@ -56,6 +67,15 @@ export class MySqlDocumentRepository implements DocumentRepository {
         return []
       }
       const [previous] = await transaction.select().from(documents).where(eq(documents.itemId, id)).limit(1)
+      if (previous?.state) {
+        snapshot = Buffer.from(Y.mergeUpdates([new Uint8Array(previous.state), state]))
+        const merged = createDocument('', snapshot)
+        try {
+          markdown = documentMarkdown(merged)
+        } finally {
+          merged.destroy()
+        }
+      }
       if (previous && previous.markdown !== markdown) {
         const [latest] = await transaction.select({ createdAt: itemVersions.createdAt }).from(itemVersions).where(eq(itemVersions.itemId, id)).orderBy(desc(itemVersions.createdAt)).limit(1)
         if (needsSnapshot(previous.markdown, markdown, latest?.createdAt ?? null, this.clock.now(), checkpoint)) {
@@ -89,7 +109,6 @@ export class MySqlDocumentRepository implements DocumentRepository {
       }
       return valid.filter(row => !old.some(previous => previous.userId === row.userId)).map(row => row.userId)
     })
-    this.changed(id)
     await this.activity.mentions(id, newMentions, userId)
   }
 }

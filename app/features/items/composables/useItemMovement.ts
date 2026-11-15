@@ -1,8 +1,8 @@
 import { useWorkspaceState } from '~/features/workspaces/state/useWorkspaceState'
 import { useApi } from '~/core/http/useApi'
-import type { WorkspaceOverview } from '#shared/contracts/workspace'
-import type { ContentItem } from '#shared/contracts/item'
-import type { MoveImpact } from '#shared/kernel/access'
+import type { WorkspaceOverview } from '#shared/model/workspace'
+import type { ContentItem } from '#shared/model/item'
+import type { MoveImpact } from '#shared/model/access'
 
 export function useItemMovement(overview: MaybeRefOrGetter<WorkspaceOverview>) {
   const { items } = useApi()

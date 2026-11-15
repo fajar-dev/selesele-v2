@@ -3,7 +3,7 @@ import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
 import ScreenSection from '~/components/ui/ScreenSection.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
-import type { WorkspaceSettings, WorkspaceUsage } from '#shared/contracts/workspaceSettings'
+import type { WorkspaceSettings, WorkspaceUsage } from '#shared/model/workspaceSettings'
 
 const props = defineProps<{
   usage: WorkspaceUsage | null | undefined

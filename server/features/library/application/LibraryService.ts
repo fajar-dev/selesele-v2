@@ -1,3 +1,4 @@
+import type { SearchFilters } from '../../../../shared/model/itemResources'
 import type { LibraryRepository } from '../domain/LibraryRepository'
 import type { ItemAccess } from '../../items/domain/ItemAccess'
 import type { WorkspaceAuthorization } from '../../workspaces/domain/WorkspaceAuthorization'
@@ -6,11 +7,11 @@ export class LibraryService {
   constructor(private readonly repository: LibraryRepository, private readonly items: ItemAccess, private readonly access: WorkspaceAuthorization) {
   }
 
-  async search(userId: string, query: string, workspaceId?: string) {
+  async search(userId: string, query: string, workspaceId?: string, filters?: SearchFilters) {
     if (workspaceId) {
       await this.access.requireMember(workspaceId, userId)
     }
-    return this.repository.search(userId, query, workspaceId)
+    return this.repository.search(userId, query, workspaceId, filters)
   }
 
   personal(userId: string) {

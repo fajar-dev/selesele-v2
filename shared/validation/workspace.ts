@@ -1,5 +1,5 @@
 import * as z from 'zod'
-import { DEFAULT_WORKSPACE_ICON } from '../kernel/icons'
+import { DEFAULT_WORKSPACE_ICON } from '../model/icons'
 
 export const idSchema = z.uuid()
 const nameSchema = z.string().trim().min(1, 'Name is required').max(120)

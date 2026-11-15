@@ -1,5 +1,5 @@
-import type { MemberItem, MemberGroup, MemberDirectory, MemberAddInput, MemberAddResult } from '../../../../shared/kernel/member'
-import type { InviteRole } from '../../../../shared/kernel/workspace'
+import type { MemberItem, MemberGroup, MemberDirectory, MemberAddInput, MemberAddResult } from '../../../../shared/model/member'
+import type { InviteRole } from '../../../../shared/model/workspace'
 
 export interface MemberQuery {
   q: string

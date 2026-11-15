@@ -1,7 +1,7 @@
 import { mysqlTable, varchar, longtext, timestamp, index, customType, foreignKey, mysqlEnum, json, int } from 'drizzle-orm/mysql-core'
 import { uuidv7 } from 'uuidv7'
-import type { CanvasContent } from '../../../../shared/kernel/content'
-import { users } from './identity'
+import type { CanvasContent } from '../../../../shared/model/content'
+import { users } from './authentication'
 import { workspaces, folders } from './workspaces'
 
 const mediumblob = customType<{
@@ -17,10 +17,10 @@ export const items = mysqlTable('items', {
   description: varchar('description', { length: 2000 }).notNull().default(''),
   icon: varchar('icon', { length: 32 }),
   createdBy: varchar('created_by', { length: 36 }).notNull().references(() => users.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
-  archivedAt: timestamp('archived_at'),
-  deletedAt: timestamp('deleted_at')
+  createdAt: timestamp('created_at', { fsp: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { fsp: 3 }).notNull().defaultNow().$onUpdate(() => new Date()),
+  archivedAt: timestamp('archived_at', { fsp: 3 }),
+  deletedAt: timestamp('deleted_at', { fsp: 3 })
 }, table => [
   foreignKey({ columns: [table.folderId, table.workspaceId], foreignColumns: [folders.id, folders.workspaceId], name: 'items_folder_workspace_fk' }),
   index('items_workspace_folder_index').on(table.workspaceId, table.folderId)
@@ -29,7 +29,7 @@ export const documents = mysqlTable('item_documents', {
   itemId: varchar('item_id', { length: 36 }).primaryKey().references(() => items.id),
   markdown: longtext('markdown').notNull(),
   state: mediumblob('state'),
-  updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow()
+  updatedAt: timestamp('updated_at', { fsp: 3 }).notNull().defaultNow().$onUpdate(() => new Date())
 })
 export const canvases = mysqlTable('item_canvases', {
   itemId: varchar('item_id', { length: 36 }).primaryKey().references(() => items.id, { onDelete: 'cascade' }),

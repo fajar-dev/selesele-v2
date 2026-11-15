@@ -1,4 +1,4 @@
-import type { NotificationItem } from '../../../../shared/kernel/notification'
+import type { NotificationItem } from '../../../../shared/model/notification'
 
 export interface NotificationRepository {
   comment(itemId: string, threadId: string, body: string, actorId: string, event?: 'comment' | 'reply'): Promise<string[]>

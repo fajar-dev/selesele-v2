@@ -1,7 +1,7 @@
 import type { EditorState } from '@tiptap/pm/state'
 import { absolutePositionToRelativePosition, relativePositionToAbsolutePosition, ySyncPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
-import type { CommentAnchor, RelativeTextPosition } from '#shared/kernel/comment'
+import type { CommentAnchor, RelativeTextPosition } from '#shared/model/comment'
 
 type Mapping = Parameters<typeof absolutePositionToRelativePosition>[2]
 interface BindingState { doc: Y.Doc, type: Y.XmlFragment, binding: { mapping: Mapping } }

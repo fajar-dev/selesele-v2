@@ -1,6 +1,6 @@
-import type { ApiResponse } from '#shared/contracts/api'
-import type { MoveImpact } from '#shared/kernel/access'
-import type { ItemInput, ContentItem, ItemUpdate } from '#shared/contracts/item'
+import type { ApiResponse } from '#shared/model/api'
+import type { MoveImpact } from '#shared/model/access'
+import type { ItemInput, ContentItem, ItemUpdate } from '#shared/model/item'
 import type { ApiTransport } from '~/core/http/ApiTransport'
 
 export class ItemClient {

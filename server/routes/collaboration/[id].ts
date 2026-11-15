@@ -1,5 +1,5 @@
 import { defineWebSocketHandler } from '@nuxt/nitro-server/h3'
-import { getContainer } from '../../bootstrap/container'
+import { getApplication } from '../../bootstrap/application'
 import { idSchema } from '../../../shared/validation/workspace'
 import { SESSION_COOKIE } from '../../platform/http/session'
 
@@ -18,8 +18,8 @@ export default defineWebSocketHandler({
     const token = request.headers.get('cookie')?.split(';').map(part => part.trim())
       .find(part => part.startsWith(`${SESSION_COOKIE}=`))?.slice(SESSION_COOKIE.length + 1)
     try {
-      const user = await getContainer().auth.authenticate(token)
-      await getContainer().items.get(id.data, user.id)
+      const user = await getApplication().services.auth.authenticate(token)
+      await getApplication().services.items.get(id.data, user.id)
       request.context.itemId = id.data
       request.context.sessionToken = token
     } catch {
@@ -28,7 +28,7 @@ export default defineWebSocketHandler({
   },
   async open(peer) {
     try {
-      const connecting = getContainer().collaboration.connect(peer, peer.context.itemId as string, peer.context.sessionToken as string)
+      const connecting = getApplication().services.collaboration.connect(peer, peer.context.itemId as string, peer.context.sessionToken as string)
       connections.set(peer.id, connecting)
       await connecting
     } catch {
@@ -38,7 +38,7 @@ export default defineWebSocketHandler({
   async message(peer, message) {
     try {
       await connections.get(peer.id)
-      await getContainer().collaboration.message(peer, message.uint8Array())
+      await getApplication().services.collaboration.message(peer, message.uint8Array())
     } catch {
       peer.close(1008, 'Invalid message or access revoked')
     }
@@ -47,12 +47,12 @@ export default defineWebSocketHandler({
     await connections.get(peer.id)?.catch(() => {
     })
     connections.delete(peer.id)
-    await getContainer().collaboration.disconnect(peer)
+    await getApplication().services.collaboration.disconnect(peer)
   },
   async error(peer) {
     await connections.get(peer.id)?.catch(() => {
     })
     connections.delete(peer.id)
-    await getContainer().collaboration.disconnect(peer)
+    await getApplication().services.collaboration.disconnect(peer)
   }
 })

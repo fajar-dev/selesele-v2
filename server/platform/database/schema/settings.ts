@@ -1,7 +1,7 @@
 import { index, mysqlTable, timestamp, varchar } from 'drizzle-orm/mysql-core'
 import { uuidv7 } from 'uuidv7'
 import { workspaces } from './workspaces'
-import type { WorkspaceActivityAction } from '../../../../shared/kernel/workspaceSettings'
+import type { WorkspaceActivityAction } from '../../../../shared/model/workspaceSettings'
 
 export const workspaceActivity = mysqlTable('workspace_activity', {
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(uuidv7),

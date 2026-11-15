@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DataRetry from '~/components/ui/DataRetry.vue'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 import PersonalLibraryOverview from '~/features/library/components/PersonalLibraryOverview.vue'
 import LayoutToggle from '~/components/ui/LayoutToggle.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'

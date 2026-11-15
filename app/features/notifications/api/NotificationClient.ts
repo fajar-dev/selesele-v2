@@ -1,6 +1,6 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
-import type { ApiResponse } from '#shared/contracts/api'
-import type { NotificationItem } from '#shared/contracts/notification'
+import type { ApiResponse } from '#shared/model/api'
+import type { NotificationItem } from '#shared/model/notification'
 
 export class NotificationClient {
   constructor(private readonly http: ApiTransport) {}

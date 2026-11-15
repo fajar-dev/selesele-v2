@@ -1,4 +1,4 @@
-import type { NotificationItem } from '../../../../shared/kernel/notification'
+import type { NotificationItem } from '../../../../shared/model/notification'
 import type { EmailActivity } from './EmailActivity'
 
 export interface EmailDelivery {
@@ -8,7 +8,7 @@ export interface EmailDelivery {
   workspaceId: string
   itemId: string | null
   memberId: string | null
-  kind: NotificationItem['kind']
+  kind: Exclude<NotificationItem['kind'], 'task'>
   title: string
   activity: EmailActivity | null
   attempts: number

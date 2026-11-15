@@ -43,3 +43,13 @@ jobs:
         env:
           BACKUP_MYSQL_CONTAINER: ${{ job.services.mysql.id }}
           BACKUP_MYSQL_HOST: 127.0.0.1
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

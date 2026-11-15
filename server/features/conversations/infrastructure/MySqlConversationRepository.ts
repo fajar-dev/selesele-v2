@@ -2,7 +2,7 @@ import { and, desc, eq, sql, or } from 'drizzle-orm'
 import type { Database } from '../../../platform/database/client'
 import { conversations, conversationMessages } from '../../../platform/database/schema'
 import type { ConversationRepository } from '../domain/ConversationRepository'
-import type { KnowledgeAnswer } from '../../../../shared/kernel/library'
+import type { KnowledgeAnswer } from '../../../../shared/model/library'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export class MySqlConversationRepository implements ConversationRepository {

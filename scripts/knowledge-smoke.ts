@@ -7,16 +7,16 @@ import * as Y from 'yjs'
 import { MySqlDocumentRepository } from '../server/features/items/infrastructure/MySqlDocumentRepository'
 import { MySqlNotificationRepository } from '../server/features/notifications/infrastructure/MySqlNotificationRepository'
 import { NotificationService } from '../server/features/notifications/application/NotificationService'
-import { CryptographicTokens } from '../server/features/identity/infrastructure/CryptographicTokens'
+import { CryptographicTokens } from '../server/features/authentication/infrastructure/CryptographicTokens'
 import { SystemClock } from '../server/platform/runtime/SystemClock'
 import { randomUUID } from 'node:crypto'
 import { strict as assert } from 'node:assert'
 import { eq, inArray } from 'drizzle-orm'
 import { createDatabase } from '../server/platform/database/client'
 import { documents, folders, items, sessions, users, workspaceMembers, workspaces } from '../server/platform/database/schema'
-import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
-import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
-import { AuthService } from '../server/features/identity/application/AuthService'
+import { MySqlUserRepository } from '../server/features/authentication/infrastructure/MySqlUserRepository'
+import { MySqlSessionRepository } from '../server/features/authentication/infrastructure/MySqlSessionRepository'
+import { AuthService } from '../server/features/authentication/application/AuthService'
 
 const origin = new URL(process.env.SMOKE_ORIGIN || 'http://localhost:3000')
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname), 'Integration smoke requires a local server')
@@ -134,7 +134,7 @@ try {
     content: string
   }>(1, `/items/${fromTemplate.id}/content`)).content.includes('## Agenda'))
   await request(2, `${base}/templates`, 'POST', { templateId: 'meeting' }, 404)
-  const eventResponse = await fetch(new URL('/api/notifications/events', origin), { headers: { Cookie: `sele_session=${accounts[1]!.token}` } })
+  const eventResponse = await fetch(new URL('/api/realtime/events', origin), { headers: { Cookie: `sele_session=${accounts[1]!.token}` } })
   assert.equal(eventResponse.headers.get('content-type'), 'text/event-stream')
   const reader = eventResponse.body!.getReader()
   await reader.read()
@@ -149,7 +149,7 @@ try {
     const event = await Promise.race([update, Bun.sleep(3000).then(() => {
       throw new Error('SSE notification did not arrive')
     })])
-    assert.ok(new TextDecoder().decode(event.value).includes('refresh'), 'Notification invalidates without polling')
+    assert.ok(new TextDecoder().decode(event.value).includes('changes'), 'Notification invalidates without polling')
     const mentions = await request<{
       kind: string
       itemId: string
@@ -174,10 +174,8 @@ try {
     type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'mention', attrs: { id: accounts[1]!.userId, label: 'Knowledge member' } }] }]
   }, 'default')
   try {
-    const publisher = new NotificationService(new MySqlNotificationRepository(database.db, false), () => {
-    }, new ConsoleErrorReporter())
-    const repository = new MySqlDocumentRepository(database.db, publisher, new SystemClock(), () => {
-    })
+    const publisher = new NotificationService(new MySqlNotificationRepository(database.db, false), new ConsoleErrorReporter())
+    const repository = new MySqlDocumentRepository(database.db, publisher, new SystemClock())
     const state = Y.encodeStateAsUpdate(mentionDocument)
     await repository.saveState(mentionItem.id, state, '@Knowledge member', accounts[0]!.userId)
     await repository.saveState(mentionItem.id, state, '@Knowledge member', accounts[0]!.userId)

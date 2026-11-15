@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import DataRetry from '~/components/ui/DataRetry.vue'
 import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
-import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
+import { DEFAULT_FOLDER_ICON } from '#shared/model/icons'
 import LayoutToggle from '~/components/ui/LayoutToggle.vue'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
 import EntityIconPicker from '~/components/ui/EntityIconPicker.vue'
@@ -18,8 +18,8 @@ import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorksp
 import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { formatItemCount } from '~/features/workspaces/utils/workspacePresentation'
 import type { TableColumn } from '@nuxt/ui'
-import { itemKinds, itemTypeLabels } from '#shared/kernel/content'
-import type { ContentItem } from '#shared/contracts/item'
+import { itemKinds, itemTypeLabels } from '#shared/model/content'
+import type { ContentItem } from '#shared/model/item'
 
 const route = useRoute()
 const { workspaceId } = defineProps<{

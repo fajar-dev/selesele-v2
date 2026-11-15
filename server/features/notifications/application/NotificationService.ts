@@ -3,7 +3,7 @@ import type { ActivityPublisher } from '../domain/ActivityPublisher'
 import type { NotificationRepository } from '../domain/NotificationRepository'
 
 export class NotificationService implements ActivityPublisher {
-  constructor(private readonly repository: NotificationRepository, private readonly changed: (userId: string) => void, private readonly errors: ErrorReporter) {
+  constructor(private readonly repository: NotificationRepository, private readonly errors: ErrorReporter) {
   }
 
   list(userId: string) {
@@ -12,15 +12,11 @@ export class NotificationService implements ActivityPublisher {
 
   async read(userId: string, id?: string) {
     await this.repository.read(userId, id)
-    this.changed(userId)
   }
 
   private async publish(work: () => Promise<string[]>) {
     try {
-      const recipients = await work()
-      for (const userId of recipients) {
-        this.changed(userId)
-      }
+      await work()
     } catch (cause) {
       this.errors.report('Unable to deliver activity notification', cause)
     }

@@ -1,8 +1,8 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { Database, DatabaseTransaction } from '../../../platform/database/client'
-import { folders, groupMembers, items, resourceGrants, workspaceMembers, workspaces } from '../../../platform/database/schema'
-import { accessRank } from '../../../../shared/kernel/access'
-import type { AccessGrant, AccessLevel, MemberResourceAccess, ResourceKind } from '../../../../shared/kernel/access'
+import { folders, memberGroupMembers, items, resourceGrants, workspaceMembers, workspaces } from '../../../platform/database/schema'
+import { accessRank } from '../../../../shared/model/access'
+import type { AccessGrant, AccessLevel, MemberResourceAccess, ResourceKind } from '../../../../shared/model/access'
 import { resolveResourceAccess } from '../domain/accessPolicy'
 /** One permission evaluator serves direct access, lists, search, exports and notifications. */
 export async function loadResourceScope(db: Database | DatabaseTransaction, userId: string, workspaceId?: string, subjectMemberId?: string, includeDeleted = false) {
@@ -15,7 +15,7 @@ export async function loadResourceScope(db: Database | DatabaseTransaction, user
         db.select().from(folders).where(inArray(folders.workspaceId, ids)),
         db.select().from(items).where(inArray(items.workspaceId, ids)),
         db.select().from(resourceGrants).where(inArray(resourceGrants.workspaceId, ids)),
-        db.select().from(groupMembers).where(inArray(groupMembers.memberId, memberships.map(row => row.member.id)))
+        db.select().from(memberGroupMembers).where(inArray(memberGroupMembers.memberId, memberships.map(row => row.member.id)))
       ])
     : [[], [], [], []]
   const resolved = new Map<string, MemberResourceAccess>()

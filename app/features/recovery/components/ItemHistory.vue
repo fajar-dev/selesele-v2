@@ -147,6 +147,7 @@ useFeedbackToast(error, { key: `version-action:${props.itemId}`, title: 'Unable 
           />
           <CanvasPreview
             v-else-if="view === 'preview'"
+            :item-id="itemId"
             :content="preview"
           />
           <VersionComparison

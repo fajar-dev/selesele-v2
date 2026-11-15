@@ -1,4 +1,4 @@
-import { getContainer } from '../bootstrap/container'
+import { getApplication } from '../bootstrap/application'
 import { apiHandler, success } from '../platform/http/response'
 
-export default apiHandler(async () => success(getContainer().templates.list()))
+export default apiHandler(async () => success(getApplication().services.templates.list()))

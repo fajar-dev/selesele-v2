@@ -1,9 +1,9 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import type { Database, DatabaseTransaction } from '../../../platform/database/client'
-import { folders, memberGroups, items, resourceGrants, workspaceMembers, workspaces, groupMembers } from '../../../platform/database/schema'
+import { folders, memberGroups, items, resourceGrants, workspaceMembers, workspaces, memberGroupMembers } from '../../../platform/database/schema'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
-import { accessRank } from '../../../../shared/kernel/access'
-import type { AccessLevel, ResourceKind, ResourcePolicy } from '../../../../shared/kernel/access'
+import { accessRank } from '../../../../shared/model/access'
+import type { AccessLevel, ResourceKind, ResourcePolicy } from '../../../../shared/model/access'
 import type { ResourceAccess } from '../domain/ResourceAccess'
 import { loadResourceScope } from './resourceScope'
 import { appendWorkspaceActivities } from '../../settings/infrastructure/MySqlWorkspaceJournal'
@@ -119,7 +119,7 @@ export class MySqlResourceAccess implements ResourceAccess {
         await tx.insert(resourceGrants).values(input.grants.map(grant => ({ ...grant, expiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null, workspaceId: policy.workspaceId, itemId: kind === 'item' ? id : null, folderId: kind === 'folder' ? id : null })))
       }
       const groupIds = [...new Set([...policy.grants, ...input.grants].map(grant => grant.groupId).filter((id): id is string => !!id))]
-      const affected = groupIds.length ? await tx.select({ memberId: groupMembers.memberId }).from(groupMembers).where(inArray(groupMembers.groupId, groupIds)) : []
+      const affected = groupIds.length ? await tx.select({ memberId: memberGroupMembers.memberId }).from(memberGroupMembers).where(inArray(memberGroupMembers.groupId, groupIds)) : []
       const memberIds = new Set([...affected.map(row => row.memberId), ...[...policy.grants, ...input.grants].map(grant => grant.memberId).filter((id): id is string => !!id)])
       const context = { itemId: kind === 'item' ? id : undefined, folderId: kind === 'folder' ? id : undefined }
       await appendWorkspaceActivities(tx, policy.workspaceId, userId, [

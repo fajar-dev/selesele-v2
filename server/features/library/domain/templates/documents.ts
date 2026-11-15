@@ -1,4 +1,4 @@
-import type { ItemTemplate } from '../../../../../shared/kernel/library'
+import type { ItemTemplate } from '../../../../../shared/model/library'
 
 export const documentTemplates: ItemTemplate[] = [
   { kind: 'document', id: 'meeting', title: 'Meeting notes', icon: '📝', description: 'Agenda, decisions, and next steps.', content: '## Agenda\n\n- Topic\n\n## Notes\n\nWrite your notes here.\n\n## Decisions\n\n- Decision\n\n## Action items\n\n- [ ] Follow up\n' },

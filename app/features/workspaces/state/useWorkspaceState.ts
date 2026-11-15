@@ -1,5 +1,5 @@
-import type { ContentItem } from '#shared/contracts/item'
-import type { FolderItem, WorkspaceItem } from '#shared/contracts/workspace'
+import type { ContentItem } from '#shared/model/item'
+import type { FolderItem, WorkspaceItem } from '#shared/model/workspace'
 import { workspaceKeys } from './workspaceKeys'
 
 export function useWorkspaceState(workspaceId: string) {

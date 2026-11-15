@@ -1,4 +1,4 @@
-import type { WorkspaceCapability } from '../../../../shared/kernel/workspaceSettings'
+import type { WorkspaceCapability } from '../../../../shared/model/workspaceSettings'
 import type { WorkspaceAccess } from './Workspace'
 
 export interface WorkspaceAuthorization {

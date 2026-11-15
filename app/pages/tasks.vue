@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskCalendar from '~/features/kanban/components/TaskCalendar.vue'
 import AppHeader from '~/components/shell/AppHeader.vue'
 import ScreenContent from '~/components/ui/ScreenContent.vue'
 import ScreenHeading from '~/components/ui/ScreenHeading.vue'
@@ -8,7 +9,8 @@ import { useApi } from '~/core/http/useApi'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 
 const api = useApi().library
-const query = useLazyAsyncData('library:my-tasks', async () => (await api.myTasks()).data, { server: false, default: () => [] })
+const query = useRealtimeQuery('library:my-tasks', async () => (await api.myTasks()).data, { server: false, default: () => [] })
+const layout = ref('list')
 const scope = ref('all'), workspace = ref('__all'), search = ref('')
 const today = ref('')
 function updateToday() {
@@ -25,7 +27,7 @@ const workspaces = computed(() => [{ label: 'All workspaces', value: '__all' }, 
 const tasks = computed(() => query.data.value.filter(task =>
   (workspace.value === '__all' || task.workspaceId === workspace.value)
   && `${task.title} ${task.itemTitle} ${task.workspaceName}`.toLocaleLowerCase().includes(search.value.toLocaleLowerCase())
-  && (scope.value === 'all' || (scope.value === 'today' && task.dueDate === today.value) || (scope.value === 'overdue' && !!task.dueDate && task.dueDate < today.value) || (scope.value === 'unscheduled' && !task.dueDate))
+  && (scope.value === 'completed' ? !!task.completedAt : !task.completedAt && (scope.value === 'all' || (scope.value === 'today' && task.dueDate === today.value) || (scope.value === 'overdue' && !!task.dueDate && task.dueDate < today.value) || (scope.value === 'unscheduled' && !task.dueDate)))
 ).sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || a.title.localeCompare(b.title)))
 useFeedbackToast(query.error, { key: 'library:my-tasks', title: 'Unable to load your tasks', retry: () => query.refresh() })
 </script>
@@ -42,16 +44,6 @@ useFeedbackToast(query.error, { key: 'library:my-tasks', title: 'Unable to load 
           <UIcon
             name="i-lucide-list-checks"
             class="size-ui-3xl"
-          />
-        </template>
-        <template #actions>
-          <UButton
-            label="Refresh"
-            icon="i-lucide-refresh-cw"
-            color="neutral"
-            variant="ghost"
-            :loading="query.status.value === 'pending'"
-            @click="query.refresh()"
           />
         </template>
       </ScreenHeading>
@@ -73,6 +65,29 @@ useFeedbackToast(query.error, { key: 'library:my-tasks', title: 'Unable to load 
           aria-label="Search your tasks"
         />
       </div>
+      <div class="flex gap-ui-sm">
+        <UButton
+          label="List"
+          icon="i-lucide-list"
+          size="sm"
+          color="neutral"
+          :variant="layout === 'list' ? 'soft' : 'ghost'"
+          @click="layout = 'list'"
+        /><UButton
+          label="Calendar"
+          icon="i-lucide-calendar-days"
+          size="sm"
+          color="neutral"
+          :variant="layout === 'calendar' ? 'soft' : 'ghost'"
+          @click="layout = 'calendar'"
+        /><UButton
+          label="Completed"
+          size="sm"
+          color="neutral"
+          :variant="scope === 'completed' ? 'soft' : 'ghost'"
+          @click="scope = scope === 'completed' ? 'all' : 'completed'"
+        />
+      </div>
       <DataSkeleton
         v-if="query.status.value === 'pending' && !query.data.value.length"
         label="Loading your tasks"
@@ -80,6 +95,11 @@ useFeedbackToast(query.error, { key: 'library:my-tasks', title: 'Unable to load 
       <DataRetry
         v-else-if="query.error.value"
         :on-retry="() => query.refresh()"
+      />
+      <TaskCalendar
+        v-else-if="layout === 'calendar'"
+        :tasks="tasks"
+        @open="id => { const task = tasks.find(task => task.id === id); if (task) navigateTo({ path: `/workspaces/${task.workspaceId}/items/${task.itemId}`, query: { task: task.id } }) }"
       />
       <div
         v-else-if="tasks.length"

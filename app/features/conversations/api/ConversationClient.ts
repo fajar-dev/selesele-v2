@@ -1,6 +1,6 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
-import type { ApiResponse } from '#shared/contracts/api'
-import type { ConversationDetail, ConversationSummary } from '#shared/contracts/conversation'
+import type { ApiResponse } from '#shared/model/api'
+import type { ConversationDetail, ConversationSummary } from '#shared/model/conversation'
 
 export class ConversationClient {
   constructor(private readonly http: ApiTransport) { }

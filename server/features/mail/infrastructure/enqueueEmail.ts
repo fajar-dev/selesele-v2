@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
 import type { DatabaseTransaction } from '../../../platform/database/client'
-import { defaultNotificationPreferences } from '../../../../shared/kernel/workspaceSettings'
+import { defaultNotificationPreferences } from '../../../../shared/model/workspaceSettings'
 import { nextDigestAt } from '../domain/digestSchedule'
 import { emailDeliveries, users, workspaceMembers } from '../../../platform/database/schema'
 

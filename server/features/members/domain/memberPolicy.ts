@@ -1,4 +1,4 @@
-import type { WorkspaceRole, InviteRole } from '../../../../shared/kernel/workspace'
+import type { WorkspaceRole, InviteRole } from '../../../../shared/model/workspace'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export function requireMemberManagement(actor: WorkspaceRole, target: WorkspaceRole, nextRole?: InviteRole): void {

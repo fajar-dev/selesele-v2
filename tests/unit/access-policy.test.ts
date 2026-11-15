@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { resolveResourceAccess } from '../../server/features/access/domain/accessPolicy'
 import { requireMemberManagement } from '../../server/features/members/domain/memberPolicy'
 import type { PolicySubject } from '../../server/features/access/domain/accessPolicy'
-import type { AccessGrant, AccessLevel } from '../../shared/kernel/access'
+import type { AccessGrant, AccessLevel } from '../../shared/model/access'
 
 const now = new Date('2030-01-01T00:00:00Z')
 const subject: PolicySubject = { id: 'member', role: 'member', suspended: false, groupIds: ['team'] }

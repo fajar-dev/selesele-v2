@@ -17,11 +17,11 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(options: UseEdi
 
   const toolbarItems: EditorToolbarItem<T>[][] = [[{
     kind: 'undo',
-    icon: 'i-lucide-undo',
+    icon: 'i-lucide-undo-2',
     tooltip: { text: 'Undo' }
   }, {
     kind: 'redo',
-    icon: 'i-lucide-redo',
+    icon: 'i-lucide-redo-2',
     tooltip: { text: 'Redo' }
   }], [{
     kind: 'imageUpload',

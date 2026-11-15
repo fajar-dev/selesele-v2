@@ -1,5 +1,5 @@
-import type { ItemKind, CanvasContent } from '../../../../shared/kernel/content'
-import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences, WorkspaceActivity } from '../../../../shared/kernel/workspaceSettings'
+import type { ItemKind, CanvasContent } from '../../../../shared/model/content'
+import type { WorkspaceSettingsChanges, WorkspaceNotificationPreferences, WorkspaceActivity } from '../../../../shared/model/workspaceSettings'
 
 interface WorkspaceExportItem {
   kind: ItemKind
@@ -11,6 +11,8 @@ interface WorkspaceExportItem {
 }
 export interface WorkspaceExportData {
   name: string
+  files?: { id: string, itemId: string, name: string, data: Uint8Array, mime: string }[]
+  relations?: { sourceId: string, targetId: string, sourceAnchor: unknown, targetAnchor: unknown, label: string }[]
   attachments: string[]
   items: WorkspaceExportItem[]
   folders: {

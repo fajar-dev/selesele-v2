@@ -6,6 +6,7 @@ import type { ImageStore } from '../../media/domain/ImageStore'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 const attachmentPattern = /(?:https?:\/\/[^\s)"<>]+)?\/images\/([a-f0-9-]{36}\.(?:png|jpg|gif|webp))/gi
+const filePath = (file: { id: string, itemId: string, name: string }) => `files/${file.itemId}/${file.id}-${file.name.replace(/[\\/\r\n\0]/g, '_')}`
 const safeName = (value: string) => value.normalize('NFKC').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 70) || 'Untitled'
 export class BunWorkspaceArchive implements WorkspaceArchive {
   constructor(private readonly images: ImageStore, private readonly directory: string) {
@@ -17,7 +18,7 @@ export class BunWorkspaceArchive implements WorkspaceArchive {
   }
 
   async attachmentBytes(data: WorkspaceExportData) {
-    let bytes = 0
+    let bytes = (data.files || []).reduce((sum, file) => sum + file.data.byteLength, 0)
     for (const filename of this.attachments(data)) {
       try {
         bytes += (await stat(join(this.directory, filename))).size
@@ -53,6 +54,15 @@ export class BunWorkspaceArchive implements WorkspaceArchive {
         files[`attachments/${filename}`] = image
       }
     }
+    for (const file of data.files || []) {
+      total += file.data.byteLength
+      if (total > 50 * 1024 * 1024) {
+        throw new ApplicationError('invalid_input', 'Workspace export exceeds the 50 MB limit')
+      }
+      files[filePath(file)] = file.data
+    }
+    files['relations.json'] = JSON.stringify(data.relations || [], null, 2)
+    files['files.json'] = JSON.stringify((data.files || []).map(({ data: _data, ...file }) => ({ ...file, path: filePath(file) })), null, 2)
     files['workspace.json'] = JSON.stringify({ name: data.name, items: data.items.map(item => ({ id: item.id, title: item.title, kind: item.kind, path: paths.get(item.id) })) }, null, 2)
     return new Uint8Array(await new Bun.Archive(files, { compress: 'gzip' }).bytes())
   }

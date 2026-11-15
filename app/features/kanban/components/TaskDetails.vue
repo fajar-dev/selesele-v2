@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { canonicalJson } from '#shared/kernel/json'
-import type { KanbanTask, KanbanContent } from '#shared/kernel/content'
-import type { WorkspaceMember } from '#shared/contracts/workspace'
+import { canonicalJson } from '#shared/model/json'
+import type { KanbanTask, KanbanContent } from '#shared/model/content'
+import type { WorkspaceMember } from '#shared/model/workspace'
+import ItemResourcesButton from '~/features/resources/components/ItemResourcesButton.vue'
 import DetailPanel from '~/components/ui/DetailPanel.vue'
 
-const { task, columns, members, readonly = false, canComment = false, onSave } = defineProps<{
+const { itemId, prepareResources, task, columns, members, tasks = [], readonly = false, canComment = false, onSave } = defineProps<{
+  itemId?: string
+  prepareResources?: () => Promise<void>
+  tasks?: KanbanTask[]
   task: KanbanTask
   columns: KanbanContent['columns']
   members: WorkspaceMember[]
@@ -12,7 +16,7 @@ const { task, columns, members, readonly = false, canComment = false, onSave } =
   readonly?: boolean
   onSave: (task: KanbanTask) => void
 }>()
-const emit = defineEmits<{ comment: [id: string, title: string] }>()
+const emit = defineEmits<{ comment: [id: string, title: string], openTask: [id: string], subtask: [id: string] }>()
 const open = defineModel<boolean>('open', { default: false })
 const draft = ref<KanbanTask>(JSON.parse(canonicalJson(task)))
 const source = ref(canonicalJson(task))
@@ -45,7 +49,11 @@ function save() {
   if (!draft.value.title.trim()) {
     return false
   }
-  onSave({ ...draft.value, title: draft.value.title.trim(), labels: [...new Set(labels.value.split(',').map(label => label.trim()).filter(Boolean))] })
+  try {
+    onSave({ ...draft.value, title: draft.value.title.trim(), labels: [...new Set(labels.value.split(',').map(label => label.trim()).filter(Boolean))] })
+  } catch {
+    return false
+  }
   open.value = false
   return true
 }
@@ -122,6 +130,92 @@ function save() {
             />
           </UFormField>
         </div>
+
+        <div class="grid sm:grid-cols-2 gap-ui-lg">
+          <UFormField label="Completion">
+            <UCheckbox
+              :model-value="!!draft.completedAt"
+              :disabled="readonly"
+              label="Completed"
+              @update:model-value="draft.completedAt = $event ? new Date().toISOString() : null"
+            />
+          </UFormField>
+          <UFormField label="Repeat after completion">
+            <USelect
+              :model-value="draft.repeat || '__none'"
+              :disabled="readonly"
+              :items="[{ label: 'Does not repeat', value: '__none' }, { label: 'Daily', value: 'daily' }, { label: 'Weekly', value: 'weekly' }, { label: 'Monthly', value: 'monthly' }]"
+              class="w-full"
+              @update:model-value="draft.repeat = $event === '__none' ? null : $event as KanbanTask['repeat']"
+            />
+          </UFormField>
+          <UFormField
+            label="Reminder"
+            hint="Your local time; delivered in the notification inbox"
+          >
+            <UInput
+              :model-value="draft.reminderAt ? new Date(Date.parse(draft.reminderAt) - new Date(draft.reminderAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''"
+              type="datetime-local"
+              :readonly="readonly"
+              class="w-full"
+              @update:model-value="draft.reminderAt = $event && Number.isFinite(Date.parse(String($event))) ? new Date(String($event)).toISOString() : null"
+            />
+          </UFormField>
+          <UFormField label="Parent task">
+            <USelect
+              :model-value="draft.parentId || '__none'"
+              :disabled="readonly"
+              :items="[{ label: 'No parent', value: '__none' }, ...tasks.filter(entry => entry.id !== task.id).map(entry => ({ label: `#${entry.number} ${entry.title}`, value: entry.id }))]"
+              class="w-full"
+              @update:model-value="draft.parentId = $event === '__none' ? null : String($event)"
+            />
+          </UFormField>
+          <UFormField
+            label="Blocked by"
+            hint="Complete these tasks first"
+          >
+            <USelect
+              :model-value="draft.dependencies || []"
+              multiple
+              :disabled="readonly"
+              :items="tasks.filter(entry => entry.id !== task.id).map(entry => ({ label: `#${entry.number} ${entry.title}${entry.completedAt ? ' ✓' : ''}`, value: entry.id }))"
+              class="w-full"
+              @update:model-value="draft.dependencies = $event as string[]"
+            />
+          </UFormField>
+        </div>
+        <section
+          class="space-y-ui-sm"
+          aria-label="Subtasks"
+        >
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium">
+              Subtasks
+            </h3><UButton
+              v-if="!readonly && !task.completedAt"
+              label="Add subtask"
+              icon="i-lucide-plus"
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              @click="() => { if (save()) emit('subtask', task.id) }"
+            />
+          </div><UButton
+            v-for="child in tasks.filter(entry => entry.parentId === task.id)"
+            :key="child.id"
+            :label="`${child.completedAt ? '✓ ' : ''}#${child.number} ${child.title}`"
+            color="neutral"
+            variant="ghost"
+            class="w-full justify-start"
+            @click="emit('openTask', child.id)"
+          />
+        </section>
+        <ItemResourcesButton
+          :item-id="itemId"
+          :anchor="{ type: 'task', id: task.id }"
+          :readonly="readonly"
+          :prepare="prepareResources"
+        />
         <UFormField label="Description">
           <UTextarea
             v-model="draft.description"

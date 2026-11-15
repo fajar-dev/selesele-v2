@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { itemKinds, itemTypeLabels } from '#shared/kernel/content'
-import type { ItemKind } from '#shared/kernel/content'
+import { itemKinds, itemTypeLabels } from '#shared/model/content'
+import type { ItemKind } from '#shared/model/content'
 import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
 import MoveAccessConfirmation from '~/features/items/components/MoveAccessConfirmation.vue'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
 import { useItemTemplates } from '~/features/library/composables/useItemTemplates'
 import EntityIcon from '~/components/ui/EntityIcon.vue'
-import { DEFAULT_FOLDER_ICON } from '#shared/kernel/icons'
+import { DEFAULT_FOLDER_ICON } from '#shared/model/icons'
 import WorkspaceItemLink from '~/features/workspaces/components/WorkspaceItemLink.vue'
 import { useItemMovement } from '~/features/items/composables/useItemMovement'
 import { useWorkspaceFolders } from '~/features/workspaces/composables/useWorkspaceFolders'
-import type { WorkspaceOverview, FolderItem } from '#shared/contracts/workspace'
-import type { ContentItem } from '#shared/contracts/item'
+import type { WorkspaceOverview, FolderItem } from '#shared/model/workspace'
+import type { ContentItem } from '#shared/model/item'
 
 const props = defineProps<{
   overview: WorkspaceOverview

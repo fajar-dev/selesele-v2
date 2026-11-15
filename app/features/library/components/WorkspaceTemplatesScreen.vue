@@ -4,21 +4,20 @@ import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import DataRetry from '~/components/ui/DataRetry.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
-import { useWorkspaceEvents } from '~/features/workspaces/composables/useWorkspaceEvents'
 import { useApi } from '~/core/http/useApi'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import ItemTemplateCard from './ItemTemplateCard.vue'
-import { itemKinds, itemTypeLabels } from '#shared/kernel/content'
-import type { ItemTemplate } from '#shared/kernel/library'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import { itemKinds, itemTypeLabels } from '#shared/model/content'
+import type { ItemTemplate } from '#shared/model/library'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
 
 const { workspaceId } = defineProps<{
   workspaceId: string
 }>()
 const { data: overview } = useWorkspace(workspaceId)
 const api = useApi().library
-const query = useLazyAsyncData(`workspace-templates:${workspaceId}`, async () => (await api.workspaceTemplates(workspaceId)).data, { server: false, default: () => [] })
-const builtins = useLazyAsyncData('library:templates', async () => (await api.templates()).data, { server: false, default: () => [] })
+const query = useRealtimeQuery(`workspace-templates:${workspaceId}`, async () => (await api.workspaceTemplates(workspaceId)).data, { server: false, default: () => [] })
+const builtins = useRealtimeQuery('library:templates', async () => (await api.templates()).data, { server: false, default: () => [] })
 const manager = computed(() => !!overview.value && ['owner', 'admin'].includes(overview.value.workspace.role) && !overview.value.workspace.archivedAt)
 const writable = computed(() => !!overview.value && !overview.value.workspace.archivedAt && allowsWorkspaceAction(overview.value.workspace.role, overview.value.workspace.settings, 'createItems'))
 const kind = ref('all'), search = ref('')
@@ -39,9 +38,6 @@ const removalOpen = computed({ get: () => !!deleting.value, set: (value) => {
     deleting.value = null
   }
 } })
-useWorkspaceEvents(workspaceId, () => {
-  void query.refresh()
-})
 useFeedbackToast(query.error, { key: `workspace-templates:${workspaceId}`, title: 'Unable to load workspace templates', recovered: () => query.status.value === 'success', retry: () => query.refresh() })
 useFeedbackToast(builtins.error, { key: 'library:templates', title: 'Unable to load templates', recovered: () => builtins.status.value === 'success', retry: () => builtins.refresh() })
 async function create(id: string) {

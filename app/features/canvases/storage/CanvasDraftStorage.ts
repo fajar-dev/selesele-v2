@@ -1,5 +1,5 @@
 import { canvasContentSchema } from '#shared/validation/canvas'
-import type { CanvasContent } from '#shared/kernel/content'
+import type { CanvasContent } from '#shared/model/content'
 
 export interface SavedCanvasDraft {
   content: CanvasContent

@@ -1,5 +1,5 @@
 import { loadResourceScope } from '../../access/infrastructure/resourceScope'
-import { and, eq, gte, isNull, inArray, lt, lte, or, sql } from 'drizzle-orm'
+import { and, eq, gte, isNull, inArray, lt, lte, sql } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 import type { Database } from '../../../platform/database/client'
 import { emailDeliveries, users, workspaceMembers, workspaces } from '../../../platform/database/schema'
@@ -15,7 +15,15 @@ export class MySqlEmailOutbox implements EmailOutbox {
     await this.db.update(emailDeliveries).set({ state: 'failed', lastError: 'lease_exhausted', leaseUntil: null, leaseToken: null })
       .where(and(eq(emailDeliveries.state, 'processing'), lte(emailDeliveries.leaseUntil, now), gte(emailDeliveries.attempts, deliveryPolicy.maxAttempts)))
     return this.db.transaction(async (transaction) => {
-      const [row] = await transaction.select().from(emailDeliveries).where(and(lt(emailDeliveries.attempts, deliveryPolicy.maxAttempts), or(and(eq(emailDeliveries.state, 'pending'), lte(emailDeliveries.availableAt, now)), and(eq(emailDeliveries.state, 'processing'), lte(emailDeliveries.leaseUntil, now))))).orderBy(emailDeliveries.availableAt, emailDeliveries.id).limit(1).for('update', { skipLocked: true })
+      // Separate indexed queues avoid a filesort locking every eligible job before LIMIT.
+      const [expired] = await transaction.select().from(emailDeliveries)
+        .where(and(eq(emailDeliveries.state, 'processing'), lte(emailDeliveries.leaseUntil, now), lt(emailDeliveries.attempts, deliveryPolicy.maxAttempts)))
+        .orderBy(emailDeliveries.leaseUntil, emailDeliveries.id).limit(1).for('update', { skipLocked: true })
+      const [row] = expired
+        ? [expired]
+        : await transaction.select().from(emailDeliveries)
+            .where(and(eq(emailDeliveries.state, 'pending'), lte(emailDeliveries.availableAt, now), lt(emailDeliveries.attempts, deliveryPolicy.maxAttempts)))
+            .orderBy(emailDeliveries.availableAt, emailDeliveries.id).limit(1).for('update', { skipLocked: true })
       if (!row) {
         return null
       }

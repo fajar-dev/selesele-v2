@@ -1,8 +1,9 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
-import type { ApiResponse } from '#shared/contracts/api'
-import type { MemberItem, MemberDirectory, MemberGroup, MemberAddInput, MemberAddResult, MemberBulkAction, MemberResourceAccess, AccessLevel, ResourceKind } from '#shared/contracts/member'
-import type { InviteRole } from '#shared/contracts/workspace'
-import type { WorkspaceActivityItem } from '#shared/contracts/workspaceSettings'
+import type { ApiResponse } from '#shared/model/api'
+import type { MemberItem, MemberDirectory, MemberGroup, MemberAddInput, MemberAddResult, MemberBulkAction } from '#shared/model/member'
+import type { MemberResourceAccess, AccessLevel, ResourceKind } from '#shared/model/access'
+import type { InviteRole } from '#shared/model/workspace'
+import type { WorkspaceActivityItem } from '#shared/model/workspaceSettings'
 
 export class MemberClient {
   constructor(private readonly http: ApiTransport) {

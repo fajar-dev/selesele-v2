@@ -14,7 +14,7 @@ const { library } = useApi()
 const route = useRoute()
 const search = ref('')
 const query = useDebounce(search, 200)
-const { data: items, error, status, refresh } = useLazyAsyncData('item-link-picker', async () => open.value && query.value.trim() ? (await library.search(query.value, String(route.params.workspaceId))).data.filter(item => item.kind === 'item') : [], { server: false, default: () => [], watch: [query, open] })
+const { data: items, error, status, refresh } = useRealtimeQuery('item-link-picker', async () => open.value && query.value.trim() ? (await library.search(query.value, String(route.params.workspaceId))).data.filter(item => item.kind === 'item') : [], { server: false, default: () => [], watch: [query, open] })
 useFeedbackToast(error, { key: 'item-link-picker', title: 'Unable to find items', recovered: () => status.value === 'success', retry: () => refresh() })
 function linkItem(item: {
   id: string

@@ -2,7 +2,7 @@
 import DataRetry from '~/components/ui/DataRetry.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { usePersonalLibrary } from '../composables/usePersonalLibrary'
-import type { WorkspaceItem } from '#shared/contracts/workspace'
+import type { WorkspaceItem } from '#shared/model/workspace'
 
 const props = withDefaults(defineProps<{
   workspaces: WorkspaceItem[]

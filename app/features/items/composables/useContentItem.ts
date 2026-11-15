@@ -1,4 +1,4 @@
-import type { ContentItem } from '#shared/contracts/item'
+import type { ContentItem } from '#shared/model/item'
 import { useApi } from '~/core/http/useApi'
 import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { useWorkspaceState } from '~/features/workspaces/state/useWorkspaceState'
@@ -8,7 +8,7 @@ export function useContentItem(workspaceId: string, itemId: string) {
   const { upsertItem } = useWorkspaceState(workspaceId)
   // Document metadata and workspace navigation load independently.
   const workspaceQuery = useWorkspace(workspaceId)
-  const itemQuery = useLazyAsyncData(`items:${itemId}`, async () => {
+  const itemQuery = useRealtimeQuery(`items:${itemId}`, async () => {
     const { data } = await items.get(itemId)
     if (data.workspaceId !== workspaceId) {
       throw createError({ statusCode: 404, message: 'Item not found in this workspace' })

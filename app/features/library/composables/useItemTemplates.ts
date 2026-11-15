@@ -1,6 +1,5 @@
-import { itemKinds, itemTypeLabels } from '#shared/kernel/content'
+import { itemKinds, itemTypeLabels } from '#shared/model/content'
 import { libraryKeys } from '~/features/library/state/libraryKeys'
-import { useWorkspaceEvents } from '~/features/workspaces/composables/useWorkspaceEvents'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import { useApi } from '~/core/http/useApi'
 import { useWorkspaceState } from '~/features/workspaces/state/useWorkspaceState'
@@ -11,14 +10,9 @@ export function useItemTemplates(workspaceId: string, beforeCreate: () => void) 
   const { upsertItem } = useWorkspaceState(workspaceId)
   const toast = useToast()
   const busy = ref(false)
-  const { data, error, status, refresh } = useLazyAsyncData(libraryKeys.templates, async () => (await library.templates()).data, { server: false, immediate: false, default: () => [] })
-  const custom = useLazyAsyncData(`workspace-templates:${workspaceId}`, async () => (await library.workspaceTemplates(workspaceId)).data, { server: false, immediate: false, default: () => [] })
+  const { data, error, status, refresh } = useRealtimeQuery(libraryKeys.templates, async () => (await library.templates()).data, { server: false, immediate: false, default: () => [] })
+  const custom = useRealtimeQuery(`workspace-templates:${workspaceId}`, async () => (await library.workspaceTemplates(workspaceId)).data, { server: false, immediate: false, default: () => [] })
   useFeedbackToast(custom.error, { key: `workspace-templates:${workspaceId}`, title: 'Unable to load workspace templates', recovered: () => custom.status.value === 'success', retry: () => custom.refresh() })
-  useWorkspaceEvents(workspaceId, () => {
-    if (custom.status.value !== 'idle') {
-      void custom.refresh()
-    }
-  })
   useFeedbackToast(error, { key: libraryKeys.templates, title: 'Unable to load templates', recovered: () => status.value === 'success', retry: () => refresh() })
   function load(open: boolean) {
     if (open && custom.status.value !== 'pending') {

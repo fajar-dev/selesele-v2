@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
-import { useWorkspaceEvents } from '~/features/workspaces/composables/useWorkspaceEvents'
-import type { MemberItem, MemberResourceAccess, AccessLevel } from '#shared/contracts/member'
-import type { InviteRole } from '#shared/contracts/workspace'
+import type { MemberItem } from '#shared/model/member'
+import type { MemberResourceAccess, AccessLevel } from '#shared/model/access'
+import type { InviteRole } from '#shared/model/workspace'
 import { useApi } from '~/core/http/useApi'
 import DetailPanel from '~/components/ui/DetailPanel.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
@@ -32,21 +32,13 @@ watch(open, (value) => {
     emit('close')
   }
 })
-const { data: access, status, error: accessError, refresh } = useLazyAsyncData(`member-access:${workspaceId}:${member.id}`, async () => (await api.access(workspaceId, member.id)).data, { server: false, immediate: false, default: () => [] })
-const { data: history, status: historyStatus, error: historyError, refresh: refreshHistory } = useLazyAsyncData(`member-history:${workspaceId}:${member.id}`, async () => (await api.history(workspaceId, member.id)).data, { server: false, immediate: false, default: () => ({ items: [], nextCursor: null }) })
+const { data: access, status, error: accessError, refresh } = useRealtimeQuery(`member-access:${workspaceId}:${member.id}`, async () => (await api.access(workspaceId, member.id)).data, { server: false, immediate: false, default: () => [] })
+const { data: history, status: historyStatus, error: historyError, refresh: refreshHistory } = useRealtimeQuery(`member-history:${workspaceId}:${member.id}`, async () => (await api.history(workspaceId, member.id)).data, { server: false, immediate: false, default: () => ({ items: [], nextCursor: null }) })
 watch(tab, (active) => {
   if (active === 'access') {
     void refresh()
   }
   if (active === 'history') {
-    void refreshHistory()
-  }
-})
-useWorkspaceEvents(workspaceId, () => {
-  if (tab.value === 'access') {
-    void refresh()
-  }
-  if (tab.value === 'history') {
     void refreshHistory()
   }
 })

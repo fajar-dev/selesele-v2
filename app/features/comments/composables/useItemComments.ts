@@ -1,13 +1,13 @@
 import { useApi } from '~/core/http/useApi'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import type { Editor } from '@tiptap/core'
-import type { CommentThreadItem, CommentThreadInput } from '#shared/contracts/comment'
+import type { CommentThreadItem, CommentThreadInput } from '#shared/model/comment'
 import { CommentSynchronization } from '~/features/comments/synchronization/CommentSynchronization'
 import { captureCommentSelection, CommentHighlights, commentHighlightKey, commentRange } from '~/features/comments/editor/CommentHighlights'
 
 export function useItemComments(itemId: string, editorRef: Ref<{
   editor: Editor | undefined
-} | null | undefined>, readOnly = false, onContentChanged?: () => void, onObjectJump?: (id: string, type: string) => boolean) {
+} | null | undefined>, options: { onContentChanged?: () => void, onObjectJump?: (id: string, type: string) => boolean } = {}) {
   const { comments: commentApi } = useApi()
   const threads = ref<CommentThreadItem[]>([])
   const loading = ref(true)
@@ -74,7 +74,7 @@ export function useItemComments(itemId: string, editorRef: Ref<{
   function jump(thread: CommentThreadItem) {
     select(thread.id)
     if ('kind' in thread.anchor) {
-      if (!onObjectJump?.(thread.anchor.objectId, thread.anchor.objectType)) {
+      if (!options.onObjectJump?.(thread.anchor.objectId, thread.anchor.objectType)) {
         toast.add({ title: 'The original object is no longer available', description: 'This discussion is still saved here.', color: 'neutral' })
       }
       return
@@ -131,21 +131,11 @@ export function useItemComments(itemId: string, editorRef: Ref<{
       activeId.value = null
     }
   })
-  let events: EventSource | undefined
-  onMounted(() => {
+  useRealtimeEffect(`comments:${itemId}`, { topics: ['comments', 'content', 'access', 'members', 'groups', 'items', 'folders', 'workspaces'] }, async () => {
     synchronize()
-    if (readOnly) {
-      events = new EventSource(`/api/items/${itemId}/comments/events`)
-      events.onerror = () => {
-        void refreshNuxtData(`items:${itemId}`)
-      }
-      events.onmessage = () => {
-        synchronize()
-        onContentChanged?.()
-      }
-    }
+    options.onContentChanged?.()
   })
-  onScopeDispose(() => events?.close())
+  onMounted(synchronize)
   onScopeDispose(() => synchronization.dispose())
   const openCount = computed(() => threads.value.filter(thread => !thread.resolvedAt).length)
   return { itemId, threads, openCount, loading, loadError, open, activeId, draft, draftBody, filter, extension, synchronize, start, startObject, select, jump, create, reply, resolve, remove }

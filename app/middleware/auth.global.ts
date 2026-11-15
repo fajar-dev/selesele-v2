@@ -1,4 +1,4 @@
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuth()

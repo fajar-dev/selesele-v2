@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
-import type { MemberGroup } from '#shared/contracts/member'
+import type { MemberGroup } from '#shared/model/member'
 import { groupInputSchema } from '#shared/validation/member'
 import { useApi } from '~/core/http/useApi'
 import { useWorkspace } from '~/features/workspaces/composables/useWorkspace'

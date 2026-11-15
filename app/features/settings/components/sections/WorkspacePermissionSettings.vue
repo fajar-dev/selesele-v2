@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ScreenSection from '~/components/ui/ScreenSection.vue'
-import type { WorkspaceCapability, WorkspaceSettings } from '#shared/kernel/workspaceSettings'
+import type { WorkspaceCapability, WorkspaceSettings } from '#shared/model/workspaceSettings'
 
 defineProps<{
   manager: boolean

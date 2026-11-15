@@ -1,8 +1,7 @@
-import { useWorkspaceEvents } from '~/features/workspaces/composables/useWorkspaceEvents'
 import { refDebounced } from '@vueuse/core'
-import type { MemberItem, MemberBulkAction, MemberAddResult } from '#shared/contracts/member'
-import type { InviteRole } from '#shared/contracts/workspace'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import type { MemberItem, MemberBulkAction, MemberAddResult } from '#shared/model/member'
+import type { InviteRole } from '#shared/model/workspace'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
 import { useApi } from '~/core/http/useApi'
 import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 
@@ -20,8 +19,8 @@ export function useMemberDirectory(workspaceId: string) {
   const search = refDebounced(query, 250)
   const role = ref('all'), status = ref('all'), group = ref('all')
   const filters = computed(() => ({ q: search.value, role: role.value === 'all' ? undefined : role.value, status: status.value === 'all' ? undefined : status.value, groupId: group.value === 'all' ? undefined : group.value }))
-  const { data: directory, status: loadStatus, error: loadError, refresh } = useLazyAsyncData(`member-directory:${workspaceId}`, async () => (await api.directory(workspaceId, filters.value)).data, { server: false, watch: [filters], default: () => ({ items: [], nextCursor: null, total: 0 }) })
-  const { data: groups, status: groupsStatus, error: groupsError, refresh: refreshGroups } = useLazyAsyncData(`member-groups:${workspaceId}`, async () => (await api.groups(workspaceId)).data, { server: false, default: () => [] })
+  const { data: directory, status: loadStatus, error: loadError, refresh } = useRealtimeQuery(`member-directory:${workspaceId}`, async () => (await api.directory(workspaceId, filters.value)).data, { server: false, watch: [filters], default: () => ({ items: [], nextCursor: null, total: 0 }) })
+  const { data: groups, status: groupsStatus, error: groupsError, refresh: refreshGroups } = useRealtimeQuery(`member-groups:${workspaceId}`, async () => (await api.groups(workspaceId)).data, { server: false, default: () => [] })
   const route = useRoute()
   const selected = ref<string[]>([]), adding = ref(false), detail = ref<MemberItem | null>(null), busy = ref(false), error = ref('')
   watch(() => route.hash, (hash) => {
@@ -29,10 +28,6 @@ export function useMemberDirectory(workspaceId: string) {
       adding.value = true
     }
   }, { immediate: true })
-  useWorkspaceEvents(workspaceId, () => {
-    void refresh()
-    void refreshGroups()
-  })
   watch(() => overview.value?.members, (members) => {
     if (detail.value) {
       detail.value = members?.find(item => item.id === detail.value?.id) || null

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { reconcileDraft } from '../../app/core/state/reconcileDraft'
-import { defaultWorkspaceSettings } from '../../shared/kernel/workspaceSettings'
+import { defaultWorkspaceSettings } from '../../shared/model/workspaceSettings'
 import { settingsInputSchema } from '../../shared/validation/workspaceSettings'
 
 describe('independent settings sections', () => {

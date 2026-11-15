@@ -1,7 +1,7 @@
 import { useCompletion } from '@ai-sdk/vue'
 import type { Editor } from '@tiptap/core'
 import type { CompletionMode } from '#shared/validation/completion'
-import type { CommentAnchor } from '#shared/kernel/comment'
+import type { CommentAnchor } from '#shared/model/comment'
 import { Completion } from '~/features/editor/extensions/CompletionExtension'
 import { captureTextRange, resolveTextRange } from '~/features/editor/utils/textAnchors'
 

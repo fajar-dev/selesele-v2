@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MoveImpact } from '#shared/kernel/access'
+import type { MoveImpact } from '#shared/model/access'
 
 const { impact, busy, onConfirm } = defineProps<{
   impact: MoveImpact

@@ -1,4 +1,4 @@
-import type { FolderUpdate } from '#shared/contracts/workspace'
+import type { FolderUpdate } from '#shared/model/workspace'
 import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
 import { useApi } from '~/core/http/useApi'
 import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'

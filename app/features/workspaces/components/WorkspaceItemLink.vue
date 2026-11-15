@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import EntityIcon from '~/components/ui/EntityIcon.vue'
-import type { ContentItem } from '#shared/contracts/item'
+import type { ContentItem } from '#shared/model/item'
 
 const props = defineProps<{
   item: ContentItem

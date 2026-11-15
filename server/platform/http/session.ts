@@ -1,8 +1,8 @@
 import { deleteCookie, getCookie, setCookie } from '@nuxt/nitro-server/h3'
 import type { H3Event } from '@nuxt/nitro-server/h3'
-import type { User } from '../../../shared/contracts/auth'
+import type { User } from '../../../shared/model/user'
 import { ApplicationError } from '../../core/errors/ApplicationError'
-import { SESSION_TTL_SECONDS } from '../../features/identity/domain/SessionPolicy'
+import { SESSION_TTL_SECONDS } from '../../features/authentication/domain/SessionPolicy'
 
 export const SESSION_COOKIE = 'sele_session'
 

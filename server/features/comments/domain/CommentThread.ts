@@ -1,9 +1,10 @@
-import type { CommentAnchor, CommentAuthor } from '../../../../shared/kernel/comment'
+import type { User } from '../../../../shared/model/user'
+import type { CommentAnchor } from '../../../../shared/model/comment'
 
 interface CommentMessage {
   id: string
   body: string
-  author: CommentAuthor
+  author: User
   createdAt: Date
 }
 export interface CommentThread {

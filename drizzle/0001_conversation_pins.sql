@@ -1,1 +1,0 @@
-ALTER TABLE `ai_conversations` ADD `pinned` boolean DEFAULT false NOT NULL;

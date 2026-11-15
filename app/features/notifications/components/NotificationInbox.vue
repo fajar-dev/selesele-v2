@@ -1,60 +1,21 @@
 <script setup lang="ts">
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
 import DataRetry from '~/components/ui/DataRetry.vue'
-import { notifyWorkspaceRefresh } from '~/features/workspaces/composables/useWorkspaceEvents'
-import { workspaceKeys } from '~/features/workspaces/state/workspaceKeys'
-import { libraryKeys } from '~/features/library/state/libraryKeys'
 import { useApi } from '~/core/http/useApi'
-import type { NotificationItem } from '#shared/contracts/notification'
+import type { NotificationItem } from '#shared/model/notification'
 
 const { notifications } = useApi()
-const route = useRoute()
 const open = ref(false)
 const onlyUnread = ref(false)
 const toast = useToast()
-const { data, error, status, refresh } = useLazyAsyncData('notifications', async () => (await notifications.list()).data, { server: false, default: () => [] })
+const { data, error, status, refresh } = useRealtimeQuery('notifications', async () => (await notifications.list()).data, { server: false, default: () => [] })
 const unread = computed(() => data.value.filter(item => !item.readAt).length)
 const visible = computed(() => data.value.filter(item => !onlyUnread.value || !item.readAt))
-const icons = { comment: 'i-lucide-message-square-plus', invitation: 'i-lucide-user-plus', mention: 'i-lucide-at-sign', reply: 'i-lucide-message-square' }
-const labels = { comment: 'New comment', invitation: 'Workspace access', mention: 'Mention', reply: 'Comment reply' }
-let events: EventSource | undefined
-let fetching = false
-let again = false
+const icons = { task: 'i-lucide-calendar-clock', comment: 'i-lucide-message-square-plus', invitation: 'i-lucide-user-plus', mention: 'i-lucide-at-sign', reply: 'i-lucide-message-square' }
+const labels = { task: 'Task reminder', comment: 'New comment', invitation: 'Workspace access', mention: 'Mention', reply: 'Comment reply' }
 async function synchronize() {
-  if (fetching) {
-    again = true
-    return
-  }
-  fetching = true
-  try {
-    do {
-      again = false
-      await refresh()
-    } while (again)
-  } finally {
-    fetching = false
-  }
+  await refresh()
 }
-function refreshActiveWorkspace() {
-  const id = typeof route.params.workspaceId === 'string' ? route.params.workspaceId : null
-  const keys: string[] = [workspaceKeys.directory, libraryKeys.personal]
-  if (id) {
-    notifyWorkspaceRefresh(id)
-    keys.push(workspaceKeys.detail(id), workspaceKeys.folders(id), workspaceKeys.items(id), workspaceKeys.members(id))
-    if (typeof route.params.id === 'string') {
-      keys.push(`items:${route.params.id}`)
-    }
-  }
-  void refreshNuxtData(keys)
-}
-onMounted(() => {
-  events = new EventSource('/api/notifications/events')
-  events.onmessage = () => {
-    void synchronize()
-    refreshActiveWorkspace()
-  }
-})
-onBeforeUnmount(() => events?.close())
 watch(open, (value) => {
   if (value) {
     void synchronize()
@@ -66,7 +27,7 @@ async function read(item?: NotificationItem) {
     await refresh()
     if (item) {
       open.value = false
-      await navigateTo(item.itemId ? { path: `/workspaces/${item.workspaceId}/items/${item.itemId}`, query: item.threadId ? { comment: item.threadId } : item.kind === 'mention' ? { mention: '1' } : {} } : '/')
+      await navigateTo(item.itemId ? { path: `/workspaces/${item.workspaceId}/items/${item.itemId}`, query: item.threadId ? item.kind === 'task' ? { task: item.threadId } : { comment: item.threadId } : item.kind === 'mention' ? { mention: '1' } : {} } : '/')
     }
   } catch (cause) {
     toast.add({ title: 'Unable to update notifications', description: errorMessage(cause), color: 'error' })
@@ -86,6 +47,7 @@ useFeedbackToast(error, { key: 'notifications', title: 'Unable to load notificat
       color="neutral"
       variant="ghost"
       size="sm"
+      square
       class="relative"
     >
       <UIcon

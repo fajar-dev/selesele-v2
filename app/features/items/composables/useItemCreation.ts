@@ -1,5 +1,5 @@
-import { itemTypeIcons } from '#shared/kernel/content'
-import type { ItemKind } from '#shared/kernel/content'
+import { itemTypeIcons } from '#shared/model/content'
+import type { ItemKind } from '#shared/model/content'
 import { useWorkspaceState } from '~/features/workspaces/state/useWorkspaceState'
 import { useApi } from '~/core/http/useApi'
 

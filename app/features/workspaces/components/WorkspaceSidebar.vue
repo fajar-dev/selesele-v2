@@ -9,11 +9,11 @@ import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import WorkspaceSwitcher from '~/features/workspaces/components/WorkspaceSwitcher.vue'
 import WorkspaceTree from '~/features/workspaces/components/WorkspaceTree.vue'
 import { useItemCreation } from '~/features/items/composables/useItemCreation'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
-import type { ContentItem } from '#shared/contracts/item'
-import type { FolderItem } from '#shared/contracts/workspace'
+import type { ContentItem } from '#shared/model/item'
+import type { FolderItem } from '#shared/model/workspace'
 
 const { folders: folderApi } = useApi()
 const { workspaceId } = defineProps<{

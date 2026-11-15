@@ -1,26 +1,27 @@
 <script setup lang="ts">
-import type { ContentItem } from '#shared/contracts/item'
-import type { WorkspaceOverview } from '#shared/contracts/workspace'
-import { itemTypeLabels } from '#shared/kernel/content'
+import ItemHeader from '~/features/items/components/ItemHeader.vue'
+import type { ContentItem } from '#shared/model/item'
+import type { WorkspaceOverview } from '#shared/model/workspace'
+import { itemTypeLabels } from '#shared/model/content'
 import { canvasContentSchema } from '#shared/validation/canvas'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
-import AppHeader from '~/components/shell/AppHeader.vue'
-import Breadcrumbs from '~/components/ui/Breadcrumbs.vue'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import DataRetry from '~/components/ui/DataRetry.vue'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import ItemMetadata from '~/features/items/components/ItemMetadata.vue'
 import ResourceAccessPanel from '~/features/access/components/ResourceAccessPanel.vue'
-import ItemHistory from '~/features/recovery/components/ItemHistory.vue'
+import ItemToolbar from '~/features/items/components/ItemToolbar.vue'
 import { useItemActions } from '~/features/items/composables/useItemActions'
-import { usePersonalLibrary } from '~/features/library/composables/usePersonalLibrary'
 import { refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
 import { useApi } from '~/core/http/useApi'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 import { useItemComments } from '~/features/comments/composables/useItemComments'
 import CommentPanel from '~/features/comments/components/CommentPanel.vue'
+import { useCanvasPresence } from '../composables/useCanvasPresence'
 import { useCanvas } from '../composables/useCanvas'
+import { useContentFullscreen } from '~/core/layout/useContentFullscreen'
 
+const { isFullscreen, toggle: toggleFullscreen } = useContentFullscreen()
 const KanbanEditor = defineAsyncComponent(() => import('~/features/kanban/components/KanbanEditor.vue'))
 const WhiteboardEditor = defineAsyncComponent(() => import('~/features/whiteboard/components/WhiteboardEditor.vue'))
 const DiagramEditor = defineAsyncComponent(() => import('~/features/diagrams/components/DiagramEditor.vue'))
@@ -35,14 +36,38 @@ const emit = defineEmits<{
 }>()
 const readonly = computed(() => item.accessLevel !== 'edit' || !!item.archivedAt || !!overview.workspace.archivedAt)
 const { recovered, restoreDraft, discardRecovered, session, query, failed, edit, save: saveContent, overwrite } = useCanvas(item.id, item.workspaceId, () => readonly.value)
+async function prepareResources() {
+  if (session.value?.saving) {
+    await new Promise<void>((resolve) => {
+      const stop = watch(() => session.value?.saving, (value) => {
+        if (!value) {
+          stop()
+          resolve()
+        }
+      })
+    })
+  }
+  await saveContent()
+  if (session.value?.dirty || recovered.value) {
+    throw new Error('Save or resolve your draft before adding files or links')
+  }
+}
+const presence = useCanvasPresence(item.id)
 const { state: auth } = useAuth()
-const editor = ref<{ selectObject: (id: string) => boolean } | null>(null)
+const editor = ref<{
+  selectObject: (id: string) => boolean
+} | null>(null)
 const canComment = computed(() => ['edit', 'comment'].includes(item.accessLevel) && !item.archivedAt && !overview.workspace.archivedAt && !recovered.value)
-const comments = useItemComments(item.id, ref(null), true, undefined, id => editor.value?.selectObject(id) || false)
+const comments = useItemComments(item.id, ref(null), { onObjectJump: id => editor.value?.selectObject(id) || false })
 const route = useRoute()
 watch([() => route.query.comment, comments.threads], ([id]) => {
   if (typeof id === 'string') {
     comments.select(id)
+  }
+}, { immediate: true })
+watch([() => route.query.object, editor], ([id]) => {
+  if (typeof id === 'string') {
+    editor.value?.selectObject(id)
   }
 }, { immediate: true })
 async function startComment(id: string, type: 'task' | 'element' | 'node' | 'edge', label: string) {
@@ -59,16 +84,12 @@ async function startComment(id: string, type: 'task' | 'element' | 'node' | 'edg
   comments.startObject(id, type, label)
 }
 const { save: saveMetadata, remove: removeItem } = useItemActions(() => item, current => emit('updated', current))
-const personal = usePersonalLibrary()
-const favorite = computed(() => personal.data.value.favorites.some(entry => entry.id === item.id))
 const canLifecycle = computed(() => item.accessLevel === 'edit' && !overview.workspace.archivedAt && allowsWorkspaceAction(overview.workspace.role, overview.workspace.settings, 'deleteContent'))
 const file = useTemplateRef<HTMLInputElement>('file')
 const deleteOpen = ref(false), replaceOpen = ref(false), reloadOpen = ref(false), accessOpen = ref(false)
 const toast = useToast(), api = useApi(), lifecycleBusy = ref(false)
 const status = computed(() => readonly.value ? 'Read-only' : session.value?.saving ? 'Saving…' : session.value?.remote ? 'Review newer version' : failed.value ? 'Retry save' : session.value?.dirty ? 'Unsaved changes' : 'All changes saved')
 onMounted(() => {
-  void api.library.visit(item.id).catch(() => {
-  })
 })
 async function lifecycle(archived: boolean) {
   if (lifecycleBusy.value) {
@@ -174,31 +195,62 @@ async function discardDraft() {
 
 <template>
   <div
-    class="app-enter pb-ui-5xl"
+    :class="isFullscreen ? 'content-fullscreen content-fullscreen-canvas' : 'app-enter pb-ui-5xl'"
     @keydown="keyboard"
   >
-    <AppHeader>
-      <template #left>
-        <Breadcrumbs :items="[{ label: overview.workspace.name, emoji: overview.workspace.icon, to: `/workspaces/${item.workspaceId}` }, ...(item.folderId ? [{ label: overview.folders.find(folder => folder.id === item.folderId)?.name || 'Folder', to: `/workspaces/${item.workspaceId}?folder=${item.folderId}` }] : []), { label: item.title, emoji: item.icon }]" />
-      </template>
-      <template #right>
-        <UButton
-          :icon="favorite ? 'i-lucide-star' : 'i-lucide-star'"
-          :aria-label="favorite ? 'Remove favorite' : 'Add favorite'"
-          :aria-pressed="favorite"
-          :variant="favorite ? 'soft' : 'ghost'"
-          color="neutral"
-          @click="personal.favorite(item.id)"
-        />
-      </template>
-    </AppHeader>
-    <div class="workspace-content workspace-content-start space-y-ui-2xl">
+    <div v-show="!isFullscreen">
+      <ItemHeader
+        :item="item"
+        :workspace-name="overview.workspace.name"
+        :workspace-icon="overview.workspace.icon"
+        :folders="overview.folders"
+      />
+    </div>
+    <div class="workspace-content workspace-content-start space-y-ui-2xl canvas-content">
       <ItemMetadata
+        v-show="!isFullscreen"
         :item="item"
         :readonly="readonly"
         :on-save="saveMetadata"
       />
-      <div class="flex flex-wrap items-center gap-ui-sm border-b border-muted pb-ui-md">
+      <ItemToolbar
+        :item-id="item.id"
+        :prepare-resources="prepareResources"
+        :resource-readonly="readonly"
+        :kind="item.kind"
+        :readonly="readonly || !!session?.dirty"
+        :comment-count="comments.openCount.value"
+        :fullscreen="isFullscreen"
+        export-label="Export JSON"
+        @comments="comments.open.value = true"
+        @fullscreen="toggleFullscreen"
+        @export="exportJson"
+      >
+        <div
+          class="editor-toolbar-group"
+          role="group"
+          aria-label="Edit history"
+        >
+          <UButton
+            v-if="!readonly"
+            size="sm"
+            icon="i-lucide-undo-2"
+            aria-label="Undo"
+            color="neutral"
+            variant="ghost"
+            :disabled="!session?.canUndo"
+            @click="session?.undo()"
+          /><UButton
+            v-if="!readonly"
+            size="sm"
+            icon="i-lucide-redo-2"
+            aria-label="Redo"
+            color="neutral"
+            variant="ghost"
+            :disabled="!session?.canRedo"
+            @click="session?.redo()"
+          />
+        </div>
         <UBadge
           :label="itemTypeLabels[item.kind]"
           variant="soft"
@@ -210,60 +262,36 @@ async function discardDraft() {
         >{{ status }}</span>
         <UButton
           v-if="failed && !readonly"
+          size="sm"
           label="Retry save"
-          size="xs"
           color="neutral"
           variant="ghost"
           @click="saveContent"
         />
         <UButton
           v-if="session?.remote"
+          size="sm"
           label="Review changes"
-          size="xs"
           color="neutral"
           variant="outline"
           @click="reloadOpen = true"
         />
-        <div class="flex items-center gap-ui-xs ms-auto">
-          <UButton
-            icon="i-lucide-message-square"
-            :label="`Comments (${comments.openCount.value})`"
-            color="neutral"
-            variant="ghost"
-            @click="comments.open.value = true"
-          />
-          <UButton
-            v-if="!readonly"
-            icon="i-lucide-undo-2"
-            aria-label="Undo"
-            color="neutral"
-            variant="ghost"
-            :disabled="!session?.canUndo"
-            @click="session?.undo()"
-          /><UButton
-            v-if="!readonly"
-            icon="i-lucide-redo-2"
-            aria-label="Redo"
-            color="neutral"
-            variant="ghost"
-            :disabled="!session?.canRedo"
-            @click="session?.redo()"
-          />
-          <ItemHistory
-            :item-id="item.id"
-            :kind="item.kind"
-            :readonly="readonly || !!session?.dirty"
-          />
-          <UDropdownMenu :items="[{ label: 'Export JSON', icon: 'i-lucide-download', onSelect: exportJson }, ...(!readonly && item.canManageAccess ? [{ label: 'Save as workspace template', icon: 'i-lucide-layout-template', onSelect: saveTemplate }] : []), ...(!readonly ? [{ label: 'Import JSON', icon: 'i-lucide-upload', onSelect: () => file?.click() }] : []), ...(item.canManageAccess ? [{ label: 'Manage access', icon: 'i-lucide-shield-check', onSelect: () => accessOpen = true }] : []), ...(canLifecycle ? [{ label: item.archivedAt ? 'Restore item' : 'Archive item', icon: 'i-lucide-archive', onSelect: () => lifecycle(!item.archivedAt) }, ...(!item.archivedAt ? [{ label: 'Delete item', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => deleteOpen = true }] : [])] : [])]">
+        <span
+          class="text-xs text-muted"
+          aria-live="polite"
+        >{{ presence.connected.value ? 'Live' : 'Reconnecting' }}<template v-if="presence.members.value.length"> · {{ presence.members.value.map(member => `${member.name}${member.selected.length ? ' (editing)' : ''}`).join(', ') }}</template></span>
+        <template #more>
+          <UDropdownMenu :items="[...(!readonly && item.canManageAccess ? [{ label: 'Save as workspace template', icon: 'i-lucide-layout-template', onSelect: saveTemplate }] : []), ...(!readonly ? [{ label: 'Import JSON', icon: 'i-lucide-upload', onSelect: () => file?.click() }] : []), ...(item.canManageAccess ? [{ label: 'Manage access', icon: 'i-lucide-shield-check', onSelect: () => accessOpen = true }] : []), ...(canLifecycle ? [{ label: item.archivedAt ? 'Restore item' : 'Archive item', icon: 'i-lucide-archive', onSelect: () => lifecycle(!item.archivedAt) }, ...(!item.archivedAt ? [{ label: 'Delete item', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => deleteOpen = true }] : [])] : [])]">
             <UButton
+              size="sm"
               icon="i-lucide-ellipsis"
               aria-label="Item actions"
               color="neutral"
               variant="ghost"
             />
           </UDropdownMenu>
-        </div>
-      </div>
+        </template>
+      </ItemToolbar>
       <div
         v-if="recovered"
         role="status"
@@ -304,9 +332,13 @@ async function discardDraft() {
           v-if="session.draft.kind === 'kanban'"
           ref="editor"
           :can-comment="canComment"
+          :item-id="item.id"
+          :prepare-resources="prepareResources"
+          :collaborators="presence.members.value"
           :content="session.draft"
           :members="overview.members"
           :readonly="readonly || !!recovered"
+          @presence="presence.update"
           @comment="startComment"
           @change="edit"
         />
@@ -314,8 +346,12 @@ async function discardDraft() {
           v-else-if="session.draft.kind === 'whiteboard'"
           ref="editor"
           :can-comment="canComment"
+          :item-id="item.id"
+          :prepare-resources="prepareResources"
+          :collaborators="presence.members.value"
           :content="session.draft"
           :readonly="readonly || !!recovered"
+          @presence="presence.update"
           @comment="startComment"
           @change="edit"
         />
@@ -323,8 +359,12 @@ async function discardDraft() {
           v-else
           ref="editor"
           :can-comment="canComment"
+          :item-id="item.id"
+          :prepare-resources="prepareResources"
+          :collaborators="presence.members.value"
           :content="session.draft"
           :readonly="readonly || !!recovered"
+          @presence="presence.update"
           @comment="startComment"
           @change="edit"
         />

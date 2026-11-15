@@ -1,4 +1,4 @@
-import { DEFAULT_FOLDER_ICON } from '../../../../shared/kernel/icons'
+import { DEFAULT_FOLDER_ICON } from '../../../../shared/model/icons'
 import type { FolderChanges } from '../domain/Folder'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'

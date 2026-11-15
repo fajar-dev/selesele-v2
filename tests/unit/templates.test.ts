@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { itemTemplates } from '../../server/features/library/domain/templates'
-import { itemKinds } from '../../shared/kernel/content'
+import { itemKinds } from '../../shared/model/content'
 import { canvasContentSchema } from '../../shared/validation/canvas'
 import { validateCanvas } from '../../server/features/canvases/domain/canvasPolicy'
 

@@ -1,4 +1,5 @@
-import type { CanvasContent, CanvasKind } from '../../../../shared/kernel/content'
+import { validateTaskGraph } from '../../../../shared/model/taskScheduling'
+import type { CanvasContent, CanvasKind } from '../../../../shared/model/content'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
 export function validateCanvas(content: CanvasContent, kind: CanvasKind) {
@@ -13,6 +14,14 @@ export function validateCanvas(content: CanvasContent, kind: CanvasKind) {
     reject('This item exceeds the content size limit')
   }
   if (content.kind === 'kanban') {
+    if (content.tasks.length > 1000 || content.columns.length > 20 || !content.columns.length) {
+      reject('Boards support up to 1,000 tasks and 20 columns')
+    }
+    try {
+      validateTaskGraph(content)
+    } catch (cause) {
+      reject(cause instanceof Error ? cause.message : 'Invalid task relationships')
+    }
     if (!unique(content.columns.map(column => column.id)) || !unique(content.tasks.map(task => task.id)) || !unique(content.tasks.map(task => String(task.number)))) {
       reject('Task and column identifiers must be unique')
     }
@@ -23,11 +32,14 @@ export function validateCanvas(content: CanvasContent, kind: CanvasKind) {
       reject('The next task number must follow existing tasks')
     }
     for (const column of content.columns) {
-      if (column.limit && content.tasks.filter(task => task.columnId === column.id).length > column.limit) {
+      if (column.limit && content.tasks.filter(task => task.columnId === column.id && !task.completedAt).length > column.limit) {
         reject(`${column.title} has reached its work-in-progress limit`)
       }
     }
   } else if (content.kind === 'diagram') {
+    if (content.nodes.length > 1000 || content.edges.length > 2000) {
+      reject('Diagrams support up to 1,000 shapes and 2,000 connectors')
+    }
     if (!unique(content.nodes.map(node => node.id)) || !unique(content.edges.map(edge => edge.id))) {
       reject('Node and connector identifiers must be unique')
     }
@@ -35,7 +47,7 @@ export function validateCanvas(content: CanvasContent, kind: CanvasKind) {
     if (content.edges.some(edge => !nodes.has(edge.source) || !nodes.has(edge.target))) {
       reject('Every connector must connect existing shapes')
     }
-  } else if (!unique(content.elements.map(element => element.id)) || content.elements.reduce((count, element) => count + element.points.length, 0) > 60000) {
+  } else if (content.elements.length > 2000 || !unique(content.elements.map(element => element.id)) || content.elements.reduce((count, element) => count + element.points.length, 0) > 60000) {
     reject('Drawing elements must be unique and contain at most 60,000 points')
   }
 }

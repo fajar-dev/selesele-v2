@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import type { KanbanContent, KanbanTask } from '#shared/kernel/content'
-import type { WorkspaceMember } from '#shared/contracts/workspace'
+import type { CanvasPresence } from '#shared/model/presence'
+import EditorToolbar from '~/components/ui/EditorToolbar.vue'
+import type { KanbanContent, KanbanTask } from '#shared/model/content'
+import type { WorkspaceMember } from '#shared/model/workspace'
 import ConfirmationDialog from '~/components/ui/ConfirmationDialog.vue'
 import { KanbanBoard } from '../domain/KanbanBoard'
 import TaskDetails from './TaskDetails.vue'
+import TaskCalendar from './TaskCalendar.vue'
 
 const { content, members, readonly = false, canComment = false } = defineProps<{
+  prepareResources?: () => Promise<void>
+  itemId?: string
+  collaborators?: CanvasPresence[]
   content: KanbanContent
   members: WorkspaceMember[]
   canComment?: boolean
   readonly?: boolean
 }>()
 const emit = defineEmits<{
+  presence: [value: { cursor: null, selected: string[] }]
   comment: [id: string, type: 'task', label: string]
   change: [
         content: KanbanContent
@@ -33,6 +40,7 @@ defineExpose({ selectObject: (id: string) => {
   selected.value = id
   return true
 } })
+watch(selected, id => emit('presence', { cursor: null, selected: id ? [id] : [] }))
 const task = computed(() => content.tasks.find(task => task.id === selected.value))
 const detailOpen = computed({ get: () => !!selected.value, set: (value) => {
   if (!value) {
@@ -73,6 +81,19 @@ function createTask(columnId: string) {
     selected.value = id
   } catch { /* Feedback is owned by the caller; preserve the current draft or retry state. */ }
 }
+function createSubtask(parentId: string) {
+  const parent = content.tasks.find(task => task.id === parentId)
+  if (!parent) {
+    return
+  }
+  try {
+    command((board) => {
+      const added = board.addTask(parent.columnId), child = added.tasks.at(-1)!
+      selected.value = child.id
+      return new KanbanBoard(added).updateTask({ ...child, parentId })
+    })
+  } catch { /* The command already reports the reason. */ }
+}
 function addColumn() {
   if (!columnTitle.value.trim()) {
     return
@@ -105,53 +126,72 @@ function taskActions(entry: KanbanTask) {
 </script>
 
 <template>
-  <div class="space-y-ui-xl">
-    <div class="flex flex-wrap items-center gap-ui-md">
+  <div class="space-y-ui-xl canvas-editor">
+    <EditorToolbar label="Kanban tools">
       <div
         role="group"
         aria-label="Kanban layout"
         class="flex gap-ui-xs"
       >
         <UButton
+          size="sm"
           label="Board"
           icon="i-lucide-columns-3"
           color="neutral"
           :variant="layout === 'board' ? 'soft' : 'ghost'"
+          :aria-pressed="layout === 'board'"
           @click="layout = 'board'"
         /><UButton
+          size="sm"
           label="List"
           icon="i-lucide-list"
           color="neutral"
           :variant="layout === 'list' ? 'soft' : 'ghost'"
+          :aria-pressed="layout === 'list'"
           @click="layout = 'list'"
         />
       </div>
+      <UButton
+        label="Calendar"
+        icon="i-lucide-calendar-days"
+        color="neutral"
+        size="sm"
+        :variant="layout === 'calendar' ? 'soft' : 'ghost'"
+        :aria-pressed="layout === 'calendar'"
+        @click="layout = 'calendar'"
+      />
       <UInput
         v-model="search"
+        size="sm"
         icon="i-lucide-search"
         placeholder="Search tasks…"
         aria-label="Search tasks"
       />
       <USelect
         v-model="assignee"
+        size="sm"
         :items="[{ label: 'All assignees', value: '__all' }, { label: 'Unassigned', value: '__unset' }, ...members.map(member => ({ label: member.name || member.email, value: member.id }))]"
         aria-label="Filter by assignee"
       />
       <USelect
         v-model="priority"
+        size="sm"
         :items="[{ label: 'All priorities', value: '__all' }, ...['low', 'normal', 'high', 'urgent'].map(value => ({ label: value, value }))]"
         aria-label="Filter by priority"
       />
-      <span class="text-xs text-muted ms-auto">{{ visible.length }} {{ visible.length === 1 ? 'task' : 'tasks' }}</span>
-      <UButton
-        v-if="!readonly"
-        label="Add column"
-        icon="i-lucide-plus"
-        color="neutral"
-        variant="ghost"
-        @click="addingColumn = !addingColumn"
-      />
-    </div>
+      <template #actions>
+        <span class="text-xs text-muted tabular-nums">{{ visible.length }} {{ visible.length === 1 ? 'task' : 'tasks' }}</span>
+        <UButton
+          v-if="!readonly"
+          size="sm"
+          label="Add column"
+          icon="i-lucide-plus"
+          color="neutral"
+          variant="ghost"
+          @click="addingColumn = !addingColumn"
+        />
+      </template>
+    </EditorToolbar>
     <form
       v-if="addingColumn && !readonly"
       class="flex gap-ui-sm"
@@ -159,17 +199,27 @@ function taskActions(entry: KanbanTask) {
     >
       <UInput
         v-model="columnTitle"
+        size="sm"
         placeholder="Column name"
         aria-label="Column name"
         autofocus
         :maxlength="120"
       /><UButton
+        size="sm"
         type="submit"
         label="Add"
         :disabled="!columnTitle.trim()"
       />
     </form>
+    <TaskCalendar
+      v-if="layout === 'calendar'"
+      :tasks="visible"
+      class="kanban-surface overflow-auto"
+      @open="selected = $event"
+    />
     <div
+      v-else
+      class="kanban-surface"
       :class="layout === 'board' ? 'flex items-start gap-ui-xl overflow-x-auto pb-ui-xl' : 'space-y-ui-lg'"
       aria-label="Kanban board"
     >
@@ -198,7 +248,7 @@ function taskActions(entry: KanbanTask) {
           />
           <span
             class="text-xs tabular-nums"
-            :class="column.limit && content.tasks.filter(task => task.columnId === column.id).length >= column.limit ? 'text-warning' : 'text-muted'"
+            :class="column.limit && content.tasks.filter(task => task.columnId === column.id && !task.completedAt).length >= column.limit ? 'text-warning' : 'text-muted'"
           >{{ visible.filter(task => task.columnId === column.id).length }}{{ column.limit ? ` / ${column.limit}` : '' }}</span>
           <UDropdownMenu
             v-if="!readonly"
@@ -255,6 +305,7 @@ function taskActions(entry: KanbanTask) {
           <div class="flex items-start gap-ui-sm">
             <button
               class="text-left text-sm font-medium leading-relaxed flex-1 break-words"
+              :class="{ 'line-through text-muted': entry.completedAt }"
               @click="selected = entry.id"
             >
               {{ entry.title }}
@@ -283,6 +334,20 @@ function taskActions(entry: KanbanTask) {
           </div>
           <div class="flex flex-wrap items-center gap-ui-sm text-xs text-muted">
             <span class="font-mono">#{{ entry.number }}</span><UBadge
+              v-if="entry.completedAt"
+              label="Completed"
+              color="success"
+              variant="soft"
+              size="xs"
+            /><span
+              v-else-if="entry.dependencies?.some(id => !content.tasks.find(task => task.id === id)?.completedAt)"
+              class="text-warning"
+            >Blocked</span><UIcon
+              v-if="entry.repeat"
+              name="i-lucide-repeat"
+              class="size-ui-md"
+              :aria-label="`Repeats ${entry.repeat}`"
+            /><UBadge
               :label="entry.priority"
               :color="priorityColor(entry.priority)"
               variant="subtle"
@@ -321,11 +386,16 @@ function taskActions(entry: KanbanTask) {
       :key="task.id"
       v-model:open="detailOpen"
       :task="task"
+      :item-id="itemId"
+      :prepare-resources="prepareResources"
+      :tasks="content.tasks"
       :columns="content.columns"
       :members="members"
       :readonly="readonly"
       :on-save="entry => command(board => board.updateTask(entry))"
       :can-comment="canComment"
+      @open-task="selected = $event"
+      @subtask="createSubtask"
       @comment="(id, title) => { emit('comment', id, 'task', title); detailOpen = false }"
     />
     <ConfirmationDialog

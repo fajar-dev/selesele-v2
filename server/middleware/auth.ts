@@ -1,4 +1,4 @@
-import { getContainer } from '../bootstrap/container'
+import { getApplication } from '../bootstrap/application'
 import { apiHandler } from '../platform/http/response'
 import { assertSameOrigin } from '../platform/http/origin'
 import { sessionToken } from '../platform/http/session'
@@ -16,5 +16,5 @@ export default apiHandler(async (event) => {
   if (['/api/auth/microsoft', '/api/auth/microsoft/callback'].includes(path) || path === '/api/health') {
     return
   }
-  event.context.user = await getContainer().auth.authenticate(sessionToken(event))
+  event.context.user = await getApplication().services.auth.authenticate(sessionToken(event))
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ItemTemplate } from '#shared/kernel/library'
-import { itemTypeLabels } from '#shared/kernel/content'
+import type { ItemTemplate } from '#shared/model/library'
+import { itemTypeLabels } from '#shared/model/content'
 import TemplatePreview from './TemplatePreview.vue'
 
 defineProps<{

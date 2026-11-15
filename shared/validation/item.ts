@@ -1,5 +1,5 @@
 import * as z from 'zod'
-import { itemKinds } from '../kernel/content'
+import { itemKinds } from '../model/content'
 import { idSchema, descriptionSchema, entityIconSchema } from './workspace'
 
 export const itemInputSchema = z.object({

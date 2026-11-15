@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { GatewayCompletionProvider } from '../../server/features/writing/infrastructure/GatewayCompletionProvider'
+import { GatewayCompletionProvider } from '../../server/features/ai/infrastructure/GatewayCompletionProvider'
 
 describe('OpenAI-compatible writing gateway', () => {
   test('requires explicit gateway credentials and model', () => {

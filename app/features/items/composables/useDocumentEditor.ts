@@ -4,8 +4,8 @@ import { Emoji } from '@tiptap/extension-emoji'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
-import type { WorkspaceMember } from '#shared/contracts/workspace'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import type { WorkspaceMember } from '#shared/model/workspace'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 import { useEditorCollaboration } from '~/features/editor/composables/useEditorCollaboration'
 import { useEditorCompletion } from '~/features/editor/composables/useEditorCompletion'
 import { useEditorToolbar } from '~/features/editor/composables/useEditorToolbar'
@@ -20,7 +20,6 @@ import { BlockDragDrop } from '~/features/editor/extensions/BlockDragDropExtensi
 
 interface DocumentEditorOptions {
   annotationExtension: Extension
-  onCommentsChanged: () => void
 }
 export function useDocumentEditor(room: string, members: () => WorkspaceMember[], editorRef: Ref<{
   editor: Editor | undefined
@@ -31,7 +30,7 @@ export function useDocumentEditor(room: string, members: () => WorkspaceMember[]
     color: collaborationColor(auth.user?.email || ''),
     avatar: auth.user?.avatar || undefined
   }))
-  const { ready: collaborationReady, isConnected: collaborationConnected, connectionError: collaborationError, connectedUsers, extensions: collaborationExtensions, updateUser } = useEditorCollaboration({ room: room, user: profile.value, onCommentsChanged: options.onCommentsChanged })
+  const { ready: collaborationReady, isConnected: collaborationConnected, connectionError: collaborationError, connectedUsers, extensions: collaborationExtensions, updateUser } = useEditorCollaboration({ room: room, user: profile.value })
   watch(profile, updateUser)
   const { extension: completion, handlers: aiHandlers, isLoading: aiLoading } = useEditorCompletion(editorRef)
   const customHandlers = {

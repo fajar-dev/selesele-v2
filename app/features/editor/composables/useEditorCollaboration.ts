@@ -1,4 +1,3 @@
-import { COMMENTS_CHANGED } from '#shared/collaboration/protocol'
 import type { Extensions } from '@tiptap/core'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
@@ -16,7 +15,6 @@ export interface CollaborationUser {
 interface CollaborationOptions {
   room: string
   user: CollaborationUser
-  onCommentsChanged?: () => void
 }
 
 function hasUser(state: unknown): state is { user: CollaborationUser } {
@@ -29,7 +27,7 @@ function hasUser(state: unknown): state is { user: CollaborationUser } {
     && 'color' in user && typeof user.color === 'string'
 }
 
-export function useEditorCollaboration({ room, user, onCommentsChanged }: CollaborationOptions) {
+export function useEditorCollaboration({ room, user }: CollaborationOptions) {
   const isConnected = ref(false)
   const connectionError = ref<string | null>(null)
   const connectedUsers = ref<CollaborationUser[]>([])
@@ -56,7 +54,6 @@ export function useEditorCollaboration({ room, user, onCommentsChanged }: Collab
     document = new Y.Doc()
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
     provider = new WebsocketProvider(`${protocol}//${location.host}/collaboration`, room, document, { disableBc: true, connect: false })
-    provider.messageHandlers[COMMENTS_CHANGED] = () => onCommentsChanged?.()
     updateUser(user)
     extensions.value = [
       Collaboration.configure({ document }),
@@ -67,7 +64,6 @@ export function useEditorCollaboration({ room, user, onCommentsChanged }: Collab
       if (!synced) {
         return
       }
-      onCommentsChanged?.()
       ready.value = true
       connectionError.value = null
     })

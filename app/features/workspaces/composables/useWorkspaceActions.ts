@@ -1,5 +1,5 @@
 import { libraryKeys } from '~/features/library/state/libraryKeys'
-import type { WorkspaceItem, WorkspaceUpdate } from '#shared/contracts/workspace'
+import type { WorkspaceItem, WorkspaceUpdate } from '#shared/model/workspace'
 import { SerialTaskQueue } from '~/core/async/SerialTaskQueue'
 import { useApi } from '~/core/http/useApi'
 import { workspaceKeys } from '../state/workspaceKeys'

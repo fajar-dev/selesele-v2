@@ -1,14 +1,13 @@
 import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryItems, MemoryWorkspaces, MemoryFolders, WORKSPACE_ID } from '../support/fakes'
-import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
+import { CryptographicTokens } from '../../server/features/authentication/infrastructure/CryptographicTokens'
 import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
-import { COMMENTS_CHANGED } from '../../shared/collaboration/protocol'
 import { describe, expect, test } from 'bun:test'
 import * as Y from 'yjs'
 import * as sync from 'y-protocols/sync'
 import * as encoding from 'lib0/encoding'
 import * as decoding from 'lib0/decoding'
-import { AuthService } from '../../server/features/identity/application/AuthService'
+import { AuthService } from '../../server/features/authentication/application/AuthService'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
 import { ItemService } from '../../server/features/items/application/ItemService'
 import { CollaborationHub } from '../../server/platform/collaboration/CollaborationHub'
@@ -135,35 +134,7 @@ describe('persistent collaboration', () => {
       await hub.close()
     }
   })
-  test('pushes comment changes only to authorized viewers in the matching room without modifying the document', async () => {
-    const { hub, token, id, items, auth } = await fixture()
-    const first = new TestPeer('comments-first')
-    const second = new TestPeer('comments-second')
-    const eventType = (message: Uint8Array) => decoding.readVarUint(decoding.createDecoder(message))
-    try {
-      await Promise.all([hub.connect(first, id, token), hub.connect(second, id, token)])
-      first.messages = []
-      second.messages = []
-      const saves = items.saves
-      await hub.commentsChanged('unrelated-item')
-      expect(first.messages).toHaveLength(0)
-      await hub.commentsChanged(id)
-      expect(first.messages.map(eventType)).toEqual([COMMENTS_CHANGED])
-      expect(second.messages.map(eventType)).toEqual([COMMENTS_CHANGED])
-      expect(first.messages[0]?.length).toBe(1)
-      expect(items.saves).toBe(saves)
-      first.messages = []
-      second.messages = []
-      await auth.logout(token)
-      await hub.commentsChanged(id)
-      expect(first.messages).toHaveLength(0)
-      expect(second.messages).toHaveLength(0)
-      expect(first.closed).toBe(1008)
-    } finally {
-      await hub.close()
-    }
-  })
-  test('clients cannot forge comment invalidation messages', async () => {
+  test('rejects unsupported client protocol messages', async () => {
     const { hub, token, id } = await fixture()
     const sender = new TestPeer('forger')
     const viewer = new TestPeer('viewer')
@@ -171,7 +142,7 @@ describe('persistent collaboration', () => {
       await Promise.all([hub.connect(sender, id, token), hub.connect(viewer, id, token)])
       viewer.messages = []
       const encoder = encoding.createEncoder()
-      encoding.writeVarUint(encoder, COMMENTS_CHANGED)
+      encoding.writeVarUint(encoder, 255)
       await hub.message(sender, encoding.toUint8Array(encoder))
       expect(sender.closed).toBe(1003)
       expect(viewer.messages).toHaveLength(0)

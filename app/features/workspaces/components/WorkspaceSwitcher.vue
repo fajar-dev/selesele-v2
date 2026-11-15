@@ -3,7 +3,7 @@ import EntityIcon from '~/components/ui/EntityIcon.vue'
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import { useWorkspaceDirectory } from '~/features/workspaces/composables/useWorkspaceDirectory'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { WorkspaceItem } from '#shared/contracts/workspace'
+import type { WorkspaceItem } from '#shared/model/workspace'
 
 defineProps<{
   workspace: WorkspaceItem

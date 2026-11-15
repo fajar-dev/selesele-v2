@@ -1,4 +1,4 @@
-import type { CommentThreadItem } from '#shared/contracts/comment'
+import type { CommentThreadItem } from '#shared/model/comment'
 
 /** Coalesces socket invalidations and discards snapshots superseded while loading. */
 export class CommentSynchronization {

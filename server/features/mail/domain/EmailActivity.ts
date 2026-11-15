@@ -1,4 +1,4 @@
-import type { InviteRole } from '../../../../shared/kernel/workspace'
+import type { InviteRole } from '../../../../shared/model/workspace'
 /** A bounded snapshot of the activity that triggered this email. */
 export interface EmailActivity {
   actorName: string

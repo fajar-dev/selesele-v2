@@ -1,13 +1,13 @@
 import { MemoryResourceAccess, MemoryJournal, MemoryAccounts, MemoryItems, MemoryWorkspaces, MemoryFolders, OWNER_ID, EDITOR_ID, WORKSPACE_ID } from '../support/fakes'
 import { ItemContentService } from '../../server/features/items/application/ItemContentService'
-import { CryptographicTokens } from '../../server/features/identity/infrastructure/CryptographicTokens'
+import { CryptographicTokens } from '../../server/features/authentication/infrastructure/CryptographicTokens'
 import { SystemClock } from '../../server/platform/runtime/SystemClock'
 import { WorkspaceAccessPolicy } from '../../server/features/workspaces/application/WorkspaceAccessPolicy'
 import { describe, expect, test } from 'bun:test'
 import { ItemService } from '../../server/features/items/application/ItemService'
 import { WorkspaceService } from '../../server/features/workspaces/application/WorkspaceService'
 import { FolderService } from '../../server/features/workspaces/application/FolderService'
-import { AuthService } from '../../server/features/identity/application/AuthService'
+import { AuthService } from '../../server/features/authentication/application/AuthService'
 
 function fixture() {
   const repository = new MemoryItems()

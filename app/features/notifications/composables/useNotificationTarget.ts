@@ -1,6 +1,6 @@
 import type { Editor } from '@tiptap/core'
 import type { useItemComments } from '~/features/comments/composables/useItemComments'
-import { useAuth } from '~/features/auth/composables/useAuth'
+import { useAuth } from '~/features/authentication/composables/useAuth'
 
 export function useNotificationTarget(editorRef: Ref<{
   editor: Editor | undefined

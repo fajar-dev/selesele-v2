@@ -1,5 +1,5 @@
-import type { FolderUpdate, FolderItem } from '#shared/contracts/workspace'
-import type { ApiResponse } from '#shared/contracts/api'
+import type { FolderUpdate, FolderItem } from '#shared/model/workspace'
+import type { ApiResponse } from '#shared/model/api'
 import type { ApiTransport } from '~/core/http/ApiTransport'
 
 export class FolderClient {

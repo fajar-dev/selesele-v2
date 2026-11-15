@@ -1,6 +1,6 @@
 import type { ApiTransport } from '~/core/http/ApiTransport'
-import type { ApiResponse } from '#shared/contracts/api'
-import type { ItemVersion, TrashItem, TrashKind } from '#shared/contracts/recovery'
+import type { ApiResponse } from '#shared/model/api'
+import type { ItemVersion, TrashItem, TrashKind } from '#shared/model/recovery'
 
 export class RecoveryClient {
   constructor(private readonly http: ApiTransport) {

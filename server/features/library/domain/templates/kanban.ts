@@ -1,5 +1,5 @@
-import type { ItemTemplate } from '../../../../../shared/kernel/library'
-import type { KanbanContent } from '../../../../../shared/kernel/content'
+import type { ItemTemplate } from '../../../../../shared/model/library'
+import type { KanbanContent } from '../../../../../shared/model/content'
 
 function board(id: string, title: string, description: string, columns: string[], tasks: { title: string, column: number, description: string, labels: string[] }[]): ItemTemplate {
   const columnIds = columns.map(() => crypto.randomUUID())

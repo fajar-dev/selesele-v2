@@ -3,9 +3,29 @@
 Workspace kolaboratif untuk dokumen, kanban, whiteboard, dan diagram.
 Satu monolith Nuxt + Bun dengan login Microsoft, folder dan izin akses per item, editor dokumen realtime, kanban task, whiteboard untuk menggambar, serta editor diagram node/konektor. Mendukung komentar dokumen, pencarian lintas jenis item, favorites, template, version history, arsip, Trash, AI workspace, email notifikasi, dan backup terjadwal.
 
+## Fitur workspace
+
+- Kanban, whiteboard, dan diagram menampilkan anggota aktif, posisi cursor, dan objek yang dipilih. Perubahan pada objek/properti berbeda digabung otomatis; perubahan yang bertabrakan mempertahankan draft untuk ditinjau. Seluruh query workspace memakai satu koneksi SSE terautentikasi. Catatan perubahan mengikuti transaksi MySQL dan tersinkron antar-proses; dokumen, cursor dan presence juga disinkronkan.
+- Task mendukung kalender, status selesai, reminder dalam aplikasi, jadwal harian/mingguan/bulanan, dependency, dan subtask. Task berulang membuat satu occurrence berikutnya saat selesai. Reminder diproses setiap menit selama aplikasi berjalan dan mengikuti akses penerima.
+- Files / links menghubungkan item maupun task, elemen whiteboard, shape, dan konektor diagram. File mendukung preview gambar/PDF/teks dan download, maksimal 10 MB per file serta 100 attachment per item. Gambar bisa ditambahkan atau dijatuhkan ke whiteboard. File mengikuti izin item, disertakan dalam backup/ekspor, dan gambar ikut disalin saat membuat item dari template.
+- Pencarian menyediakan highlight, filter workspace/jenis/pembuat/folder/tanggal/label task, dan maksimal 50 saved search pribadi.
+- Whiteboard hanya merender objek dalam viewport; ekspor SVG/PNG tetap memuat seluruh scene. Diagram memakai render objek yang terlihat. Fullscreen memperluas konten di dalam aplikasi.
+
+Verifikasi tambahan setelah `bun run build`:
+
+```sh
+bun run test:product       # Integrasi dengan database sementara
+bun run test:performance   # Budget viewport dan ekspor untuk 2.000 objek
+bun run test:realtime      # Dua proses: commit, privasi, dokumen, presence dan revokasi akses
+bunx playwright install chromium
+bun run test:ui            # Enam skenario browser, database dan akun sementara
+```
+
+CI menjalankan pemeriksaan utama, integrasi, benchmark, dan UI Chromium. Laporan UI disimpan di `playwright-report`; trace/screenshot kegagalan berada di `test-results`.
+
 ## Menjalankan dengan Docker
 
-Memerlukan Docker dan Docker Compose. Stack mencakup aplikasi, MySQL, migrasi otomatis, serta Caddy untuk HTTPS dan WebSocket.
+Memerlukan Docker dan Docker Compose. Stack mencakup aplikasi, MySQL, migrasi otomatis, serta Caddy untuk HTTPS, SSE dan WebSocket. Migrator memakai akun root untuk memasang trigger; proses aplikasi tetap memakai user database biasa.
 
 ```sh
 cp .env.docker.example .env.docker
@@ -60,7 +80,7 @@ bun run dev
 
 Buka **http://localhost:3000**. Migrasi lokal dijalankan manual; Docker menjalankannya sebelum aplikasi dimulai.
 
-Schema development memakai baseline `drizzle/0000_initial_schema.sql` dengan 24 tabel dan migrasi lanjutan untuk perubahan berikutnya. Rewrite ini mengganti model konten menjadi `items`; untuk lingkungan development lama, jalankan `bun run db:reset` satu kali. **Reset menghapus semua data development, termasuk akun dan session.** Setelah itu gunakan `bun run db:migrate` untuk perubahan schema berikutnya.
+Schema development memakai baseline baru `drizzle/0000_schema.sql` dan capture realtime `drizzle/0001_realtime_capture.sql`, dengan 31 tabel. Rewrite ini mengganti model konten menjadi `items`; untuk lingkungan development lama, jalankan `bun run db:reset` satu kali. **Reset menghapus semua data development, termasuk akun dan session.** Setelah itu gunakan `bun run db:migrate` untuk perubahan schema berikutnya.
 
 ## Menjalankan dengan PM2
 
@@ -148,7 +168,7 @@ Status tersedia pada tabel `email_deliveries`: `pending`, `processing`, `sent`, 
 
 ## Model dan izin konten
 
-API utama berada pada `/api/items` dan `/api/workspaces/:workspaceId/items`, dengan rute UI `/workspaces/:workspaceId/items/:id`. Jenis item ditentukan saat dibuat dan tidak dapat diganti lewat edit metadata. Dokumen memakai Yjs/WebSocket; item terstruktur memakai JSON dengan revision check dan SSE invalidation. Semua jenis memakai aturan akses item/folder yang sama. Role Viewer tidak dapat mengedit; arsip menolak penulisan. Komentar memakai anchor teks pada dokumen serta ID task/objek pada kanban, whiteboard, dan diagram.
+API utama berada pada `/api/items` dan `/api/workspaces/:workspaceId/items`, dengan rute UI `/workspaces/:workspaceId/items/:id`. Jenis item ditentukan saat dibuat dan tidak dapat diganti lewat edit metadata. Dokumen memakai Yjs/WebSocket dengan state dan presence bersama; item terstruktur memakai JSON dengan revision check serta merge per objek/properti. Seluruh data workspace memakai satu feed SSE dari perubahan transaksi database. Semua jenis memakai aturan akses item/folder yang sama. Role Viewer tidak dapat mengedit; arsip menolak penulisan. Komentar memakai anchor teks pada dokumen serta ID task/objek pada kanban, whiteboard, dan diagram.
 
 Ekspor workspace menghasilkan Markdown untuk dokumen, JSON untuk item terstruktur, manifest jenis item, serta lampiran dokumen yang diizinkan. Backup operator tetap mencakup seluruh database dan file upload. Aplikasi berjalan sebagai satu instance Bun untuk koordinasi kolaborasi dan invalidation.
 

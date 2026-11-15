@@ -19,3 +19,6 @@ caddy-local-root.crt
 
 # Optional persistent backup storage
 /backups/
+
+/playwright-report/
+/test-results/

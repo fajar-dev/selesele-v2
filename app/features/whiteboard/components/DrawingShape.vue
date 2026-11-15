@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import type { DrawingElement } from '#shared/kernel/content'
+import type { DrawingElement } from '#shared/model/content'
+import { drawingTextLines } from '../domain/drawingText'
 import { DrawingScene } from '../domain/DrawingScene'
 
-const { element } = defineProps<{
+const { element, itemId } = defineProps<{
+  itemId?: string
   element: DrawingElement
 }>()
-const lines = computed(() => element.text.split('\n'))
+const font = computed(() => element.fontSize || (element.type === 'sticky' ? 18 : 24))
+const clipId = `note-text-${useId().replaceAll(':', '')}`
+const lines = computed(() => drawingTextLines(element))
 const head = computed(() => {
   const angle = Math.atan2(element.height, element.width), size = 14 + element.size
   return `${element.width - size * Math.cos(angle - Math.PI / 6)},${element.height - size * Math.sin(angle - Math.PI / 6)} ${element.width},${element.height} ${element.width - size * Math.cos(angle + Math.PI / 6)},${element.height - size * Math.sin(angle + Math.PI / 6)}`
@@ -18,12 +22,22 @@ const head = computed(() => {
     :data-element="element.id"
     :stroke="element.color"
     :stroke-width="element.size"
-    fill="none"
+    :fill="element.fill || 'none'"
+    :opacity="element.opacity ?? 1"
+    :stroke-dasharray="element.dashed ? `${element.size * 3} ${element.size * 2}` : undefined"
+    pointer-events="all"
     stroke-linecap="round"
     stroke-linejoin="round"
   >
+    <image
+      v-if="element.type === 'image' && element.imageId && itemId"
+      :href="`/api/items/${itemId}/attachments/${element.imageId}/content`"
+      :width="Math.abs(element.width)"
+      :height="Math.abs(element.height)"
+      preserveAspectRatio="xMidYMid meet"
+    />
     <path
-      v-if="element.type === 'pen'"
+      v-else-if="element.type === 'pen'"
       :d="DrawingScene.path(element)"
       :fill="element.color"
       stroke="none"
@@ -52,26 +66,37 @@ const head = computed(() => {
       />
     </template>
     <template v-else>
+      <defs v-if="element.type === 'sticky'">
+        <clipPath :id="clipId">
+          <rect
+            x="10"
+            y="8"
+            :width="Math.max(1, element.width - 20)"
+            :height="Math.max(1, element.height - 16)"
+          />
+        </clipPath>
+      </defs>
       <rect
         v-if="element.type === 'sticky'"
         :width="element.width"
         :height="element.height"
-        :fill="element.color"
-        fill-opacity="0.08"
+        :fill="element.fill && element.fill !== 'none' ? element.fill : element.color"
+        :fill-opacity="element.fill && element.fill !== 'none' ? 1 : 0.08"
         :stroke-width="1"
       /><text
         :x="element.type === 'sticky' ? 14 : 0"
-        :y="element.type === 'sticky' ? 30 : 26"
-        :fill="element.color"
+        :y="element.type === 'sticky' ? font + 12 : font"
+        :fill="element.type === 'sticky' && element.fill && element.fill !== 'none' ? '#ffffff' : element.color"
+        :clip-path="element.type === 'sticky' ? `url(#${clipId})` : undefined"
         stroke="none"
-        :font-size="element.type === 'sticky' ? 18 : 24"
+        :font-size="font"
         font-family="sans-serif"
       >
         <tspan
           v-for="(line, index) in lines"
           :key="index"
           :x="element.type === 'sticky' ? 14 : 0"
-          :dy="index ? (element.type === 'sticky' ? 25 : 34) : 0"
+          :dy="index ? font * 1.4 : 0"
         >
           {{ line }}
         </tspan>

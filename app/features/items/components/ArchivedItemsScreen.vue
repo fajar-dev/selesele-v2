@@ -3,7 +3,7 @@ import WorkspaceFeatureScreen from '~/features/workspaces/components/WorkspaceFe
 import DataSkeleton from '~/components/ui/DataSkeleton.vue'
 import DataRetry from '~/components/ui/DataRetry.vue'
 import { useWorkspace, refreshWorkspace } from '~/features/workspaces/composables/useWorkspace'
-import { allowsWorkspaceAction } from '#shared/kernel/workspaceSettings'
+import { allowsWorkspaceAction } from '#shared/model/workspaceSettings'
 import { useApi } from '~/core/http/useApi'
 
 const { workspaceId } = defineProps<{

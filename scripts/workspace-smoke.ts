@@ -1,14 +1,14 @@
-import { CryptographicTokens } from '../server/features/identity/infrastructure/CryptographicTokens'
+import { CryptographicTokens } from '../server/features/authentication/infrastructure/CryptographicTokens'
 import { SystemClock } from '../server/platform/runtime/SystemClock'
 import { randomUUID } from 'node:crypto'
 import { strict as assert } from 'node:assert'
 import { eq, inArray } from 'drizzle-orm'
 import { createDatabase } from '../server/platform/database/client'
 import { documents, folders, items, sessions, users, workspaceMembers, workspaces } from '../server/platform/database/schema'
-import { MySqlUserRepository } from '../server/features/identity/infrastructure/MySqlUserRepository'
-import { MySqlSessionRepository } from '../server/features/identity/infrastructure/MySqlSessionRepository'
-import type { CommentThreadItem } from '../shared/contracts/comment'
-import { AuthService } from '../server/features/identity/application/AuthService'
+import { MySqlUserRepository } from '../server/features/authentication/infrastructure/MySqlUserRepository'
+import { MySqlSessionRepository } from '../server/features/authentication/infrastructure/MySqlSessionRepository'
+import type { CommentThreadItem } from '../shared/model/comment'
+import { AuthService } from '../server/features/authentication/application/AuthService'
 
 const origin = new URL(process.env.SMOKE_ORIGIN || 'http://localhost:3000')
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname), 'Integration smoke requires a local server')

@@ -1,11 +1,10 @@
-import type { CanvasContent } from '#shared/kernel/content'
+import type { CanvasContent } from '#shared/model/content'
 import { useApi } from '~/core/http/useApi'
 import { useFeedbackToast } from '~/core/feedback/useFeedbackToast'
-import { useWorkspaceEvents } from '~/features/workspaces/composables/useWorkspaceEvents'
 import { CanvasDraftStorage } from '../storage/CanvasDraftStorage'
 import type { SavedCanvasDraft } from '../storage/CanvasDraftStorage'
-import { useAuth } from '~/features/auth/composables/useAuth'
-import { canonicalJson } from '#shared/kernel/json'
+import { useAuth } from '~/features/authentication/composables/useAuth'
+import { canonicalJson } from '#shared/model/json'
 import { CanvasSession } from '../domain/CanvasSession'
 
 export function useCanvas(itemId: string, workspaceId: string, readonly: () => boolean) {
@@ -34,7 +33,7 @@ export function useCanvas(itemId: string, workspaceId: string, readonly: () => b
       storageWarning = true
     }
   }
-  const query = useLazyAsyncData(`canvas:${itemId}`, async () => (await api.get(itemId)).data, { server: false })
+  const query = useRealtimeQuery(`canvas:${itemId}`, async () => (await api.get(itemId)).data, { server: false })
   watch(query.data, (state) => {
     if (!state) {
       return
@@ -57,9 +56,6 @@ export function useCanvas(itemId: string, workspaceId: string, readonly: () => b
     }
   }, { immediate: true })
   useFeedbackToast(query.error, { key: `canvas:${itemId}`, title: 'Unable to load item', recovered: () => query.status.value === 'success', retry: () => query.refresh() })
-  useWorkspaceEvents(workspaceId, () => {
-    void query.refresh()
-  })
   let timer: ReturnType<typeof setTimeout> | undefined
   async function save() {
     if (readonly() || !session.value || recovered.value) {

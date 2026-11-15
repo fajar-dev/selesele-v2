@@ -1,4 +1,4 @@
-import type { ItemKind } from '../../../../shared/kernel/content'
+import type { ItemKind } from '../../../../shared/model/content'
 
 export interface Item {
   kind: ItemKind

@@ -15,7 +15,7 @@ export function useItemHistory(itemId: string) {
   const error = ref('')
   const confirming = ref(false)
   const toast = useToast()
-  const { data, status, error: loadError, refresh } = useLazyAsyncData(`versions:${itemId}`, async () => (await recovery.versions(itemId)).data, { server: false, immediate: false, default: () => [] })
+  const { data, status, error: loadError, refresh } = useRealtimeQuery(`versions:${itemId}`, async () => (await recovery.versions(itemId)).data, { server: false, immediate: false, default: () => [] })
   const current = computed(() => data.value.find(version => version.id === selected.value))
   watch(open, async (value, _previous, onCleanup) => {
     let active = true

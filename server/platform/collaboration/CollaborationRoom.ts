@@ -1,4 +1,3 @@
-import { COMMENTS_CHANGED } from '../../../shared/collaboration/protocol'
 import * as Y from 'yjs'
 import * as sync from 'y-protocols/sync'
 import * as awarenessProtocol from 'y-protocols/awareness'
@@ -8,6 +7,8 @@ import type { CollaborationPeer } from './CollaborationPeer'
 import type { DocumentRepository } from '../../features/items/domain/DocumentRepository'
 import { createDocument, documentMarkdown } from './document'
 
+const REMOTE_UPDATE = Symbol('remote-document-update')
+const REMOTE_AWARENESS = Symbol('remote-awareness-update')
 const SYNC = 0
 const AWARENESS = 1
 const MAX_MESSAGE_BYTES = 2 * 1024 * 1024
@@ -21,6 +22,8 @@ export class CollaborationRoom {
   readonly connections = new Map<string, CollaborationConnection>()
   private closing: Promise<void> | undefined
   private readonly awareness: awarenessProtocol.Awareness
+  private pendingAwareness: Promise<void> = Promise.resolve()
+  private readonly awarenessOwners = new Map<number, string>()
   private pending: Promise<void> = Promise.resolve()
   private readonly timer: ReturnType<typeof setInterval>
   constructor(readonly id: string, private readonly document: Y.Doc, private readonly repository: DocumentRepository, private readonly authorize: (connection: CollaborationConnection) => Promise<void>) {
@@ -38,6 +41,10 @@ export class CollaborationRoom {
       encoding.writeVarUint(encoder, SYNC)
       sync.writeUpdate(encoder, update)
       const message = encoding.toUint8Array(encoder)
+      if (origin === REMOTE_UPDATE) {
+        this.broadcast(message)
+        return
+      }
       // Persist snapshots serially before acknowledging them to other clients.
       this.pending = this.pending.then(async () => {
         await this.repository.saveState(id, state, content, actorId, typeof origin === 'object' && origin !== null && 'userId' in origin)
@@ -56,6 +63,21 @@ export class CollaborationRoom {
       removed: number[]
     }, origin: unknown) => {
       const connection = typeof origin === 'string' ? this.connections.get(origin) : undefined
+      if (connection) {
+        for (const clientId of [...added, ...updated]) {
+          this.awarenessOwners.set(clientId, connection.userId)
+        }
+      }
+      if (origin !== REMOTE_AWARENESS) {
+        const updates = [...added, ...updated, ...removed].flatMap((clientId) => {
+          const userId = this.awarenessOwners.get(clientId)
+          return userId ? [{ clientId, userId, state: awarenessProtocol.encodeAwarenessUpdate(this.awareness, [clientId]) }] : []
+        })
+        this.pendingAwareness = this.pendingAwareness
+          .then(() => this.repository.saveAwareness(id, updates))
+          .catch(cause => console.error('Document presence persistence failed', cause))
+        removed.forEach(clientId => this.awarenessOwners.delete(clientId))
+      }
       for (const id of [...added, ...updated]) {
         connection?.clients.add(id)
       }
@@ -119,28 +141,21 @@ export class CollaborationRoom {
     }
   }
 
-  async notifyCommentsChanged(): Promise<void> {
-    const encoder = encoding.createEncoder()
-    encoding.writeVarUint(encoder, COMMENTS_CHANGED)
-    const message = encoding.toUint8Array(encoder)
-    await Promise.allSettled([...this.connections.values()].map(async (connection) => {
-      try {
-        await this.authorize(connection)
-      } catch {
-        this.remove(connection.peer)
-        connection.peer.close(1008, 'Access expired or revoked')
-        return
+  async synchronizePresence() {
+    await this.pendingAwareness
+    for (const update of await this.repository.readAwareness(this.id)) {
+      if (!this.isClosing) {
+        awarenessProtocol.applyAwarenessUpdate(this.awareness, update, REMOTE_AWARENESS)
       }
-      if (this.isClosing || this.connections.get(connection.peer.id) !== connection) {
-        return
-      }
-      try {
-        connection.peer.send(message)
-      } catch {
-        this.remove(connection.peer)
-        connection.peer.close(1011, 'Connection interrupted')
-      }
-    }))
+    }
+  }
+
+  async synchronize() {
+    await this.pending
+    const state = await this.repository.readState(this.id)
+    if (state && !this.isClosing) {
+      Y.applyUpdate(this.document, state, REMOTE_UPDATE)
+    }
   }
 
   async replaceMarkdown(content: string, userId?: string) {
@@ -181,6 +196,7 @@ export class CollaborationRoom {
     clearInterval(this.timer)
     try {
       await this.pending
+      await this.pendingAwareness
     } finally {
       this.awareness.destroy()
       this.document.destroy()

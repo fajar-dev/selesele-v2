@@ -1,4 +1,4 @@
-import type { AccessLevel, ResourceKind, ResourcePolicy, MemberResourceAccess, MoveImpact } from '../../../../shared/kernel/access'
+import type { AccessLevel, ResourceKind, ResourcePolicy, MemberResourceAccess, MoveImpact } from '../../../../shared/model/access'
 
 export interface ResourceAccess {
   previewMove(itemId: string, folderId: string | null, userId: string): Promise<MoveImpact>

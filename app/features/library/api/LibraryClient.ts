@@ -1,15 +1,16 @@
-import type { MyTask } from '#shared/contracts/task'
+import type { SearchFilters } from '#shared/model/itemResources'
+import type { MyTask } from '#shared/model/task'
 import type { ApiTransport } from '~/core/http/ApiTransport'
-import type { ApiResponse } from '#shared/contracts/api'
-import type { LibraryEntry, ItemTemplate, PersonalLibrary, WorkspaceTemplateSummary } from '#shared/contracts/library'
-import type { ContentItem } from '#shared/contracts/item'
+import type { ApiResponse } from '#shared/model/api'
+import type { LibraryEntry, ItemTemplate, PersonalLibrary, WorkspaceTemplateSummary } from '#shared/model/library'
+import type { ContentItem } from '#shared/model/item'
 
 export class LibraryClient {
   constructor(private readonly http: ApiTransport) {
   }
 
-  search(q: string, workspaceId?: string) {
-    return this.http.request<ApiResponse<LibraryEntry[]>>('/library/search', { query: { q, workspaceId } })
+  search(q: string, workspaceId?: string, filters?: SearchFilters) {
+    return this.http.request<ApiResponse<LibraryEntry[]>>('/library/search', { query: { q, workspaceId, ...filters } })
   }
 
   myTasks() {

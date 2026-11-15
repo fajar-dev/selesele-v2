@@ -1,4 +1,4 @@
-import type { CanvasContent, CanvasSnapshot } from '../../../../shared/kernel/content'
+import type { CanvasContent, CanvasSnapshot } from '../../../../shared/model/content'
 
 export interface CanvasRepository {
   find(itemId: string): Promise<CanvasSnapshot | null>
