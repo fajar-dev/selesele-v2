@@ -7,6 +7,17 @@ x-database-environment: &database-environment
   DB_USER: ${DB_USER:-selesele}
   DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your Docker environment file}
 
+x-upload-environment: &upload-environment
+  UPLOAD_STORAGE: ${UPLOAD_STORAGE:-local}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_REGION: ${S3_REGION:-}
+  S3_PREFIX: ${S3_PREFIX:-selesele/images}
+  S3_ADDRESS_STYLE: ${S3_ADDRESS_STYLE:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  S3_SESSION_TOKEN: ${S3_SESSION_TOKEN:-}
+
 services:
   mysql:
     image: mysql:8.4
@@ -52,7 +63,7 @@ services:
     restart: unless-stopped
     init: true
     environment:
-      <<: *database-environment
+      <<: [*database-environment, *upload-environment]
       APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN to your public HTTPS origin}
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET to a random secret of at least 32 characters}
       MICROSOFT_ENABLED: ${MICROSOFT_ENABLED:-true}
@@ -96,7 +107,7 @@ services:
       target: backup
     restart: unless-stopped
     environment:
-      <<: *database-environment
+      <<: [*database-environment, *upload-environment]
       BACKUP_HOUR_UTC: ${BACKUP_HOUR_UTC:-18}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
     volumes:

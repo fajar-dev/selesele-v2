@@ -75,3 +75,10 @@ BACKUP_MYSQL_CONTAINER=mysql BACKUP_MYSQL_HOST=127.0.0.1 bun run test:backup
 ```
 
 Pengujian membuat database sementara, menjalankan seluruh migrasi, menyimpan data Unicode/biner dan lampiran, lalu memulihkannya ke database tujuan sementara yang berbeda dari sumber. Pengujian juga menolak konfirmasi target salah dan backup rusak. Database kerja tidak digunakan sebagai target restore.
+
+
+## Penyimpanan upload cloud
+
+Backup membaca driver dari `UPLOAD_STORAGE`, sama dengan aplikasi. Dengan `cloud`, worker membaca object privat dari `S3_PREFIX` dan menyimpan salinannya dalam format `uploads.tar.gz` yang sama. Beri worker izin list bucket pada prefix tersebut serta izin baca object. Proses membutuhkan ruang sementara sebesar gambar mentah dan arsip terkompresi. Verifikasi backup hanya membaca arsip dan tidak memerlukan akses S3.
+
+Restore dapat memakai driver berbeda dari saat backup. Untuk target cloud, gunakan bucket atau prefix khusus recovery. Restore menulis gambar sebelum impor SQL, memakai ulang object dengan isi sama, menolak benturan isi, dan tidak menghapus object lain. Jika restore terhenti, object yang sudah ditulis bisa tetap ada; periksa log dan ulangi pada tujuan yang sama setelah penyebabnya diperbaiki. Hentikan aplikasi dan scheduler sebelum restore. Untuk snapshot database dan gambar yang konsisten, hentikan upload selama pencadangan.

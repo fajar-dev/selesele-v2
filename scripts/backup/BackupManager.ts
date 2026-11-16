@@ -25,10 +25,15 @@ interface BackupManifest {
   createdAt: string
   files: Record<'database.sql.gz' | 'uploads.tar.gz', FileProof>
 }
+interface BackupImageStore {
+  filenames(): AsyncIterable<string>
+  read(filename: string): Promise<Uint8Array | null>
+  restore(filename: string, data: Uint8Array): Promise<boolean>
+}
 const backupName = /^backup-\d{4}-\d{2}-\d{2}T[\d-]+Z-[a-f0-9]{8}$/
 const imageName = /^[a-f0-9-]{36}\.(png|jpg|jpeg|webp|gif)$/i
 export class BackupManager {
-  constructor(private readonly config: BackupConfig) {
+  constructor(private readonly config: BackupConfig, private readonly remoteUploads?: BackupImageStore) {
     if (!/^[a-zA-Z0-9_]{1,64}$/.test(config.database)) {
       throw new Error('Invalid database name')
     }
@@ -80,7 +85,9 @@ export class BackupManager {
   async create(): Promise<string> {
     const root = resolve(this.config.directory), uploads = resolve(this.config.uploads)
     await mkdir(root, { recursive: true, mode: 0o700 })
-    await mkdir(uploads, { recursive: true })
+    if (!this.remoteUploads) {
+      await mkdir(uploads, { recursive: true })
+    }
     const lockPath = join(root, '.backup.lock')
     const lock = await open(lockPath, 'wx', 0o600).catch(() => {
       throw new Error('A backup is already running or a stale .backup.lock requires inspection')
@@ -90,11 +97,6 @@ export class BackupManager {
     try {
       await lock.writeFile(JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }))
       await mkdir(staging, { mode: 0o700 })
-      for (const file of await readdir(uploads)) {
-        if (!imageName.test(file) || !(await lstat(join(uploads, file))).isFile()) {
-          throw new Error('Upload storage contains an unexpected file or symbolic link')
-        }
-      }
       const dump = Bun.spawn([...this.mysql('mysqldump'), '--single-transaction', '--quick', '--hex-blob', '--no-tablespaces', '--set-gtid-purged=OFF', '--column-statistics=0', '--skip-lock-tables', this.config.database], { env: this.environment(), stdout: 'pipe', stderr: 'pipe' })
       const errors = new Response(dump.stderr).text()
       try {
@@ -110,7 +112,7 @@ export class BackupManager {
         await errors
         throw cause
       }
-      await this.run(['tar', '-czf', join(staging, 'uploads.tar.gz'), '-C', uploads, '.'])
+      await this.archiveUploads(staging, uploads)
       const manifest: BackupManifest = { format: 1, database: this.config.database, createdAt: new Date().toISOString(), files: { 'database.sql.gz': await this.proof(join(staging, 'database.sql.gz')), 'uploads.tar.gz': await this.proof(join(staging, 'uploads.tar.gz')) } }
       await Bun.write(join(staging, 'manifest.json'), JSON.stringify(manifest, null, 2))
       for (const file of ['manifest.json', 'database.sql.gz', 'uploads.tar.gz']) {
@@ -126,6 +128,33 @@ export class BackupManager {
     } finally {
       await lock.close()
       await rm(lockPath, { force: true })
+    }
+  }
+
+  private async archiveUploads(staging: string, localDirectory: string) {
+    const snapshot = this.remoteUploads ? join(staging, '.uploads') : localDirectory
+    if (this.remoteUploads) {
+      await mkdir(snapshot, { mode: 0o700 })
+      for await (const file of this.remoteUploads.filenames()) {
+        if (!imageName.test(file)) {
+          throw new Error('Cloud upload storage contains an unexpected key')
+        }
+        const data = await this.remoteUploads.read(file)
+        if (!data) {
+          throw new Error('A cloud upload disappeared during backup; retry the backup')
+        }
+        await Bun.write(join(snapshot, file), data)
+      }
+    } else {
+      for (const file of await readdir(snapshot)) {
+        if (!imageName.test(file) || !(await lstat(join(snapshot, file))).isFile()) {
+          throw new Error('Upload storage contains an unexpected file or symbolic link')
+        }
+      }
+    }
+    await this.run(['tar', '-czf', join(staging, 'uploads.tar.gz'), '-C', snapshot, '.'])
+    if (this.remoteUploads) {
+      await rm(snapshot, { recursive: true })
     }
   }
 
@@ -177,13 +206,21 @@ export class BackupManager {
     const staging = join(this.config.directory, `.uploads-restore-${randomUUID()}`)
     try {
       await mkdir(staging, { recursive: true, mode: 0o700 })
-      await mkdir(uploads, { recursive: true })
-      for (const file of await readdir(uploads)) {
-        if (!imageName.test(file) || !(await lstat(join(uploads, file))).isFile()) {
-          throw new Error('Upload storage contains unexpected entries; restore into a clean upload directory')
+      if (!this.remoteUploads) {
+        await mkdir(uploads, { recursive: true })
+        for (const file of await readdir(uploads)) {
+          if (!imageName.test(file) || !(await lstat(join(uploads, file))).isFile()) {
+            throw new Error('Upload storage contains unexpected entries; restore into a clean upload directory')
+          }
         }
       }
       await this.run(['tar', '-xzf', join(root, 'uploads.tar.gz'), '--no-same-owner', '--no-same-permissions', '-C', staging])
+      if (this.remoteUploads) {
+        // Restore objects before the SQL import so it cannot reference missing images.
+        for (const file of await readdir(staging)) {
+          await this.remoteUploads.restore(file, await Bun.file(join(staging, file)).bytes())
+        }
+      }
       const unzip = Bun.spawn(['gzip', '-dc', join(root, 'database.sql.gz')], { stdout: 'pipe', stderr: 'pipe' })
       const errors = new Response(unzip.stderr).text()
       try {
@@ -197,6 +234,9 @@ export class BackupManager {
         await unzip.exited
         await errors
         throw cause
+      }
+      if (this.remoteUploads) {
+        return { uploads: 'cloud', previous: null }
       }
       const oldFiles = await readdir(uploads)
       const previous = oldFiles.length ? join(this.config.directory, `uploads-before-restore-${Date.now()}`) : null

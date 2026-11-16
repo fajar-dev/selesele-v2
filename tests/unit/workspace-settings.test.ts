@@ -49,7 +49,9 @@ describe('workspace governance', () => {
       return filename
     }, async read() {
       return new Uint8Array([1, 2, 3])
-    } }, '/tmp')
+    }, async size() {
+      return 3
+    } })
     const bytes = await archive.create({ name: 'Team', attachments: [filename], folders: [{ id: 'folder', name: '../../etc' }], items: [{ kind: 'document', canvas: null, id: 'item', title: '../Project', folderId: 'folder', markdown: `![Image](/images/${filename})` }] })
     const files = await new Bun.Archive(bytes).files()
     expect([...files.keys()].some(path => path.startsWith('../'))).toBe(false)

@@ -1,8 +1,12 @@
 import { resolve } from 'node:path'
+import { uploadConfig } from '../server/features/media/infrastructure/uploadConfig'
+import { S3ImageStore } from '../server/features/media/infrastructure/S3ImageStore'
 import { BackupManager } from './backup/BackupManager'
 
+const [command = 'create', directory, confirmation] = process.argv.slice(2)
+const storage = uploadConfig(command === 'verify' ? { ...process.env, UPLOAD_STORAGE: 'local' } : process.env)
 const config = {
-  directory: resolve(process.env.BACKUP_DIR || '.data/backups'), uploads: resolve(process.env.UPLOAD_DIR || '.data/uploads'),
+  directory: resolve(process.env.BACKUP_DIR || '.data/backups'), uploads: storage.directory,
   database: process.env.DB_NAME || 'sele_sele', user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '',
   host: process.env.BACKUP_MYSQL_HOST || process.env.DB_HOST || 'localhost', port: Number(process.env.BACKUP_MYSQL_PORT || process.env.DB_PORT || 3306),
   uid: process.env.RESTORE_UID ? Number(process.env.RESTORE_UID) : undefined, gid: process.env.RESTORE_GID ? Number(process.env.RESTORE_GID) : undefined,
@@ -14,8 +18,7 @@ if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535 || 
 if ((config.uid === undefined) !== (config.gid === undefined) || [config.uid, config.gid].some(value => value !== undefined && (!Number.isInteger(value) || value < 0))) {
   throw new Error('Set both RESTORE_UID and RESTORE_GID to valid numeric IDs')
 }
-const manager = new BackupManager(config)
-const [command = 'create', directory, confirmation] = process.argv.slice(2)
+const manager = new BackupManager(config, storage.driver === 'cloud' ? new S3ImageStore(new Bun.S3Client(storage.options), storage.prefix) : undefined)
 if (command === 'create') {
   console.log(`Backup created: ${await manager.create()}`)
 } else if (command === 'verify' && directory) {

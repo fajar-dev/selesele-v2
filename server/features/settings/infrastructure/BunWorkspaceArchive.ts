@@ -1,15 +1,13 @@
-import { stat } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { WorkspaceArchive } from '../domain/WorkspaceArchive'
 import type { WorkspaceExportData } from '../domain/SettingsRepository'
 import type { ImageStore } from '../../media/domain/ImageStore'
 import { ApplicationError } from '../../../core/errors/ApplicationError'
 
-const attachmentPattern = /(?:https?:\/\/[^\s)"<>]+)?\/images\/([a-f0-9-]{36}\.(?:png|jpg|gif|webp))/gi
+const attachmentPattern = /(?:https?:\/\/[^\s)"<>]+)?\/images\/([a-f0-9-]{36}\.(?:png|jpe?g|gif|webp))/gi
 const filePath = (file: { id: string, itemId: string, name: string }) => `files/${file.itemId}/${file.id}-${file.name.replace(/[\\/\r\n\0]/g, '_')}`
 const safeName = (value: string) => value.normalize('NFKC').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 70) || 'Untitled'
 export class BunWorkspaceArchive implements WorkspaceArchive {
-  constructor(private readonly images: ImageStore, private readonly directory: string) {
+  constructor(private readonly images: ImageStore) {
   }
 
   private attachments(data: WorkspaceExportData) {
@@ -20,13 +18,7 @@ export class BunWorkspaceArchive implements WorkspaceArchive {
   async attachmentBytes(data: WorkspaceExportData) {
     let bytes = (data.files || []).reduce((sum, file) => sum + file.data.byteLength, 0)
     for (const filename of this.attachments(data)) {
-      try {
-        bytes += (await stat(join(this.directory, filename))).size
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-          throw error
-        }
-      }
+      bytes += await this.images.size(filename) ?? 0
     }
     return bytes
   }

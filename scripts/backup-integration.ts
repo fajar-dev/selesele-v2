@@ -10,7 +10,7 @@ import { databaseConfig } from '../server/platform/database/config'
 import { BackupManager } from './backup/BackupManager'
 
 const suffix = randomUUID().replaceAll('-', '')
-const source = `sele_backup_test_${suffix}`, target = `sele_restore_test_${suffix}`
+const source = `sele_backup_test_${suffix}`, target = `sele_restore_test_${suffix}`, cloudTarget = `sele_cloud_test_${suffix}`
 const config = databaseConfig()
 const admin = await createConnection({ ...config, database: undefined })
 const root = await mkdtemp(join(tmpdir(), 'sele-backup-test-'))
@@ -18,6 +18,7 @@ const uploads = join(root, 'uploads'), restored = join(root, 'restored')
 try {
   await admin.query(`CREATE DATABASE \`${source}\``)
   await admin.query(`CREATE DATABASE \`${target}\``)
+  await admin.query(`CREATE DATABASE \`${cloudTarget}\``)
   await admin.changeUser({ database: source })
   await migrate(drizzle(admin), { migrationsFolder: './drizzle' })
   await admin.query('CREATE TABLE restore_probe (id INT PRIMARY KEY, payload MEDIUMBLOB, label VARCHAR(100))')
@@ -46,6 +47,28 @@ try {
   assert.deepEqual(row.payload, payload)
   assert.equal(row.label, label)
   assert.deepEqual(Buffer.from(await Bun.file(join(restored, image)).arrayBuffer()), payload)
+  const cloudFiles = new Map<string, Uint8Array>([[image, payload]])
+  const remote = {
+    async* filenames() {
+      yield* cloudFiles.keys()
+    },
+    async read(filename: string) {
+      return cloudFiles.get(filename) ?? null
+    },
+    async restore(filename: string, data: Uint8Array) {
+      cloudFiles.set(filename, data)
+      return true
+    }
+  }
+  const cloudBackup = await new BackupManager(base, remote).create()
+  cloudFiles.clear()
+  await new BackupManager({ ...base, database: cloudTarget }, remote).restore(cloudBackup, cloudTarget, true)
+  assert.deepEqual(Buffer.from(cloudFiles.get(image)!), payload)
+  assert.deepEqual(Buffer.from(await Bun.file(join(uploads, image)).arrayBuffer()), payload, 'Cloud restore leaves local uploads intact')
+  await admin.changeUser({ database: cloudTarget })
+  const [cloudRows] = await admin.query('SELECT payload FROM restore_probe')
+  assert.deepEqual((cloudRows as { payload: Buffer }[])[0]!.payload, payload)
+  await admin.changeUser({ database: target })
   const compressed = await Bun.file(join(path, 'database.sql.gz')).arrayBuffer()
   await Bun.write(join(path, 'database.sql.gz'), new Uint8Array([...new Uint8Array(compressed), 0]))
   await assert.rejects(() => reader.verify(path), /integrity/)
@@ -53,10 +76,11 @@ try {
   assert.equal((unchanged as {
     label: string
   }[])[0]!.label, label)
-  console.log('Backup integration passed: full schema, binary/Unicode data, attachments, restore guards and corrupt-backup rejection in isolated databases')
+  console.log('Backup integration passed: full schema, binary/Unicode data, local and cloud attachments, restore guards and corrupt-backup rejection in isolated databases')
 } finally {
   await admin.query(`DROP DATABASE IF EXISTS \`${source}\``)
   await admin.query(`DROP DATABASE IF EXISTS \`${target}\``)
+  await admin.query(`DROP DATABASE IF EXISTS \`${cloudTarget}\``)
   await admin.end()
   await rm(root, { recursive: true, force: true })
 }

@@ -20,7 +20,7 @@ import type { WorkspaceModule } from './workspace'
 import type { ContentModule } from './content'
 
 export function createKnowledgeModule(runtime: RuntimeModule, workspace: WorkspaceModule, content: ContentModule) {
-  const { database, imageStore, imageDirectory } = runtime
+  const { database, imageStore } = runtime
   const { workspaceAccess, items, resources, journal } = workspace
   const { itemContent, collaboration, canvases, canvasRepository } = content
   const provider = new GatewayCompletionProvider({
@@ -32,7 +32,7 @@ export function createKnowledgeModule(runtime: RuntimeModule, workspace: Workspa
   const library = new LibraryService(new MySqlLibraryRepository(database.db), items, workspaceAccess)
   const questions = new WorkspaceQuestionService(library, provider)
   const recoveryRepository = new MySqlRecoveryRepository(database.db)
-  const settings = new WorkspaceSettingsService(new MySqlSettingsRepository(database.db), workspaceAccess, items, new BunWorkspaceArchive(imageStore, imageDirectory))
+  const settings = new WorkspaceSettingsService(new MySqlSettingsRepository(database.db), workspaceAccess, items, new BunWorkspaceArchive(imageStore))
   const myTasks = new MySqlTaskRepository(database.db)
   const itemResources = new ItemResourceService(new MySqlItemResourceRepository(database.db), items, canvasRepository)
   const recovery = new RecoveryService(recoveryRepository, items, collaboration, workspaceAccess, journal, canvases)

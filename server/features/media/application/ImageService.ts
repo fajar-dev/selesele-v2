@@ -1,5 +1,5 @@
 import { ApplicationError } from '../../../core/errors/ApplicationError'
-import { imageExtension, requireImageFilename } from '../domain/ImagePolicy'
+import { imageContentType, imageExtension, requireImageFilename } from '../domain/ImagePolicy'
 import type { ImageAuthorization } from '../domain/ImageAuthorization'
 import type { ImageStore } from '../domain/ImageStore'
 
@@ -25,6 +25,6 @@ export class ImageService {
     if (!data) {
       throw new ApplicationError('not_found', 'Image not found')
     }
-    return { data, type: `image/${filename.endsWith('.jpg') ? 'jpeg' : filename.split('.').pop()}` }
+    return { data, type: imageContentType(filename) }
   }
 }

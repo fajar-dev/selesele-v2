@@ -108,6 +108,39 @@ pm2 stop sele-sele
 
 Untuk update, hentikan aplikasi, install dependency, build, jalankan migrasi, lalu restart. Jika mengubah nilai `HOST`/`PORT` dari shell, jalankan ulang ecosystem dengan `pm2 restart ecosystem.config.cjs --update-env`, lalu `pm2 save`. Secrets dibaca Bun dari `.env` pada direktori project.
 
+## Penyimpanan gambar upload
+
+Gunakan `UPLOAD_STORAGE=local` (default) untuk menyimpan gambar editor di `UPLOAD_DIR`, atau `UPLOAD_STORAGE=cloud` untuk object storage privat. Nama file, URL `/images/…`, dan pemeriksaan izin item tetap sama. Lampiran umum pada item tetap tersimpan di MySQL.
+
+```dotenv
+UPLOAD_STORAGE=cloud
+S3_BUCKET=nama-bucket
+S3_ACCESS_KEY_ID=isi-di-server
+S3_SECRET_ACCESS_KEY=isi-di-server
+S3_PREFIX=selesele/images
+```
+
+| Provider | `S3_ENDPOINT` | `S3_REGION` | `S3_ADDRESS_STYLE` |
+| --- | --- | --- | --- |
+| AWS S3 | Kosong | Region bucket, misalnya `ap-southeast-1` | `virtual` |
+| Cloudflare R2 | `https://ACCOUNT_ID.r2.cloudflarestorage.com` | `auto` | `path` |
+| MinIO | Origin API MinIO, misalnya `https://minio.example.com:9000` | Region konfigurasi MinIO, umumnya `us-east-1` | `path` |
+
+Gunakan endpoint API tanpa nama bucket atau path. Buat bucket privat terlebih dahulu. Beri kredensial aplikasi izin baca/tulis object pada prefix; backup cloud juga memerlukan izin listing pada prefix. `S3_SESSION_TOKEN` opsional untuk kredensial AWS sementara. Untuk Docker, gunakan `.env.docker` dan endpoint yang bisa dijangkau dari container.
+
+Saat memindahkan gambar lama, isi konfigurasi cloud dan hentikan penulisan aplikasi serta scheduler backup. Jalankan perintah sesuai deployment:
+
+```sh
+# PM2 atau Bun langsung, dari direktori proyek
+APP_STOPPED_FOR_UPLOAD_COPY=1 bun run uploads:copy-to-cloud --confirm
+
+# Docker, gunakan image app yang telah dibangun ulang
+docker compose --env-file .env.docker run --rm --no-deps \
+  -e APP_STOPPED_FOR_UPLOAD_COPY=1 app bun copy-uploads-to-cloud.mjs --confirm
+```
+
+Perintah mempertahankan nama file, tidak menghapus salinan lokal, dan menolak menimpa object dengan isi berbeda. Setelah sukses, pilih `UPLOAD_STORAGE=cloud` dan jalankan kembali aplikasi serta backup. Gambar baru setelah pindah hanya ditulis ke cloud. Backup dapat menyimpan gambar dari kedua mode; lihat [panduan backup](docs/backup.md).
+
 ## Metadata dan instalasi
 
 `/sign-in` adalah halaman publik untuk mesin pencari dan preview tautan. Atur `APP_ORIGIN` ke origin HTTPS yang sebenarnya agar URL canonical dan gambar Open Graph memakai domain deployment. Saat origin belum dikonfigurasi, URL absolut tersebut tidak dikirim. Halaman workspace, task, dan Trash tetap membutuhkan sesi dan mengirim `noindex`.

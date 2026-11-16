@@ -28,6 +28,7 @@
     "test:mail": "bun scripts/mail-integration.ts",
     "test:settings": "bun scripts/settings-integration.ts",
     "test:development": "bun scripts/development-smoke.ts",
+    "uploads:copy-to-cloud": "bun scripts/copy-uploads-to-cloud.ts",
     "backup:create": "bun scripts/backup.ts create",
     "backup:verify": "bun scripts/backup.ts verify",
     "backup:restore": "bun scripts/backup.ts restore",

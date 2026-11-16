@@ -22,7 +22,11 @@ export function imageExtension(data: Uint8Array): ImageExtension {
 }
 
 export function requireImageFilename(filename: string) {
-  if (!/^[a-f0-9-]{36}\.(png|jpg|gif|webp)$/.test(filename)) {
+  if (!/^[a-f0-9-]{36}\.(png|jpe?g|gif|webp)$/.test(filename)) {
     throw new ApplicationError('not_found', 'Image not found')
   }
+}
+
+export function imageContentType(filename: string) {
+  return `image/${filename.endsWith('.jpg') ? 'jpeg' : filename.split('.').pop()}`
 }
