@@ -19,6 +19,17 @@ export default defineNuxtConfig({
     }
   },
 
+  routeRules: {
+    '/': { headers: { 'X-Robots-Tag': 'noindex' } },
+    '/workspaces': { headers: { 'X-Robots-Tag': 'noindex' } },
+    '/workspaces/**': { headers: { 'X-Robots-Tag': 'noindex' } },
+    '/tasks': { headers: { 'X-Robots-Tag': 'noindex' } },
+    '/trash': { headers: { 'X-Robots-Tag': 'noindex' } },
+    '/api/**': { headers: { 'X-Robots-Tag': 'noindex' } },
+    '/images/**': { headers: { 'X-Robots-Tag': 'noindex' } },
+    '/collaboration/**': { headers: { 'X-Robots-Tag': 'noindex' } }
+  },
+
   compatibilityDate: '2025-01-15',
 
   nitro: {
@@ -56,42 +67,8 @@ export default defineNuxtConfig({
 
   pwa: {
     registerType: 'autoUpdate',
-    manifest: {
-      name: 'SeleSele',
-      short_name: 'SeleSele',
-      description: 'SeleSele is a Notion alternative with AI-powered completions and real-time collaboration',
-      lang: 'en',
-      display: 'standalone',
-      background_color: '#ffffff',
-      theme_color: '#171717',
-      icons: [
-        {
-          src: '/icons/icon_64x64.png',
-          sizes: '64x64',
-          type: 'image/png'
-        },
-        {
-          src: '/icons/icon_144x144.png',
-          sizes: '144x144',
-          type: 'image/png'
-        },
-        {
-          src: '/icons/icon_192x192.png',
-          sizes: '192x192',
-          type: 'image/png'
-        },
-        {
-
-          src: '/icons/icon_384x384.png',
-          sizes: '384x384',
-          type: 'image/png'
-        },
-        {
-          src: '/icons/icon_512x512.png',
-          sizes: '512x512',
-          type: 'image/png'
-        }
-      ]
-    }
+    // Serve the same manifest in development and production without a dev worker.
+    manifest: false,
+    workbox: { navigateFallback: null }
   }
 })

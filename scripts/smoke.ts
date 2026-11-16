@@ -37,17 +37,46 @@ try {
     method: 'POST', headers: { Origin: 'https://untrusted.example' }, body: '{}'
   })
   assert.equal(crossOrigin.status, 403, 'CSRF protection')
-  const signIn = await fetch(`${origin}/sign-in`)
+  const signIn = await fetch(`${origin}/sign-in?error=microsoft`)
   assert.equal(signIn.status, 200)
-  assert.ok((await signIn.text()).includes('Continue with Microsoft'), 'Microsoft sign-in item is server-rendered')
-  const home = await fetch(origin, { redirect: 'manual' })
-  assert.equal(home.status, 302, 'Unauthenticated home redirect')
+  const markup = await signIn.text()
+  assert.ok(markup.includes('Continue with Microsoft'), 'Microsoft sign-in item is server-rendered')
+  const html = markup.split('</head>', 1)[0]!
+  assert.ok(html.includes('<title>SeleSele — A workspace for your team</title>'))
+  assert.ok(html.includes(`rel="canonical" href="${origin}/sign-in"`), 'Canonical uses the configured origin without the query')
+  assert.ok(html.includes(`property="og:image" content="${origin}/branding/social-card.png"`))
+  assert.ok(html.includes('name="twitter:card" content="summary_large_image"'))
+  assert.ok(html.includes('rel="manifest" href="/manifest.webmanifest"'))
+  assert.ok(!html.includes('content="noindex"'), 'Public sign-in is indexable')
+  assert.ok((await fetch(`${origin}/branding/social-card.png`)).headers.get('content-type')?.startsWith('image/png'))
+
+  const manifestResponse = await fetch(`${origin}/manifest.webmanifest`)
+  assert.equal(manifestResponse.status, 200)
+  assert.match(manifestResponse.headers.get('content-type') || '', /^application\/manifest\+json/)
+  const manifest = await manifestResponse.json() as { id: string, scope: string, start_url: string, icons: { src: string, purpose: string, sizes: string }[] }
+  assert.equal(manifest.id, '/')
+  assert.equal(manifest.scope, '/')
+  assert.equal(manifest.start_url, '/')
+  assert.ok(manifest.icons.some(icon => icon.purpose === 'maskable'))
+  for (const icon of manifest.icons) {
+    const asset = await fetch(origin + icon.src)
+    assert.equal(asset.status, 200)
+    const png = new DataView(await asset.arrayBuffer())
+    assert.equal(`${png.getUint32(16)}x${png.getUint32(20)}`, icon.sizes)
+  }
+  assert.equal((await fetch(`${origin}/robots.txt`)).status, 200)
+
+  for (const path of ['/', '/tasks', '/trash', '/workspaces/private/items/private']) {
+    const response = await fetch(origin + path, { redirect: 'manual' })
+    assert.equal(response.status, 302, path)
+    assert.equal(response.headers.get('x-robots-tag'), 'noindex', path)
+  }
   const socket = await fetch(`${origin}/collaboration/019a71f3-32c1-7000-8000-000000000001`, {
     headers: { 'Origin': origin, 'Upgrade': 'websocket', 'Connection': 'Upgrade',
       'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==', 'Sec-WebSocket-Version': '13' }
   })
   assert.equal(socket.status, 401, 'WebSocket upgrade requires a session')
-  console.log('HTTP smoke: health, SSR, authentication, validation, CSRF and WebSocket upgrade passed')
+  console.log('HTTP smoke: metadata, manifest, SSR, authentication, validation, CSRF and WebSocket upgrade passed')
 } finally {
   server.kill('SIGTERM')
   await server.exited

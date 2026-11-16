@@ -108,6 +108,12 @@ pm2 stop sele-sele
 
 Untuk update, hentikan aplikasi, install dependency, build, jalankan migrasi, lalu restart. Jika mengubah nilai `HOST`/`PORT` dari shell, jalankan ulang ecosystem dengan `pm2 restart ecosystem.config.cjs --update-env`, lalu `pm2 save`. Secrets dibaca Bun dari `.env` pada direktori project.
 
+## Metadata dan instalasi
+
+`/sign-in` adalah halaman publik untuk mesin pencari dan preview tautan. Atur `APP_ORIGIN` ke origin HTTPS yang sebenarnya agar URL canonical dan gambar Open Graph memakai domain deployment. Saat origin belum dikonfigurasi, URL absolut tersebut tidak dikirim. Halaman workspace, task, dan Trash tetap membutuhkan sesi dan mengirim `noindex`.
+
+Manifest tersedia di `/manifest.webmanifest` pada development dan production. Aplikasi dapat dipasang dari browser yang mendukungnya; akses workspace tetap membutuhkan koneksi dan sesi aktif.
+
 ## Konfigurasi login dan AI
 
 Provider login diatur saat aplikasi mulai dengan `MICROSOFT_ENABLED=true|false` (default `true`) dan `GOOGLE_ENABLED=true|false` (default `false`). Provider yang dimatikan tidak muncul di halaman login dan endpoint login tidak dapat digunakan. Set keduanya `false` untuk menonaktifkan login baru; session aktif tetap berlaku. Restart aplikasi setelah mengubah `.env`.
