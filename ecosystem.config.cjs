@@ -19,7 +19,7 @@ module.exports = {
     time: true,
     env: {
       NODE_ENV: 'production',
-      HOST: process.env.HOST || '127.0.0.1',
+      HOST: process.env.HOST || '0.0.0.0',
       PORT: process.env.PORT || 8002
     }
   }]
