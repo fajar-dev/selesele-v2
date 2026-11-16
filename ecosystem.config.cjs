@@ -2,7 +2,7 @@ const { resolve } = require('node:path')
 
 module.exports = {
   apps: [{
-    name: 'sele-sele',
+    name: '8002-selesele',
     cwd: __dirname,
     script: resolve(__dirname, '.output/server/index.mjs'),
     interpreter: process.env.BUN_BIN || 'bun',
@@ -20,7 +20,7 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       HOST: process.env.HOST || '127.0.0.1',
-      PORT: process.env.PORT || 8030
+      PORT: process.env.PORT || 8002
     }
   }]
 }
